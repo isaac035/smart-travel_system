@@ -8,6 +8,7 @@ const orderItemSchema = new mongoose.Schema({
   qty:    { type: Number, default: 1 },
 });
 
+
 const productOrderSchema = new mongoose.Schema(
   {
     userId:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

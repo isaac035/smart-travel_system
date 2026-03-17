@@ -8,6 +8,7 @@ const {
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const { upload } = require('../config/cloudinary');
 
+
 // ─── Products ─────────────────────────────────────────────────
 router.get('/products', getProducts);
 router.get('/products/:id', getProduct);
