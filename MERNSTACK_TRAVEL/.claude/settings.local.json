@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 15 node:*)",
+      "Bash(nslookup:*)",
+      "Bash(npm create:*)",
+      "Bash(npx shadcn@latest:*)",
+      "Bash(npx vite:*)",
+      "Bash(node:*)",
+      "Bash(grep:*)",
+      "Bash(npx:*)",
+      "Bash(npm run:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

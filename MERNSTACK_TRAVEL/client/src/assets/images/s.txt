@@ -1,0 +1,21 @@
+Improve the navbar user section by replacing the visible Logout button with a dropdown menu.
+
+Requirements
+
+ Remove the Logout button from the navbar.
+ Make the user profile section (profile image + username) clickable.
+ When the user clicks the profile area, show a small dropdown menu.
+ The dropdown should appear below the profile image and username.
+ The dropdown should contain at least
+
+   Logout
+ The dropdown should have a clean modern design with rounded corners and a soft shadow.
+ Add a smooth openclose animation.
+ Clicking outside the dropdown should close it.
+ Keep the navbar layout balanced and aligned.
+
+Goal
+Create a clean SaaS-style navbar user menu where the profile image and username act as a dropdown trigger for actions like Logout.
+
+
+https://chatgpt.com/share/69b61627-f1ac-8009-8cb1-c9b96d82e7f8

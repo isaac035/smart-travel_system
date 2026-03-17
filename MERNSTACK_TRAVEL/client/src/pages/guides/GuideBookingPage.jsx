@@ -1,0 +1,371 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import api from '../../utils/api';
+import Layout from '../../components/Layout';
+import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
+
+const inputStyle = {
+  width: '100%', background: '#f9fafb', color: '#111827', fontSize: 14,
+  border: '1.5px solid #e5e7eb', borderRadius: 12,
+  padding: '12px 16px', outline: 'none',
+  transition: 'border-color 0.2s', boxSizing: 'border-box',
+};
+
+const labelStyle = {
+  display: 'block', fontSize: 12, fontWeight: 600, color: '#6b7280',
+  marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3,
+};
+
+const card = {
+  background: '#fff', border: '1px solid #e8eaed', borderRadius: 18,
+  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+};
+
+const DEPOSIT_PERCENTAGE = 30;
+
+export default function GuideBookingPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const [guide, setGuide] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [slipFile, setSlipFile] = useState(null);
+  const [error, setError] = useState('');
+
+  const [form, setForm] = useState({
+    travelerName: user?.name || '',
+    email: user?.email || '',
+    phone: '',
+    travelDate: '',
+    days: 1,
+    travelers: 1,
+    location: '',
+    specialRequests: '',
+  });
+
+  useEffect(() => {
+    api.get(`/guides/${id}`)
+      .then((res) => setGuide(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const totalPrice = guide ? guide.pricePerDay * Number(form.days) : 0;
+  const depositAmount = Math.round(totalPrice * DEPOSIT_PERCENTAGE / 100);
+  const remainingAmount = totalPrice - depositAmount;
+
+  // Calculate endDate
+  const startDate = form.travelDate ? new Date(form.travelDate) : null;
+  const endDate = startDate ? new Date(new Date(startDate).setDate(startDate.getDate() + Number(form.days) - 1)) : null;
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = async () => {
+    setError('');
+
+    // Validate all fields
+    if (!user) { setError('Please login to book a guide'); return; }
+    if (!form.travelerName.trim()) { setError('Please enter your name'); return; }
+    if (!form.email.trim()) { setError('Please enter your email'); return; }
+    if (!form.phone.trim()) { setError('Please enter your phone number'); return; }
+    if (!form.travelDate) { setError('Please select a start date'); return; }
+    if (!form.days || Number(form.days) < 1) { setError('Please enter number of days'); return; }
+    if (!form.location.trim()) { setError('Please enter a destination / meeting location'); return; }
+    if (!slipFile) { setError('Please upload your deposit payment slip'); return; }
+
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('guideId', id);
+      formData.append('travelerName', form.travelerName);
+      formData.append('email', form.email);
+      formData.append('phone', form.phone);
+      formData.append('startDate', form.travelDate);
+      formData.append('days', Number(form.days));
+      formData.append('travelers', Number(form.travelers));
+      formData.append('location', form.location);
+      formData.append('specialRequests', form.specialRequests);
+      formData.append('depositSlip', slipFile);
+
+      await api.post('/guides/bookings/create', formData);
+
+      toast.success('Booking request submitted!');
+      navigate('/my-guides');
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Booking failed. Please try again.';
+      setError(msg);
+      toast.error(msg);
+    } finally { setSubmitting(false); }
+  };
+
+  if (loading) return (
+    <Layout>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ width: 40, height: 40, border: '4px solid #f59e0b', borderTopColor: 'transparent', borderRadius: '50%' }} className="animate-spin" />
+      </div>
+    </Layout>
+  );
+
+  if (!guide) return (
+    <Layout>
+      <div style={{ textAlign: 'center', padding: '80px 20px', color: '#9ca3af' }}>
+        Guide not found. <Link to="/services/guides" style={{ color: '#d97706' }}>← Back</Link>
+      </div>
+    </Layout>
+  );
+
+  return (
+    <Layout>
+      <div style={{ background: '#f8f9fb', minHeight: '100vh' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 20px 60px' }}>
+
+          {/* Header */}
+          <div style={{ marginBottom: 28 }}>
+            <Link to={`/guides/${id}`} style={{ fontSize: 13, color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={(e) => { e.target.style.color = '#d97706'; }} onMouseLeave={(e) => { e.target.style.color = '#9ca3af'; }}>
+              ← Back to {guide.name}
+            </Link>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#111827', margin: '8px 0 0' }}>Request Your Guide</h1>
+            <p style={{ fontSize: 14, color: '#9ca3af', marginTop: 4 }}>Fill in the details below to request {guide.name} for your trip</p>
+          </div>
+
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 28, alignItems: 'start' }} className="booking-grid">
+
+              {/* ── Left: Form ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                {/* Your Details */}
+                <div style={{ ...card, padding: '24px 26px' }}>
+                  <h2 style={{ fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 20px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 30, height: 30, borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>👤</span>
+                    Your Details
+                  </h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <label style={labelStyle}>Full Name</label>
+                      <input name="travelerName" value={form.travelerName} onChange={handleChange} style={inputStyle}
+                        onFocus={(e) => { e.target.style.borderColor = '#f59e0b'; }} onBlur={(e) => { e.target.style.borderColor = '#e5e7eb'; }} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Email</label>
+                      <input name="email" type="email" value={form.email} onChange={handleChange} style={inputStyle}
+                        onFocus={(e) => { e.target.style.borderColor = '#f59e0b'; }} onBlur={(e) => { e.target.style.borderColor = '#e5e7eb'; }} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Phone</label>
+                      <input name="phone" value={form.phone} onChange={handleChange} style={inputStyle} placeholder="+94 77 123 4567"
+                        onFocus={(e) => { e.target.style.borderColor = '#f59e0b'; }} onBlur={(e) => { e.target.style.borderColor = '#e5e7eb'; }} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Travelers</label>
+                      <input name="travelers" type="number" min="1" value={form.travelers} onChange={handleChange} style={inputStyle}
+                        onFocus={(e) => { e.target.style.borderColor = '#f59e0b'; }} onBlur={(e) => { e.target.style.borderColor = '#e5e7eb'; }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Trip Details */}
+                <div style={{ ...card, padding: '24px 26px' }}>
+                  <h2 style={{ fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 20px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 30, height: 30, borderRadius: 8, background: '#ecfdf5', border: '1px solid #a7f3d0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🗺️</span>
+                    Trip Details
+                  </h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <label style={labelStyle}>Start Date</label>
+                      <input name="travelDate" type="date" value={form.travelDate} onChange={handleChange}
+                        min={new Date().toISOString().split('T')[0]} style={inputStyle}
+                        onFocus={(e) => { e.target.style.borderColor = '#f59e0b'; }} onBlur={(e) => { e.target.style.borderColor = '#e5e7eb'; }} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Number of Days</label>
+                      <input name="days" type="number" min="1" max="30" value={form.days} onChange={handleChange} style={inputStyle}
+                        onFocus={(e) => { e.target.style.borderColor = '#f59e0b'; }} onBlur={(e) => { e.target.style.borderColor = '#e5e7eb'; }} />
+                    </div>
+                    {endDate && (
+                      <div style={{ gridColumn: '1 / -1', background: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#166534' }}>
+                        Trip: {startDate.toLocaleDateString()} — {endDate.toLocaleDateString()} ({form.days} day{Number(form.days) > 1 ? 's' : ''})
+                      </div>
+                    )}
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={labelStyle}>Destination / Meeting Location</label>
+                      <input name="location" value={form.location} onChange={handleChange}
+                        placeholder="e.g. Kandy, Ella, Sigiriya..." style={inputStyle}
+                        onFocus={(e) => { e.target.style.borderColor = '#f59e0b'; }} onBlur={(e) => { e.target.style.borderColor = '#e5e7eb'; }} />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={labelStyle}>Special Requests (Optional)</label>
+                      <textarea name="specialRequests" value={form.specialRequests} onChange={handleChange} rows={3}
+                        placeholder="Any special requirements, preferences or accessibility needs..."
+                        style={{ ...inputStyle, resize: 'vertical', minHeight: 80 }}
+                        onFocus={(e) => { e.target.style.borderColor = '#f59e0b'; }} onBlur={(e) => { e.target.style.borderColor = '#e5e7eb'; }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment */}
+                <div style={{ ...card, padding: '24px 26px' }}>
+                  <h2 style={{ fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 30, height: 30, borderRadius: 8, background: '#fffbeb', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>💳</span>
+                    Advance Deposit Payment
+                  </h2>
+                  <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 16 }}>
+                    Upload your bank transfer slip for the advance deposit. Your booking request will be reviewed by the guide and our team before final confirmation.
+                  </p>
+
+                  <label style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    padding: '28px 20px', borderRadius: 14,
+                    border: '2px dashed #e5e7eb', background: '#fafafa',
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    minHeight: 100,
+                  }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#fcd34d'; e.currentTarget.style.background = '#fffbeb'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#fafafa'; }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p style={{ fontSize: 14, color: '#6b7280', margin: '10px 0 0', textAlign: 'center' }}>
+                      {slipFile ? (
+                        <span style={{ color: '#059669', fontWeight: 600 }}>✓ {slipFile.name}</span>
+                      ) : (
+                        <>Click to upload deposit payment slip</>
+                      )}
+                    </p>
+                    <input type="file" accept="image/*" onChange={(e) => setSlipFile(e.target.files[0])} style={{ display: 'none' }} />
+                  </label>
+
+                  {/* Important note */}
+                  <div style={{
+                    background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10,
+                    padding: '12px 16px', fontSize: 13, color: '#92400e', lineHeight: 1.6, marginTop: 14
+                  }}>
+                    <strong>Important:</strong> This payment secures your booking request and will be reviewed before final confirmation. Paying the deposit does not guarantee the selected guide until approval is completed.
+                  </div>
+                </div>
+
+                {/* Cancellation Policy */}
+                <div style={{
+                  ...card, padding: '20px 24px',
+                }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: '#374151', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 8, background: '#fef2f2', border: '1px solid #fecaca', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>📋</span>
+                    Cancellation Policy
+                  </h3>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#6b7280', lineHeight: 2 }}>
+                    <li>3+ days before trip: <strong style={{ color: '#059669' }}>Full deposit refund</strong></li>
+                    <li>1-2 days before trip: <strong style={{ color: '#d97706' }}>50% deposit refund</strong></li>
+                    <li>On trip date: <strong style={{ color: '#dc2626' }}>No refund</strong></li>
+                    <li>Admin/guide cancellation: <strong style={{ color: '#059669' }}>Full deposit refund</strong></li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* ── Right: Summary Card ── */}
+              <div style={{ ...card, overflow: 'hidden', position: 'sticky', top: 90 }}>
+                {guide.image && (
+                  <div style={{ height: 180, overflow: 'hidden' }}>
+                    <img src={guide.image} alt={guide.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+                <div style={{ padding: '20px 22px 24px' }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: 0 }}>{guide.name}</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8, marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#6b7280' }}>
+                      <span>📍</span> {guide.location}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#6b7280' }}>
+                      <span>🗣️</span> {guide.languages?.join(', ')}
+                    </div>
+                  </div>
+
+                  {/* Trip Summary */}
+                  <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 16 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Trip Summary</p>
+
+                    <div style={{ fontSize: 14, color: '#374151' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span>Price Per Day</span>
+                        <span>LKR {guide.pricePerDay?.toLocaleString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span>Duration</span>
+                        <span>{form.days} day{Number(form.days) > 1 ? 's' : ''}</span>
+                      </div>
+                      {startDate && endDate && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <span>Dates</span>
+                          <span style={{ fontSize: 12 }}>{startDate.toLocaleDateString()} — {endDate.toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Price Breakdown */}
+                    <div style={{ borderTop: '1px solid #f3f4f6', marginTop: 12, paddingTop: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
+                        <span style={{ color: '#374151' }}>Total Trip Amount</span>
+                        <span style={{ fontWeight: 600, color: '#111827' }}>LKR {totalPrice.toLocaleString()}</span>
+                      </div>
+                      <div style={{
+                        display: 'flex', justifyContent: 'space-between', marginBottom: 8,
+                        padding: '10px 12px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a'
+                      }}>
+                        <span style={{ fontWeight: 600, color: '#92400e', fontSize: 14 }}>Advance Deposit ({DEPOSIT_PERCENTAGE}%)</span>
+                        <span style={{ fontWeight: 700, fontSize: 16, color: '#d97706' }}>LKR {depositAmount.toLocaleString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6b7280' }}>
+                        <span>Remaining Balance (pay later)</span>
+                        <span>LKR {remainingAmount.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Error message */}
+                  {error && (
+                    <div style={{
+                      background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10,
+                      padding: '10px 14px', marginTop: 16, fontSize: 13, color: '#dc2626',
+                      fontWeight: 500, textAlign: 'center',
+                    }}>
+                      {error}
+                    </div>
+                  )}
+
+                  {/* Submit */}
+                  <button type="button" onClick={handleSubmit} disabled={submitting}
+                    style={{
+                      width: '100%', marginTop: 20, padding: '14px 0',
+                      fontSize: 14, fontWeight: 700, color: '#fff',
+                      background: submitting ? '#d1d5db' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      border: 'none', borderRadius: 14,
+                      cursor: submitting ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s',
+                      boxShadow: submitting ? 'none' : '0 4px 14px rgba(245,158,11,0.3)',
+                    }}
+                  >
+                    {submitting ? 'Submitting...' : `Submit Request & Pay Deposit — LKR ${depositAmount.toLocaleString()}`}
+                  </button>
+                  <p style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 8, lineHeight: 1.4 }}>
+                    Your request will be reviewed by the guide and our team before confirmation
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Responsive */}
+      <style>{`
+        @media (max-width: 768px) {
+          .booking-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+    </Layout>
+  );
+}

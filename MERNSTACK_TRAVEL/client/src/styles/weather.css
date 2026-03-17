@@ -1,0 +1,47 @@
+/* Weather Page - Keep map below navbar */
+.leaflet-container {
+  z-index: 1 !important;
+}
+
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 1 !important;
+}
+
+.leaflet-control {
+  z-index: 2 !important;
+}
+
+/* Hero Banner */
+.weather-hero {
+  animation: heroFadeIn 0.8s ease-out;
+  background-clip: padding-box;
+}
+
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Weather Page Responsive */
+@media (max-width: 868px) {
+  .weather-map-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .weather-forecast-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .weather-legend-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+}

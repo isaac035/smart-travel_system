@@ -1,0 +1,853 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+
+
+/* Home.css (FULL FINAL) */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+}
+
+
+
+
+/* ✅ REMOVE hover dropdown (no conflict with JS) */
+/* .dropdown:hover .dropdown-content { display:block; } */
+
+/* ================= HERO SLIDER ================= */
+.slider-container {
+  position: relative;
+  width: 100%;
+  height: 92vh;
+  overflow: hidden;
+  z-index: 1;
+  /* ✅ below navbar */
+}
+
+.slide {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 0.8s ease-in-out;
+}
+
+.slide.active {
+  opacity: 1;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2;
+  pointer-events: none;
+  /* ✅ slider won't block navbar clicks */
+}
+
+.content {
+  position: absolute;
+  top: 10%;
+  color: white;
+  z-index: 5;
+  margin-left: 110px;
+  max-width: 800px;
+  width: calc(100% - 40px);
+}
+
+.content h1 {
+  font-size: 44px;
+  font-weight: 800;
+}
+
+#description {
+  margin-top: 10px;
+  font-size: 16px;
+}
+
+.content button {
+  padding: 15px;
+  font-size: 16px;
+  color: black;
+  background-color: white;
+  border-radius: 30px;
+  border: none;
+  margin-top: 20px;
+  cursor: pointer;
+}
+
+.content button:hover {
+  background-color: #e1a524;
+  color: black;
+}
+
+.circle-container {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 10;
+}
+
+.circle {
+  width: 15px;
+  height: 15px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0.6;
+}
+
+.circle.active {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.circle:hover {
+  background: gray;
+}
+
+/* ================= ABOUT ================= */
+.srilanka-about {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+  margin-top: 80px;
+}
+
+.lanka-details {
+  width: 500px;
+  text-align: left;
+  padding-right: 20px;
+}
+
+.lanka-iamge {
+  width: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lanka-iamge img {
+  height: 500px;
+  border-radius: 10px;
+  box-shadow: 0 0px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* ================= POPULAR PLACES ================= */
+.popular {
+  text-align: center;
+  margin-top: 60px;
+}
+
+.popular h1 {
+  font-size: 2em;
+  margin-bottom: 40px;
+}
+
+.places {
+  display: flex;
+  gap: 80px;
+  margin-top: 50px;
+  margin-bottom: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.custom-link {
+  text-decoration: none;
+  color: black;
+}
+
+.custom-link:hover {
+  color: black;
+}
+
+.place {
+  cursor: pointer;
+  width: 230px;
+  height: 330px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 0px 100px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  transition: transform 0.3s ease;
+  text-align: left;
+}
+
+.place img {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  display: block;
+}
+
+.place-details {
+  padding: 15px;
+}
+
+.place-details h2 {
+  font-size: 20px;
+  margin: 10px 0 5px;
+}
+
+.place-details p {
+  font-size: 14px;
+  color: #555;
+}
+
+.place:hover {
+  transform: scale(1.05);
+}
+
+.popular button {
+  margin-top: 30px;
+  padding: 10px 20px;
+  font-size: 1em;
+  cursor: pointer;
+  border: 2px solid black;
+  background-color: black;
+  color: white;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 25px;
+  margin-bottom: 40px;
+  font-weight: 600;
+}
+
+.popular button:hover {
+  background-color: white;
+  color: black;
+}
+
+
+
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 768px) {
+
+  .content {
+    margin-left: 20px;
+    top: 25%;
+  }
+
+  .content h1 {
+    font-size: 34px;
+    line-height: 1.15;
+  }
+
+  #description {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .srilanka-about {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .lanka-details,
+  .lanka-iamge {
+    width: 100%;
+    max-width: 520px;
+    padding-right: 0;
+  }
+
+  .lanka-iamge img {
+    width: 100%;
+    height: auto;
+    max-height: 500px;
+    object-fit: cover;
+  }
+
+  .gallery-box img {
+    width: 92%;
+    height: auto;
+  }
+
+  .galley-text {
+    margin: -260px 20px 0;
+    width: auto;
+  }
+
+  .galley-text h1 {
+    font-size: 32px;
+  }
+}
+
+
+
+/* ================= SRI LANKA INFO SECTIONS (NEW) ================= */
+.sl-sections {
+  width: 100%;
+  padding: 70px 0;
+  background: linear-gradient(180deg, #0b0f14 0%, #0a0a0a 100%);
+}
+
+.sl-wrap {
+  width: min(1100px, 90%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+}
+
+.sl-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  padding: 26px;
+  border-radius: 18px;
+  background: rgba(202, 25, 25, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.sl-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(255, 233, 39, 0.35);
+  box-shadow: 0 35px 90px rgba(0, 0, 0, 0.55);
+}
+
+/* alternate layout (image left / right) */
+.sl-card.reverse {
+  grid-template-columns: 1fr 1fr;
+}
+
+.sl-card.reverse .sl-media {
+  order: 2;
+}
+
+.sl-card.reverse .sl-body {
+  order: 1;
+}
+
+.sl-media {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  height: 360px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+}
+
+.sl-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.03);
+  transition: transform 0.35s ease;
+  display: block;
+}
+
+.sl-card:hover .sl-media img {
+  transform: scale(1.10);
+}
+
+.sl-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 233, 39, 0.12), rgba(0, 0, 0, 0.35));
+  pointer-events: none;
+}
+
+.sl-body {
+  text-align: left;
+  color: #D0D3D4;
+}
+
+.sl-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 10px;
+}
+
+.sl-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffe927;
+  box-shadow: 0 0 0 6px rgba(255, 233, 39, 0.12);
+}
+
+.sl-title {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #ffffff;
+  margin-bottom: 12px;
+}
+
+.sl-text {
+  font-size: 15px;
+  line-height: 1.85;
+  color: rgba(208, 211, 212, 0.92);
+}
+
+.sl-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sl-btn {
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.sl-btn:hover {
+  background: #e1a524;
+  color: #000;
+  border-color: #e1a524;
+}
+
+/* responsive */
+@media (max-width: 768px) {
+  .sl-card {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  .sl-card.reverse .sl-media {
+    order: 1;
+  }
+
+  .sl-card.reverse .sl-body {
+    order: 2;
+  }
+
+  .sl-media {
+    height: 240px;
+  }
+
+  .sl-title {
+    font-size: 26px;
+  }
+}
+
+/* ====== OVERRIDE: Make the section background WHITE (card only black) ====== */
+.sl-sections {
+  background: #ffffff !important;
+  /* white outside area */
+  padding: 80px 0 !important;
+}
+
+/* optional: little soft grey shadow around whole section */
+.sl-wrap {
+  width: min(1100px, 90%);
+  margin: 0 auto;
+}
+
+/* card still dark */
+.sl-card {
+  background: #151515 !important;
+  /* black card */
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* text colors (keep readable on black) */
+.sl-title {
+  color: #fff !important;
+}
+
+.sl-text {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.sl-kicker {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* image overlay slightly less dark */
+.sl-media::after {
+  background: linear-gradient(120deg, rgba(255, 233, 39, 0.12), rgba(0, 0, 0, 0.25)) !important;
+}
+
+
+.sl-sections {
+  background: #fff !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+
+/* ================= ENHANCED ABOUT SECTION (LIGHT MODE) ================= */
+.srilanka-about-wrapper {
+  width: 100%;
+  background: #ffffff;
+  padding: 40px 0 5px;
+}
+
+.srilanka-about {
+  width: 90%;
+  max-width: 1000px;
+  margin: 15px auto;
+  padding: 20px 35px;
+  background: #E5E4E2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 50px;
+  border-radius: 20px;
+  box-shadow: 0 8px 40px rgba(255, 253, 253, 0.08), 0 2px 10px rgba(194, 194, 194, 0.04);
+  border: 1px solid #e5e7eb;
+  min-height: auto;
+}
+
+.lanka-details {
+  width: 500px;
+  text-align: left;
+  padding-right: 20px;
+}
+
+.lanka-details p {
+  font-size: 15px;
+  line-height: 1.9;
+  color: #444;
+}
+
+.lanka-details p b {
+  color: #1a73e8;
+}
+
+.details-srilanka {
+  margin-top: 12px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: #f5f7fa;
+  border: 1px solid #e8ebef;
+  box-shadow: 0 4px 16px rgba(204, 200, 200, 0.05);
+  line-height: 2;
+}
+
+.details-srilanka b {
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.lanka-iamge img {
+  border-radius: 15px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+  transform: scale(1);
+  transition: transform 0.35s ease;
+}
+
+.lanka-iamge img:hover {
+  transform: scale(1.03);
+}
+
+/* Mobile improve about */
+@media (max-width: 768px) {
+  .srilanka-about {
+    flex-direction: column;
+    padding: 50px 20px;
+    gap: 30px;
+  }
+
+  .lanka-details,
+  .lanka-iamge {
+    width: 100%;
+    max-width: 520px;
+    padding-right: 0;
+  }
+
+  .details-srilanka {
+    padding: 14px 14px;
+  }
+}
+
+/* ================= TRAVEL SERVICES ================= */
+.travel-services {
+  text-align: center;
+  padding: 60px 20px 70px;
+  background: #ffffff;
+}
+
+.travel-services h1 {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 12px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: #1a1a1a;
+}
+
+.travel-services h1::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 5px;
+  border-radius: 999px;
+  background: #dde29b;
+}
+
+.ts-cards {
+  display: flex;
+  gap: 35px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 55px;
+}
+
+.ts-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 320px;
+  padding: 0 0 28px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.10);
+  text-decoration: none;
+  color: #1a1a1a;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.ts-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.18);
+  border-color: rgba(255, 233, 39, 0.5);
+}
+
+.ts-img-wrap {
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+  border-radius: 18px 18px 0 0;
+}
+
+.ts-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.ts-card:hover .ts-img-wrap img {
+  transform: scale(1.08);
+}
+
+.ts-card h2 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 16px 20px 8px;
+  color: #1a1a1a;
+}
+
+.ts-card p {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #555;
+  margin: 0 20px 14px;
+}
+
+.ts-link-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a73e8;
+  letter-spacing: 0.3px;
+  transition: color 0.25s;
+}
+
+.ts-card:hover .ts-link-label {
+  color: #0d47a1;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .travel-services h1 {
+    font-size: 26px;
+  }
+
+  .ts-cards {
+    gap: 24px;
+  }
+
+  .ts-card {
+    width: 280px;
+    padding: 30px 22px 24px;
+  }
+}
+
+
+/* ================= FOOTER ================= */
+/* ================= FOOTER (FIXED) ================= */
+.t2l-footer {
+  background: #000;
+  color: #fff;
+  padding: 60px 8%;
+  font-family: 'Poppins', sans-serif;
+}
+
+.t2l-footer__inner {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1.2fr;
+  /* contact column stays aligned */
+  gap: 60px;
+  align-items: start;
+}
+
+.t2l-footer__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 18px;
+  letter-spacing: 0.3px;
+}
+
+.t2l-footer__text {
+  margin: 0;
+  color: #cfcfcf;
+  font-size: 14px;
+  line-height: 1.8;
+  max-width: 320px;
+}
+
+.t2l-footer__link {
+  display: block;
+  color: #cfcfcf;
+  text-decoration: none;
+  /* ✅ no underline */
+  font-size: 14px;
+  margin: 0 0 12px;
+  transition: 0.25s;
+}
+
+.t2l-footer__link:hover {
+  color: #fff;
+}
+
+.t2l-footer__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #cfcfcf;
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+
+.t2l-footer__row i {
+  width: 18px;
+  color: #fff;
+}
+
+.t2l-footer__divider {
+  height: 1px;
+  background: #2a2a2a;
+  margin: 38px 0 18px;
+}
+
+.t2l-footer__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* ✅ keep copyright left, icons right */
+  gap: 20px;
+}
+
+.t2l-footer__copy {
+  margin: 0;
+  color: #bdbdbd;
+  font-size: 14px;
+}
+
+.t2l-footer__social {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.t2l-footer__icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  color: #fff;
+  text-decoration: none;
+  /* ✅ no underline */
+  transition: 0.25s;
+}
+
+.t2l-footer__icon:hover {
+  border-color: #fff;
+  transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 1000px) {
+  .t2l-footer__inner {
+    grid-template-columns: 1fr 1fr;
+    gap: 35px;
+  }
+
+  .t2l-footer__text {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .t2l-footer {
+    padding: 45px 6%;
+  }
+
+  .t2l-footer__inner {
+    grid-template-columns: 1fr;
+  }
+
+  .t2l-footer__bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.t2l-footer {
+  margin-bottom: 0 !important;
+}

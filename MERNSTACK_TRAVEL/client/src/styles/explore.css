@@ -1,0 +1,145 @@
+/* ================= EXPLORE PAGE ================= */
+.explore-page {
+  background: #ffffff;
+}
+
+
+/* ------------------- Tab Navigation ------------------- */
+.explore-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  background: #fff;
+  border-bottom: 2px solid #e0e0e0;
+  position: sticky;
+  top: 56px;
+  z-index: 90;
+}
+
+.explore-tabs__btn {
+  padding: 16px 40px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #888;
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.3s ease;
+}
+
+.explore-tabs__btn::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #ff6b35;
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.explore-tabs__btn:hover {
+  color: #333;
+}
+
+.explore-tabs__btn--active {
+  color: #222;
+}
+
+.explore-tabs__btn--active::after {
+  transform: scaleX(1);
+}
+
+/* ------------------- Category Cards ------------------- */
+.explore-categories {
+  max-width: 855px;
+  margin: 50px auto 100px;
+  padding: 0 20px;
+  text-align: center;
+}
+
+.explore-categories__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.category-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  overflow: hidden;
+  text-decoration: none;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+  background: #fff;
+}
+
+.category-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.category-card__img-wrap {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+
+.category-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.category-card:hover .category-card__img {
+  transform: scale(1.05);
+}
+
+.category-card__name {
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  text-align: center;
+  background: #fafafa;
+}
+
+@media (max-width: 768px) {
+  .explore-categories__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .explore-tabs__btn {
+    padding: 14px 24px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .explore-categories__grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .explore-tabs__btn {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+}
+
+/* ------------------- Plan Your Trip ------------------- */
+.explore-plan {
+  max-width: 1100px;
+  margin: 50px auto 0;
+  padding: 0 20px 100px;
+  min-height: 400px;
+}
