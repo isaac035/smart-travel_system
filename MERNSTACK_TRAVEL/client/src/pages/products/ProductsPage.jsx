@@ -6,6 +6,7 @@ import { useCart } from '../../context/CartContext';
 import { ShoppingCart } from 'lucide-react';
 import bannerImage from '../../assets/images/travel-products-banner.png';
 
+
 const MAX_PRICE = 200000;
 
 /* ── Product / Bundle Card ── */
