@@ -132,7 +132,7 @@ exports.getGuideBookings = async (req, res) => {
 // GET /api/admin/stats
 exports.getStats = async (req, res) => {
   try {
-    const [users, locations, hotels, guides, tourPackages, hotelBookings, guideBookings, tourBookings, productOrders] =
+    const [users, locations, hotels, guides, tourPackages, hotelBookings, guideBookings, tourBookings, productOrders, products] =
       await Promise.all([
         User.countDocuments(),
         Location.countDocuments(),
@@ -143,6 +143,7 @@ exports.getStats = async (req, res) => {
         GuideBooking.countDocuments(),
         TourBooking.countDocuments(),
         ProductOrder.countDocuments(),
+        Product.countDocuments(),
       ]);
 
     // Real revenue from all booking types
@@ -253,6 +254,7 @@ exports.getStats = async (req, res) => {
     res.json({
       users, locations, hotels, guides, tourPackages,
       hotelBookings, guideBookings, tourBookings, productOrders,
+      products,
       totalRevenue,
       monthlyRevenue,
       popularDestinations,
