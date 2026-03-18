@@ -13,7 +13,7 @@ const AVAILABILITY_OPTIONS = [
   { value: 'coming_soon', label: 'Coming Soon' },
   { value: 'pre_order', label: 'Pre Order' },
 ];
-const EMPTY = { name:'', description:'', price:'', stock:'', category:'Clothing', weatherType:'BOTH', availability:'in_stock' };
+const EMPTY = { name:'', description:'', price:'', stock:'', category:'Clothing', weatherType:'BOTH', availability:'in_stock', location: ['All Locations'] };
 
 const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const formatCurrency = (n) => `LKR ${Number(n).toLocaleString()}`;
@@ -24,6 +24,7 @@ export default function AdminProductsPage() {
 
   /* ───── products state (unchanged) ───── */
   const [products, setProducts] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -48,6 +49,7 @@ export default function AdminProductsPage() {
 
   /* ───── fetch on mount ───── */
   useEffect(() => {
+    api.get('/locations').then((r) => setLocations(r.data)).catch(() => {});
     api.get('/products').then((r) => { setProducts(r.data); setLoading(false); }).catch(() => setLoading(false));
     api.get('/admin/product-orders').then((r) => { setOrders(r.data); setOrdersLoading(false); }).catch(() => setOrdersLoading(false));
   }, []);
@@ -55,7 +57,8 @@ export default function AdminProductsPage() {
   /* ───── products logic (unchanged) ───── */
   const openCreate = () => { setForm(EMPTY); setImages([]); setExistingImages([]); setEditId(null); setShowForm(true); };
   const openEdit = (p) => {
-    setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, category: p.category, weatherType: p.weatherType || 'BOTH', availability: p.availability || 'in_stock' });
+    const locArray = Array.isArray(p.location) ? p.location : (p.location ? [p.location] : ['All Locations']);
+    setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, category: p.category, weatherType: p.weatherType || 'BOTH', availability: p.availability || 'in_stock', location: locArray });
     setExistingImages(p.images || []); setImages([]); setEditId(p._id); setShowForm(true);
   };
   const closeForm = () => { setShowForm(false); setEditId(null); };
@@ -64,7 +67,7 @@ export default function AdminProductsPage() {
     e.preventDefault(); setSaving(true);
     try {
       const fd = new FormData();
-      const payload = { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), category: form.category, weatherType: form.weatherType, availability: form.availability || 'in_stock' };
+      const payload = { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), category: form.category, weatherType: form.weatherType, availability: form.availability || 'in_stock', location: form.location && form.location.length > 0 ? form.location : ['All Locations'] };
       if (editId) payload.existingImages = existingImages;
       fd.append('data', JSON.stringify(payload));
       images.forEach((f) => fd.append('images', f));
@@ -125,17 +128,32 @@ export default function AdminProductsPage() {
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-8" style={{ minWidth: 0, overflow: 'hidden' }}>
         <AdminDrawer open={showForm} onClose={closeForm} title={editId ? 'Edit Product' : 'Add New Product'} saving={saving} onSubmit={handleSave} submitLabel={editId ? 'Update Product' : 'Create Product'}>
-          <div className="field-row cols-4">
-            <div className="field"><label>Product Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter product name" className="adm-input" /></div>
-            <div className="field"><label>Category</label><select value={form.category} onChange={f('category')} className="adm-select">{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
-            <div className="field"><label>Weather</label><select value={form.weatherType} onChange={f('weatherType')} className="adm-select"><option value="DRY">DRY</option><option value="RAINY">RAINY</option><option value="BOTH">BOTH</option></select></div>
-            <div className="field"><label>Price ($)</label><input type="number" step="0.01" value={form.price} onChange={f('price')} placeholder="29.99" className="adm-input" /></div>
+          <div className="field" style={{ marginBottom: 16 }}><label>Product Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter product name" className="adm-input" /></div>
+          <div className="field-row cols-2">
+            <div className="field-row cols-2" style={{ marginBottom: 0 }}>
+              <div className="field"><label>Category</label><select value={form.category} onChange={f('category')} className="adm-select">{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
+              <div className="field"><label>Weather</label><select value={form.weatherType} onChange={f('weatherType')} className="adm-select"><option value="DRY">DRY</option><option value="RAINY">RAINY</option><option value="BOTH">BOTH</option></select></div>
+              <div className="field"><label>Price ($)</label><input type="number" step="0.01" value={form.price} onChange={f('price')} placeholder="29.99" className="adm-input" /></div>
+              <div className="field"><label>Stock</label><input type="number" min={0} value={form.stock} onChange={f('stock')} placeholder="100" className="adm-input" /></div>
+              <div className="field"><label>Availability</label><select value={form.availability || 'in_stock'} onChange={f('availability')} className="adm-select">{AVAILABILITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+            </div>
+            <div className="field">
+              <label>Locations</label>
+              <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, background: '#f9fafb' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6, '&:hover': { background: '#f3f4f6' } }}>
+                  <input type="checkbox" checked={form.location?.includes('All Locations')} onChange={(e) => { const arr = form.location || []; setForm(p => ({...p, location: e.target.checked ? [...arr, 'All Locations'] : arr.filter(x => x !== 'All Locations')})); }} style={{ accentColor: '#f59e0b' }} /> All Locations
+                </label>
+                {locations.map((l) => (
+                  <label key={l._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6 }}>
+                    <input type="checkbox" checked={form.location?.includes(l.name)} onChange={(e) => { const arr = form.location || []; setForm(p => ({...p, location: e.target.checked ? [...arr, l.name] : arr.filter(x => x !== l.name)})); }} style={{ accentColor: '#f59e0b' }} /> {l.name}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="field-row cols-2">
-            <div className="field"><label>Description</label><textarea value={form.description} onChange={f('description')} rows={3} placeholder="Describe this product..." className="adm-textarea" /></div>
-            <div className="field-row cols-3" style={{ marginBottom: 0, alignSelf: 'start' }}>
-              <div className="field"><label>Availability</label><select value={form.availability || 'in_stock'} onChange={f('availability')} className="adm-select">{AVAILABILITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
-              <div className="field"><label>Stock</label><input type="number" min={0} value={form.stock} onChange={f('stock')} placeholder="100" className="adm-input" /></div>
+            <div className="field"><label>Description</label><textarea value={form.description} onChange={f('description')} rows={3} placeholder="Describe this product..." className="adm-textarea" style={{ height: '100%' }} /></div>
+            <div className="field-row cols-1" style={{ marginBottom: 0, alignSelf: 'start' }}>
               <div className="field">
                 <label>Images</label>
                 {(existingImages.length > 0 || images.length > 0) && (
