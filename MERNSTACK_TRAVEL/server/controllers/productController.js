@@ -15,8 +15,15 @@ const getProducts = async (req, res) => {
     }
     if (req.query.minPrice) filter.price = { $gte: Number(req.query.minPrice) };
     if (req.query.maxPrice) filter.price = { ...filter.price, $lte: Number(req.query.maxPrice) };
-    if (req.query.inStock === 'true') filter.stock = { $gt: 0 };
-    if (req.query.inStock === 'false') filter.stock = 0;
+    // Availability filter (comma-separated: in_stock,out_of_stock,coming_soon,pre_order)
+    if (req.query.availability) {
+      const vals = req.query.availability.split(',').filter(Boolean);
+      if (vals.length > 0) filter.availability = { $in: vals };
+    } else {
+      // legacy inStock param kept for backwards compat
+      if (req.query.inStock === 'true') filter.stock = { $gt: 0 };
+      if (req.query.inStock === 'false') filter.stock = 0;
+    }
 
     const products = await Product.find(filter).sort({ createdAt: -1 });
     res.json(products);

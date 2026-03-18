@@ -7,7 +7,13 @@ import { Plus, Pencil, Trash2, ShoppingBag, Upload, Search, Eye, CheckCircle, XC
 import AdminTabs from '../../components/AdminTabs';
 
 const CATEGORIES = ['Clothing','Gear','Accessories','Food','Souvenirs','Other'];
-const EMPTY = { name:'', description:'', price:'', stock:'', category:'Clothing', weatherType:'BOTH' };
+const AVAILABILITY_OPTIONS = [
+  { value: 'in_stock', label: 'In Stock' },
+  { value: 'out_of_stock', label: 'Out of Stock' },
+  { value: 'coming_soon', label: 'Coming Soon' },
+  { value: 'pre_order', label: 'Pre Order' },
+];
+const EMPTY = { name:'', description:'', price:'', stock:'', category:'Clothing', weatherType:'BOTH', availability:'in_stock' };
 
 const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const formatCurrency = (n) => `LKR ${Number(n).toLocaleString()}`;
@@ -49,7 +55,7 @@ export default function AdminProductsPage() {
   /* ───── products logic (unchanged) ───── */
   const openCreate = () => { setForm(EMPTY); setImages([]); setExistingImages([]); setEditId(null); setShowForm(true); };
   const openEdit = (p) => {
-    setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, category: p.category, weatherType: p.weatherType || 'BOTH' });
+    setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, category: p.category, weatherType: p.weatherType || 'BOTH', availability: p.availability || 'in_stock' });
     setExistingImages(p.images || []); setImages([]); setEditId(p._id); setShowForm(true);
   };
   const closeForm = () => { setShowForm(false); setEditId(null); };
@@ -58,7 +64,7 @@ export default function AdminProductsPage() {
     e.preventDefault(); setSaving(true);
     try {
       const fd = new FormData();
-      const payload = { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), category: form.category, weatherType: form.weatherType };
+      const payload = { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), category: form.category, weatherType: form.weatherType, availability: form.availability || 'in_stock' };
       if (editId) payload.existingImages = existingImages;
       fd.append('data', JSON.stringify(payload));
       images.forEach((f) => fd.append('images', f));
@@ -127,7 +133,8 @@ export default function AdminProductsPage() {
           </div>
           <div className="field-row cols-2">
             <div className="field"><label>Description</label><textarea value={form.description} onChange={f('description')} rows={3} placeholder="Describe this product..." className="adm-textarea" /></div>
-            <div className="field-row cols-2" style={{ marginBottom: 0, alignSelf: 'start' }}>
+            <div className="field-row cols-3" style={{ marginBottom: 0, alignSelf: 'start' }}>
+              <div className="field"><label>Availability</label><select value={form.availability || 'in_stock'} onChange={f('availability')} className="adm-select">{AVAILABILITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
               <div className="field"><label>Stock</label><input type="number" min={0} value={form.stock} onChange={f('stock')} placeholder="100" className="adm-input" /></div>
               <div className="field">
                 <label>Images</label>

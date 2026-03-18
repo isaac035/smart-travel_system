@@ -9,12 +9,26 @@ import bannerImage from '../../assets/images/travel-products-banner.png';
 
 const MAX_PRICE = 200000;
 
+const getAvailabilityConfig = (availability, stock) => {
+  if (availability === 'out_of_stock' || stock === 0) {
+    return { text: 'Out of Stock', bg: 'rgba(239,68,68,0.12)', color: '#dc2626', border: 'rgba(239,68,68,0.25)', isUnavailable: true };
+  }
+  if (availability === 'coming_soon') {
+    return { text: 'Coming Soon', bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6', border: 'rgba(139,92,246,0.25)', isUnavailable: false };
+  }
+  if (availability === 'pre_order') {
+    return { text: 'Pre Order', bg: 'rgba(56,189,248,0.12)', color: '#0284c7', border: 'rgba(56,189,248,0.25)', isUnavailable: false };
+  }
+  return { text: `In Stock ${stock > 0 ? `(${stock})` : ''}`, bg: 'rgba(16,185,129,0.12)', color: '#059669', border: 'rgba(16,185,129,0.25)', isUnavailable: false };
+};
+
 /* ── Product / Bundle Card ── */
 const ProductCard = ({ item, type, onAddToCart, index }) => {
   const price = type === 'bundle'
     ? item.totalPrice * (1 - (item.discount || 0) / 100)
     : item.price;
-  const isOutOfStock = type === 'product' && item.stock === 0;
+  const availConfig = type === 'product' ? getAvailabilityConfig(item.availability, item.stock) : null;
+  const isUnavailable = type === 'product' ? availConfig.isUnavailable : false;
 
   return (
     <div
@@ -50,18 +64,18 @@ const ProductCard = ({ item, type, onAddToCart, index }) => {
             {type === 'bundle' ? '🎒' : '🛍️'}
           </div>
         )}
-        {/* Stock badge */}
-        {type === 'product' && (
+        {/* Availability badge */}
+        {type === 'product' && availConfig && (
           <div style={{
             position: 'absolute', top: 10, right: 10,
             padding: '4px 12px', borderRadius: 20,
             fontSize: 11, fontWeight: 600,
             backdropFilter: 'blur(8px)',
-            background: isOutOfStock ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
-            color: isOutOfStock ? '#dc2626' : '#059669',
-            border: `1px solid ${isOutOfStock ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
+            background: availConfig.bg,
+            color: availConfig.color,
+            border: `1px solid ${availConfig.border}`,
           }}>
-            {isOutOfStock ? 'Out of Stock' : `In Stock (${item.stock})`}
+            {availConfig.text}
           </div>
         )}
         {/* Discount badge */}
@@ -126,20 +140,20 @@ const ProductCard = ({ item, type, onAddToCart, index }) => {
           </div>
           <button
             onClick={() => onAddToCart(item._id, type)}
-            disabled={isOutOfStock}
+            disabled={isUnavailable}
             style={{
               padding: '8px 18px', fontSize: 12, fontWeight: 600,
-              background: isOutOfStock ? '#e5e7eb' : 'linear-gradient(135deg,#f59e0b,#d97706)',
-              color: isOutOfStock ? '#9ca3af' : '#fff',
+              background: isUnavailable ? '#e5e7eb' : 'linear-gradient(135deg,#f59e0b,#d97706)',
+              color: isUnavailable ? '#9ca3af' : '#fff',
               border: 'none', borderRadius: 10,
-              cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+              cursor: isUnavailable ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
-              boxShadow: isOutOfStock ? 'none' : '0 2px 8px rgba(245,158,11,0.25)',
+              boxShadow: isUnavailable ? 'none' : '0 2px 8px rgba(245,158,11,0.25)',
             }}
-            onMouseEnter={(e) => { if (!isOutOfStock) { e.target.style.transform = 'scale(1.04)'; e.target.style.boxShadow = '0 4px 14px rgba(245,158,11,0.35)'; } }}
-            onMouseLeave={(e) => { if (!isOutOfStock) { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 2px 8px rgba(245,158,11,0.25)'; } }}
+            onMouseEnter={(e) => { if (!isUnavailable) { e.target.style.transform = 'scale(1.04)'; e.target.style.boxShadow = '0 4px 14px rgba(245,158,11,0.35)'; } }}
+            onMouseLeave={(e) => { if (!isUnavailable) { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 2px 8px rgba(245,158,11,0.25)'; } }}
           >
-            {isOutOfStock ? 'Unavailable' : 'Add to Cart'}
+            {isUnavailable ? 'Unavailable' : 'Add to Cart'}
           </button>
         </div>
       </div>
@@ -185,8 +199,14 @@ export default function ProductsPage() {
       if (locationFilter) params.set('location', locationFilter);
       if (priceMin > 0) params.set('minPrice', priceMin);
       if (priceMax < MAX_PRICE) params.set('maxPrice', priceMax);
-      if (availability.inStock && !availability.outOfStock) params.set('inStock', 'true');
-      if (availability.outOfStock && !availability.inStock) params.set('inStock', 'false');
+      
+      const availVals = [];
+      if (availability.comingSoon) availVals.push('coming_soon');
+      if (availability.inStock) availVals.push('in_stock');
+      if (availability.outOfStock) availVals.push('out_of_stock');
+      if (availability.preOrder) availVals.push('pre_order');
+      if (availVals.length > 0) params.set('availability', availVals.join(','));
+
       const { data } = await api.get(`/products?${params}`);
       setProducts(data);
     } catch {}
