@@ -113,10 +113,10 @@ const ProductCard = ({ item, type, onAddToCart, index }) => {
           fontSize: 12, color: '#9ca3af', marginTop: 4, lineHeight: 1.5,
           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         }}>{item.description}</p>
-        {item.location && (
-          <p style={{ fontSize: 12, color: '#b0b0b0', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+        {item.location && item.location.length > 0 && (
+          <p style={{ fontSize: 12, color: '#b0b0b0', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#d97706" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            {item.location}
+            {Array.isArray(item.location) ? item.location.join(', ') : item.location}
           </p>
         )}
         {type === 'bundle' && item.products?.length > 0 && (
@@ -178,6 +178,7 @@ export default function ProductsPage() {
 
   const [nameSearch, setNameSearch] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
+  const [weatherFilter, setWeatherFilter] = useState('');
   const [priceMin, setPriceMin] = useState(0);
   const [priceMax, setPriceMax] = useState(MAX_PRICE);
   const [availability, setAvailability] = useState({
@@ -189,7 +190,7 @@ export default function ProductsPage() {
     fetchBundles();
   }, []);
 
-  useEffect(() => { fetchProducts(); }, [nameSearch, locationFilter, priceMin, priceMax, availability]);
+  useEffect(() => { fetchProducts(); }, [nameSearch, locationFilter, weatherFilter, priceMin, priceMax, availability]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -197,6 +198,7 @@ export default function ProductsPage() {
       const params = new URLSearchParams();
       if (nameSearch) params.set('search', nameSearch);
       if (locationFilter) params.set('location', locationFilter);
+      if (weatherFilter) params.set('weatherType', weatherFilter);
       if (priceMin > 0) params.set('minPrice', priceMin);
       if (priceMax < MAX_PRICE) params.set('maxPrice', priceMax);
       
@@ -223,7 +225,7 @@ export default function ProductsPage() {
   const locationNames = [...new Set(locations.map((l) => l.name))].sort();
 
   const activeFilterCount = [
-    nameSearch, locationFilter,
+    nameSearch, locationFilter, weatherFilter,
     priceMin > 0 || priceMax < MAX_PRICE,
     Object.values(availability).some(Boolean),
   ].filter(Boolean).length;
@@ -258,6 +260,16 @@ export default function ProductsPage() {
         <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} style={selectBase}>
           <option value="">All Locations</option>
           {locationNames.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <SideLabel>Weather</SideLabel>
+        <select value={weatherFilter} onChange={(e) => setWeatherFilter(e.target.value)} style={selectBase}>
+          <option value="">All Weather</option>
+          <option value="DRY">Dry</option>
+          <option value="RAINY">Rainy</option>
+          <option value="BOTH">Both</option>
         </select>
       </div>
 

@@ -9,7 +9,12 @@ const getProducts = async (req, res) => {
   try {
     const filter = { isActive: true };
     if (req.query.search) filter.name = { $regex: req.query.search, $options: 'i' };
-    if (req.query.location) filter.location = { $regex: req.query.location, $options: 'i' };
+    if (req.query.location) {
+      filter.$or = [
+        { location: { $regex: req.query.location, $options: 'i' } },
+        { location: 'All Locations' }
+      ];
+    }
     if (req.query.weatherType && req.query.weatherType !== 'ALL') {
       filter.weatherType = { $in: [req.query.weatherType, 'BOTH'] };
     }
