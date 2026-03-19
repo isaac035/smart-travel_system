@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
+
 const inputStyle = {
   width: '100%', background: '#f9fafb', color: '#111827', fontSize: 14,
   border: '1.5px solid #e5e7eb', borderRadius: 12,
@@ -49,7 +50,7 @@ export default function GuideBookingPage() {
   useEffect(() => {
     api.get(`/guides/${id}`)
       .then((res) => setGuide(res.data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [id]);
 
