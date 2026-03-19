@@ -27,6 +27,7 @@ import HotelBookingPage from './pages/hotels/HotelBookingPage';
 
 import ProductsPage from './pages/products/ProductsPage';
 import CartPage from './pages/products/CartPage';
+import ProductDetailsPage from './pages/products/ProductDetailsPage';
 
 import GuidesPage from './pages/guides/GuidesPage';
 import GuideDetailsPage from './pages/guides/GuideDetailsPage';
@@ -87,6 +88,7 @@ export default function App() {
               {/* Travel Products */}
               <Route path="/services/travel-products" element={<ProductsPage />} />
               <Route path="/services/travel-products/cart" element={<PrivateRoute><CartPage /></PrivateRoute>} />
+              <Route path="/services/travel-products/:id" element={<ProductDetailsPage />} />
 
               {/* Travel Guides */}
               <Route path="/services/guides" element={<GuidesPage />} />

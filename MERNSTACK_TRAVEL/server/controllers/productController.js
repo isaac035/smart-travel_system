@@ -113,9 +113,10 @@ const getBundle = async (req, res) => {
 const createBundle = async (req, res) => {
   try {
     const images = req.files ? req.files.map((f) => f.path) : [];
-    let products = req.body.products;
+    const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+    let products = body.products;
     if (typeof products === 'string') products = JSON.parse(products);
-    const bundle = await Bundle.create({ ...req.body, images, products: products || [] });
+    const bundle = await Bundle.create({ ...body, images, products: products || [] });
     res.status(201).json(bundle);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -127,10 +128,15 @@ const updateBundle = async (req, res) => {
     const bundle = await Bundle.findById(req.params.id);
     if (!bundle) return res.status(404).json({ message: 'Bundle not found' });
 
-    const updates = { ...req.body };
+    const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+    const updates = { ...body };
     if (typeof updates.products === 'string') updates.products = JSON.parse(updates.products);
-    if (req.files && req.files.length > 0) {
-      updates.images = [...(bundle.images || []), ...req.files.map((f) => f.path)];
+    const existingImages = updates.existingImages || null;
+    delete updates.existingImages;
+    if (existingImages !== null || (req.files && req.files.length > 0)) {
+      const kept = existingImages !== null ? existingImages : (bundle.images || []);
+      const newImages = req.files ? req.files.map((f) => f.path) : [];
+      updates.images = [...kept, ...newImages];
     }
 
     const updated = await Bundle.findByIdAndUpdate(req.params.id, updates, { new: true });
