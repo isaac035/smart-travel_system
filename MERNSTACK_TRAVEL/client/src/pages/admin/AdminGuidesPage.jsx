@@ -6,7 +6,7 @@ import api from '../../utils/api';
 import { Plus, Pencil, Trash2, Compass, Upload, Search, ClipboardList, CheckCircle, XCircle, Calendar, MapPin, Users, DollarSign, Clock, Eye, ShieldCheck, RefreshCw, ArrowRight, AlertTriangle, Ban, FileText, X, UserCheck, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
 
-const EMPTY = { name:'', bio:'', email:'', phone:'', languages:'', pricePerDay:'', services:'', location:'', isAvailable:true };
+const EMPTY = { name: '', bio: '', email: '', phone: '', languages: '', pricePerDay: '', services: '', location: '', isAvailable: true };
 
 const STATUS_LABELS = {
   deposit_submitted: 'Deposit Submitted',
@@ -85,6 +85,7 @@ export default function AdminGuidesPage() {
   const [availFilter, setAvailFilter] = useState('all');
   const [page, setPage] = useState(1);
   const perPage = 10;
+
 
   // === Booking Management State ===
   const [bookings, setBookings] = useState([]);
@@ -251,8 +252,8 @@ export default function AdminGuidesPage() {
 
   const filteredBookings = bookingFilter === 'all' ? searchedBookings
     : bookingFilter === 'action' ? searchedBookings.filter(b => ['deposit_submitted', 'guide_accepted', 'remaining_payment_submitted'].includes(b.status))
-    : bookingFilter === 'active' ? searchedBookings.filter(b => ['pending_guide_review', 'under_admin_review', 'remaining_payment_pending', 'fully_paid'].includes(b.status))
-    : searchedBookings.filter(b => ['completed', 'cancelled_by_user', 'cancelled_by_admin', 'guide_rejected', 'refunded', 'partially_refunded', 'no_refund'].includes(b.status));
+      : bookingFilter === 'active' ? searchedBookings.filter(b => ['pending_guide_review', 'under_admin_review', 'remaining_payment_pending', 'fully_paid'].includes(b.status))
+        : searchedBookings.filter(b => ['completed', 'cancelled_by_user', 'cancelled_by_admin', 'guide_rejected', 'refunded', 'partially_refunded', 'no_refund'].includes(b.status));
 
   const actionCount = bookings.filter(b => ['deposit_submitted', 'guide_accepted', 'remaining_payment_submitted'].includes(b.status)).length;
   const activeCount = bookings.filter(b => ['pending_guide_review', 'under_admin_review', 'remaining_payment_pending', 'fully_paid'].includes(b.status)).length;
@@ -371,8 +372,8 @@ export default function AdminGuidesPage() {
                 </div>
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between px-6 py-3" style={{ borderTop: '1px solid #f3f4f6' }}>
-                    <span className="text-sm text-gray-500">Showing {(page-1)*perPage+1}&ndash;{Math.min(page*perPage, filtered.length)} of {filtered.length}</span>
-                    <div className="flex gap-1.5">{Array.from({ length: totalPages }, (_, i) => <button key={i+1} onClick={() => setPage(i+1)} className={`adm-page-btn ${page === i+1 ? 'active' : ''}`}>{i+1}</button>)}</div>
+                    <span className="text-sm text-gray-500">Showing {(page - 1) * perPage + 1}&ndash;{Math.min(page * perPage, filtered.length)} of {filtered.length}</span>
+                    <div className="flex gap-1.5">{Array.from({ length: totalPages }, (_, i) => <button key={i + 1} onClick={() => setPage(i + 1)} className={`adm-page-btn ${page === i + 1 ? 'active' : ''}`}>{i + 1}</button>)}</div>
                   </div>
                 )}
               </div>

@@ -9,6 +9,7 @@ export default function GuideSchedulePage() {
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
+
   useEffect(() => {
     const loadSchedule = async () => {
       try {
