@@ -5,6 +5,7 @@ import api from '../../utils/api';
 import { useCart } from '../../context/CartContext';
 import { ArrowLeft, MapPin, ShoppingBag, Info, ShieldCheck, Wind } from 'lucide-react';
 
+
 const getAvailabilityConfig = (availability, stock) => {
   if (availability === 'out_of_stock' || stock === 0) {
     return { text: 'Out of Stock', bg: 'rgba(239,68,68,0.12)', color: '#dc2626', border: 'rgba(239,68,68,0.25)', isUnavailable: true };
