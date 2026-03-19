@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import { useCart } from '../../context/CartContext';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, X, MapPin } from 'lucide-react';
 import bannerImage from '../../assets/images/travel-products-banner.png';
 
 
@@ -23,7 +23,8 @@ const getAvailabilityConfig = (availability, stock) => {
 };
 
 /* ── Product / Bundle Card ── */
-const ProductCard = ({ item, type, onAddToCart, index }) => {
+const ProductCard = ({ item, type, onAddToCart, index, onCardClick }) => {
+  const navigate = useNavigate();
   const price = type === 'bundle'
     ? item.totalPrice * (1 - (item.discount || 0) / 100)
     : item.price;
@@ -39,11 +40,17 @@ const ProductCard = ({ item, type, onAddToCart, index }) => {
         transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
         animationName: 'prodFadeIn', animationDuration: '0.45s',
         animationFillMode: 'both', animationDelay: `${(index || 0) * 0.05}s`,
+        cursor: 'pointer',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-5px)';
         e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.1)';
         e.currentTarget.style.borderColor = '#fcd34d';
+      }}
+      onClick={(e) => {
+        if (e.target.closest('button')) return;
+        if (type === 'bundle' && onCardClick) onCardClick(item);
+        if (type === 'product') navigate(`/services/travel-products/${item._id}`);
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)';
@@ -174,6 +181,7 @@ export default function ProductsPage() {
   const [locations, setLocations] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const { addToCart, itemCount } = useCart();
+  const [selectedBundle, setSelectedBundle] = useState(null);
   const navigate = useNavigate();
 
   const [nameSearch, setNameSearch] = useState('');
@@ -511,7 +519,7 @@ export default function ProductsPage() {
                 <>
                   <p style={{ fontSize: 14, color: '#9ca3af', marginBottom: 16, fontWeight: 500 }}>{bundles.length} bundles found</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
-                    {bundles.map((b, i) => <ProductCard key={b._id} item={b} type="bundle" onAddToCart={addToCart} index={i} />)}
+                    {bundles.map((b, i) => <ProductCard key={b._id} item={b} type="bundle" onAddToCart={addToCart} index={i} onCardClick={setSelectedBundle} />)}
                   </div>
                 </>
               )}
@@ -519,6 +527,79 @@ export default function ProductsPage() {
           )}
         </div>
       </div>
+
+      {/* ── Bundle Detail Modal ── */}
+      {selectedBundle && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setSelectedBundle(null)}>
+          <div style={{ background: '#fff', borderRadius: 20, width: '90%', maxWidth: 800, maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setSelectedBundle(null)} style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+              <X size={20} color="#fff" />
+            </button>
+            <div style={{ position: 'relative', height: 280 }}>
+              {selectedBundle.images?.[0] ? (
+                <img src={selectedBundle.images[0]} alt={selectedBundle.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#fef3c7,#fde68a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64 }}>🎒</div>
+              )}
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent 60%)' }} />
+              <div style={{ position: 'absolute', bottom: 20, left: 24, right: 24 }}>
+                <h2 style={{ fontSize: 28, fontWeight: 800, color: '#fff', margin: 0, textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{selectedBundle.name}</h2>
+                {selectedBundle.location && selectedBundle.location.length > 0 && (
+                  <p style={{ fontSize: 13, color: '#f3f4f6', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <MapPin size={14} color="#fcd34d" />
+                    {Array.isArray(selectedBundle.location) ? selectedBundle.location.join(', ') : selectedBundle.location}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 24 }}>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 8 }}>About this Bundle</h3>
+                  <p style={{ fontSize: 14, color: '#4b5563', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{selectedBundle.description}</p>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0', minWidth: 200, textAlign: 'center' }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Total Price</p>
+                  {selectedBundle.discount > 0 && (
+                    <div style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through', marginBottom: 2 }}>
+                      LKR {selectedBundle.totalPrice?.toLocaleString()}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706', marginBottom: 16 }}>
+                    LKR {Math.round(selectedBundle.totalPrice * (1 - (selectedBundle.discount || 0) / 100)).toLocaleString()}
+                  </div>
+                  <button onClick={() => { addToCart(selectedBundle._id, 'bundle'); setSelectedBundle(null); }} style={{ width: '100%', padding: '12px 0', fontSize: 14, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#f59e0b,#d97706)', border: 'none', borderRadius: 12, cursor: 'pointer', boxShadow: '0 4px 12px rgba(245,158,11,0.3)' }}>Add to Cart</button>
+                </div>
+              </div>
+
+              {selectedBundle.products && selectedBundle.products.length > 0 && (
+                <>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 16, paddingTop: 24, borderTop: '1px solid #e5e7eb' }}>Included Items ({selectedBundle.products.length})</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+                    {selectedBundle.products.map(p => (
+                      <div key={p._id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, border: '1px solid #e5e7eb', borderRadius: 12, background: '#f9fafb' }}>
+                        <div style={{ width: 60, height: 60, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                          {p.images?.[0] ? (
+                            <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🛍️</div>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h4 style={{ fontSize: 13, fontWeight: 600, color: '#111827', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</h4>
+                          <p style={{ fontSize: 11, color: '#6b7280', marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
+
   );
 }

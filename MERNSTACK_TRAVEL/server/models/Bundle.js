@@ -8,6 +8,7 @@ const bundleSchema = new mongoose.Schema(
     totalPrice: { type: Number, required: true },
     discount: { type: Number, default: 0 },
     images: [{ type: String }],
+    location: [{ type: String }],
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
