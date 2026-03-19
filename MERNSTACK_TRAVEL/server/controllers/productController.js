@@ -65,6 +65,12 @@ const updateProduct = async (req, res) => {
 
     const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
     const updates = { ...body };
+    // Ensure location is always stored as an array
+    if (updates.location !== undefined) {
+      if (!Array.isArray(updates.location)) {
+        updates.location = [updates.location].filter(Boolean);
+      }
+    }
     const existingImages = updates.existingImages || null;
     delete updates.existingImages;
     if (existingImages !== null || (req.files && req.files.length > 0)) {
