@@ -6,19 +6,52 @@ import api from '../../utils/api';
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80';
 const VEHICLE_LABEL = { car: '🚗 Car', van: '🚐 Van', bus: '🚌 Bus' };
 
+const DURATION_FILTERS = [
+  { label: 'Any Duration', min: 0, max: Infinity },
+  { label: '1–3 Days', min: 1, max: 3 },
+  { label: '4–7 Days', min: 4, max: 7 },
+  { label: '7+ Days', min: 7, max: Infinity },
+];
+
+const PRICE_FILTERS = [
+  { label: 'Any Price', min: 0, max: Infinity },
+  { label: 'Under $200', min: 0, max: 199 },
+  { label: '$200–$500', min: 200, max: 500 },
+  { label: 'Over $500', min: 501, max: Infinity },
+];
+
+function FilterChip({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '7px 18px',
+        borderRadius: '20px',
+        fontSize: '13px',
+        fontWeight: 600,
+        cursor: 'pointer',
+        border: 'none',
+        transition: 'all 0.2s',
+        background: active ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255,255,255,0.15)',
+        color: active ? '#fff' : 'rgba(255,255,255,0.85)',
+        boxShadow: active ? '0 4px 12px rgba(245,158,11,0.4)' : 'none',
+        backdropFilter: 'blur(8px)',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 function PackageCard({ pkg }) {
   return (
     <Link
       to={`/tours/${pkg._id}`}
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#fff',
-        borderRadius: '20px',
-        overflow: 'hidden',
-        border: '1px solid #e5e7eb',
-        textDecoration: 'none',
-        color: 'inherit',
+        display: 'flex', flexDirection: 'column',
+        background: '#fff', borderRadius: '20px',
+        overflow: 'hidden', border: '1px solid #e5e7eb',
+        textDecoration: 'none', color: 'inherit',
         transition: 'transform 0.3s, box-shadow 0.3s',
         boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
       }}
@@ -69,6 +102,13 @@ function PackageCard({ pkg }) {
 
       {/* Body */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: '20px' }}>
+        {/* Destination label */}
+        {pkg.destination && (
+          <p style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>
+            📌 {pkg.destination}
+          </p>
+        )}
+
         <h3 style={{
           color: '#111827', fontSize: '16px', fontWeight: 700,
           lineHeight: 1.4, marginBottom: '8px',
@@ -159,6 +199,8 @@ export default function TourPackagesPage() {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [durationIdx, setDurationIdx] = useState(0);
+  const [priceIdx, setPriceIdx] = useState(0);
 
   useEffect(() => {
     api.get('/tours')
@@ -166,10 +208,17 @@ export default function TourPackagesPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  const filtered = packages.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.description.toLowerCase().includes(search.toLowerCase())
-  );
+  const dur = DURATION_FILTERS[durationIdx];
+  const pr = PRICE_FILTERS[priceIdx];
+
+  const filtered = packages.filter((p) => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.description.toLowerCase().includes(search.toLowerCase()) ||
+      (p.destination || '').toLowerCase().includes(search.toLowerCase());
+    const matchDur = p.duration >= dur.min && p.duration <= dur.max;
+    const matchPrice = p.basePrice >= pr.min && p.basePrice <= pr.max;
+    return matchSearch && matchDur && matchPrice;
+  });
 
   return (
     <Layout>
@@ -177,13 +226,13 @@ export default function TourPackagesPage() {
 
         {/* Hero */}
         <section style={{
-          position: 'relative', height: '65vh', minHeight: '420px',
+          position: 'relative', minHeight: '520px',
           backgroundImage: `url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920')`,
           backgroundSize: 'cover', backgroundPosition: 'center',
           display: 'flex', alignItems: 'center',
         }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 100%)' }} />
-          <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: '1280px', margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 100%)' }} />
+          <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: '1280px', margin: '0 auto', padding: '48px 24px' }}>
             <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: 800, color: '#fff', marginBottom: '12px', lineHeight: 1.1 }}>
               Explore Sri Lanka <span style={{ color: '#f59e0b' }}>Tours</span>
             </h1>
@@ -196,6 +245,7 @@ export default function TourPackagesPage() {
               background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(20px)',
               border: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px',
               padding: '6px', maxWidth: '600px', display: 'flex', alignItems: 'center',
+              marginBottom: '28px',
             }}>
               <div style={{ position: 'relative', flex: 1 }}>
                 <svg style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', color: 'rgba(255,255,255,0.5)' }}
@@ -204,7 +254,7 @@ export default function TourPackagesPage() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search packages by name or destination..."
+                  placeholder="Search by name, destination..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
@@ -223,6 +273,26 @@ export default function TourPackagesPage() {
               }}>
                 Search
               </button>
+            </div>
+
+            {/* Duration Filter */}
+            <div style={{ marginBottom: '14px' }}>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>Duration</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {DURATION_FILTERS.map((f, i) => (
+                  <FilterChip key={f.label} label={f.label} active={durationIdx === i} onClick={() => setDurationIdx(i)} />
+                ))}
+              </div>
+            </div>
+
+            {/* Price Filter */}
+            <div>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>Price Range</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {PRICE_FILTERS.map((f, i) => (
+                  <FilterChip key={f.label} label={f.label} active={priceIdx === i} onClick={() => setPriceIdx(i)} />
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -258,7 +328,19 @@ export default function TourPackagesPage() {
                 🧳
               </div>
               <p style={{ fontSize: '20px', fontWeight: 700, color: '#111827' }}>No packages found</p>
-              <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '6px' }}>Try searching with a different keyword</p>
+              <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '6px' }}>Try a different keyword or adjust the filters</p>
+              {(durationIdx !== 0 || priceIdx !== 0 || search) && (
+                <button
+                  onClick={() => { setDurationIdx(0); setPriceIdx(0); setSearch(''); }}
+                  style={{
+                    marginTop: '16px', background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: '#fff', fontWeight: 700, fontSize: '13px',
+                    padding: '10px 24px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           )}
 
