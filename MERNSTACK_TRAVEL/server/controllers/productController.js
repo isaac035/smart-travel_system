@@ -51,6 +51,10 @@ const createProduct = async (req, res) => {
   try {
     const images = req.files ? req.files.map((f) => f.path) : [];
     const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+    // Ensure location is always stored as an array
+    if (body.location !== undefined && !Array.isArray(body.location)) {
+      body.location = [body.location].filter(Boolean);
+    }
     const product = await Product.create({ ...body, images });
     res.status(201).json(product);
   } catch (error) {
@@ -122,6 +126,10 @@ const createBundle = async (req, res) => {
     const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
     let products = body.products;
     if (typeof products === 'string') products = JSON.parse(products);
+    // Ensure location is always stored as an array
+    if (body.location !== undefined && !Array.isArray(body.location)) {
+      body.location = [body.location].filter(Boolean);
+    }
     const bundle = await Bundle.create({ ...body, images, products: products || [] });
     res.status(201).json(bundle);
   } catch (error) {
