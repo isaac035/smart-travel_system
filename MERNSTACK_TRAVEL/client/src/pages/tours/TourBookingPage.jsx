@@ -48,6 +48,7 @@ export default function TourBookingPage() {
   const [form, setForm] = useState({
     vehicle: 'car',
     travelers: 1,
+    customDuration: null, // null = use package default; set after pkg loads
     startDate: '',
     notes: '',
     slip: null,
@@ -63,9 +64,8 @@ export default function TourBookingPage() {
       .then((r) => {
         setPkg(r.data);
         setLoading(false);
-        // Set default vehicle to car if available, else first option
         const opts = r.data.vehicleOptions?.length ? r.data.vehicleOptions : ['car', 'van', 'bus'];
-        setForm((f) => ({ ...f, vehicle: opts[0] }));
+        setForm((f) => ({ ...f, vehicle: opts[0], customDuration: r.data.duration || 1 }));
       })
       .catch(() => setLoading(false));
   }, [id]);
@@ -79,6 +79,7 @@ export default function TourBookingPage() {
       try {
         const { data } = await api.post('/tours/calculate-price', {
           packageId: id, vehicle: form.vehicle, travelers: form.travelers,
+          customDuration: form.customDuration || pkg.duration,
         });
         setPriceData(data);
       } catch {
@@ -86,9 +87,13 @@ export default function TourBookingPage() {
         const multiplier = pkg.vehicleMultipliers?.[form.vehicle] || 1;
         const caps = { car: 4, van: 8, bus: 50 };
         const vehicleCapacity = (pkg.maxTravelersByVehicle?.[form.vehicle]) ?? caps[form.vehicle] ?? 50;
+        const baseDur = pkg.duration || 1;
+        const dur = form.customDuration || baseDur;
+        const pricePerDay = pkg.basePrice / baseDur;
         setPriceData({
-          basePrice: pkg.basePrice, vehicleMultiplier: multiplier,
-          travelers: form.travelers, totalPrice: pkg.basePrice * multiplier * form.travelers,
+          basePrice: pkg.basePrice, vehicleMultiplier: multiplier, pricePerDay,
+          travelers: form.travelers, customDuration: dur, baseDuration: baseDur,
+          totalPrice: pricePerDay * dur * multiplier * form.travelers,
           vehicleCapacity, exceedsCapacity: form.travelers > vehicleCapacity,
         });
       } finally {
@@ -96,7 +101,7 @@ export default function TourBookingPage() {
       }
     }, 300);
     return () => clearTimeout(debounceRef.current);
-  }, [pkg, id, form.vehicle, form.travelers]);
+  }, [pkg, id, form.vehicle, form.travelers, form.customDuration]);
 
   const recommended = pkg ? getRecommendedVehicle(form.travelers, pkg) : null;
   const capacityExceeded = priceData?.exceedsCapacity || false;
@@ -114,6 +119,7 @@ export default function TourBookingPage() {
       fd.append('packageId', id);
       fd.append('vehicle', form.vehicle);
       fd.append('travelers', form.travelers);
+      fd.append('customDuration', form.customDuration || pkg?.duration || 1);
       fd.append('startDate', form.startDate);
       fd.append('notes', form.notes);
       if (form.slip) fd.append('slip', form.slip);
@@ -188,7 +194,114 @@ export default function TourBookingPage() {
             {/* LEFT: Form */}
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-              {/* Travelers — moved above vehicle so recommendation updates first */}
+              {/* Duration Customizer */}
+              {pkg && form.customDuration !== null && (
+                <div style={sectionStyle}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <div>
+                      <h2 style={{ fontWeight: 700, color: '#111827', fontSize: '16px', marginBottom: '4px' }}>Customize Duration</h2>
+                      <p style={{ fontSize: '13px', color: '#6b7280' }}>
+                        Base package: <strong style={{ color: '#374151' }}>{pkg.duration} {pkg.duration === 1 ? 'day' : 'days'}</strong>
+                        &nbsp;·&nbsp;${((pkg.basePrice / (pkg.duration || 1))).toFixed(0)}/day per traveler
+                      </p>
+                    </div>
+                    {form.customDuration !== pkg.duration && (
+                      <button type="button"
+                        onClick={() => setForm((f) => ({ ...f, customDuration: pkg.duration }))}
+                        style={{
+                          fontSize: '12px', fontWeight: 700, color: '#6b7280',
+                          background: '#f3f4f6', border: '1px solid #e5e7eb',
+                          borderRadius: '20px', padding: '5px 12px', cursor: 'pointer',
+                        }}>
+                        Reset
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Stepper */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                    <button type="button"
+                      onClick={() => setForm((f) => ({ ...f, customDuration: Math.max(1, f.customDuration - 1) }))}
+                      disabled={form.customDuration <= 1}
+                      style={{
+                        width: '44px', height: '44px', borderRadius: '50%',
+                        background: form.customDuration <= 1 ? '#f9fafb' : '#f3f4f6',
+                        border: '2px solid #e5e7eb', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: '20px', fontWeight: 700,
+                        cursor: form.customDuration <= 1 ? 'not-allowed' : 'pointer',
+                        color: form.customDuration <= 1 ? '#d1d5db' : '#374151',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => { if (form.customDuration > 1) e.currentTarget.style.background = '#e5e7eb'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = form.customDuration <= 1 ? '#f9fafb' : '#f3f4f6'; }}
+                    >−</button>
+
+                    <div style={{ textAlign: 'center', minWidth: '80px' }}>
+                      <div style={{ fontSize: '36px', fontWeight: 900, color: '#111827', lineHeight: 1 }}>{form.customDuration}</div>
+                      <div style={{ fontSize: '13px', color: '#9ca3af', marginTop: '2px' }}>{form.customDuration === 1 ? 'day' : 'days'}</div>
+                    </div>
+
+                    <button type="button"
+                      onClick={() => setForm((f) => ({ ...f, customDuration: Math.min(60, f.customDuration + 1) }))}
+                      style={{
+                        width: '44px', height: '44px', borderRadius: '50%',
+                        background: '#f3f4f6', border: '2px solid #e5e7eb',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '20px', fontWeight: 700, color: '#374151',
+                        cursor: 'pointer', transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#e5e7eb'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
+                    >+</button>
+                  </div>
+
+                  {/* Duration progress bar */}
+                  <div style={{ position: 'relative', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#9ca3af', marginBottom: '6px' }}>
+                      <span>1 day</span>
+                      <span>Base: {pkg.duration}d</span>
+                      <span>60 days</span>
+                    </div>
+                    <div style={{ height: '6px', background: '#f3f4f6', borderRadius: '99px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', borderRadius: '99px', transition: 'width 0.3s',
+                        width: `${Math.min(100, (form.customDuration / 60) * 100)}%`,
+                        background: form.customDuration > pkg.duration
+                          ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
+                          : form.customDuration < pkg.duration
+                          ? 'linear-gradient(90deg, #6366f1, #f59e0b)'
+                          : 'linear-gradient(90deg, #10b981, #f59e0b)',
+                      }} />
+                    </div>
+                    {/* Base marker */}
+                    <div style={{
+                      position: 'absolute', bottom: '-2px',
+                      left: `${Math.min(98, (pkg.duration / 60) * 100)}%`,
+                      transform: 'translateX(-50%)',
+                      width: '10px', height: '10px', borderRadius: '50%',
+                      background: '#f59e0b', border: '2px solid #fff',
+                      boxShadow: '0 0 0 2px #f59e0b',
+                    }} />
+                  </div>
+
+                  {form.customDuration !== pkg.duration && (
+                    <div style={{
+                      marginTop: '14px', padding: '10px 14px', borderRadius: '10px',
+                      background: form.customDuration > pkg.duration ? '#fff7ed' : '#eff6ff',
+                      border: `1px solid ${form.customDuration > pkg.duration ? '#fed7aa' : '#bfdbfe'}`,
+                      fontSize: '13px', fontWeight: 600,
+                      color: form.customDuration > pkg.duration ? '#c2410c' : '#1d4ed8',
+                    }}>
+                      {form.customDuration > pkg.duration
+                        ? `📈 Extended by ${form.customDuration - pkg.duration} day(s) — costs more`
+                        : `📉 Shortened by ${pkg.duration - form.customDuration} day(s) — saves money`
+                      }
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Travelers */}
               <div style={sectionStyle}>
                 <h2 style={{ fontWeight: 700, color: '#111827', fontSize: '16px', marginBottom: '16px' }}>Number of Travelers</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
