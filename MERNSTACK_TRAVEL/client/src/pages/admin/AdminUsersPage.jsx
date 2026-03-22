@@ -8,6 +8,7 @@ import {
   MapPin, Calendar, Clock, DollarSign, X, Pencil
 } from 'lucide-react';
 
+
 const ROLE_CONFIG = {
   user:  { label: 'User',  bg: '#f3f4f6', color: '#374151', border: '#e5e7eb', icon: Users },
   guide: { label: 'Guide', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', icon: Compass },
