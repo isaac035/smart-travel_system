@@ -33,6 +33,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 
+
 const PIE_COLORS = ['#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899'];
 
 const TYPE_CONFIG = {
