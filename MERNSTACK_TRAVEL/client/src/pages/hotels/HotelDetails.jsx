@@ -226,9 +226,9 @@ export default function HotelDetails() {
     amenities:['Free WiFi','Pool','Spa','Gym','Restaurant','Free Parking','Room Service','Air Conditioning','Concierge','Family Friendly','Business Center','24/7 Reception'],
     description:'Set in the heart of Colombo, Cinnamon Grand Colombo blends sophisticated design with warm Sri Lankan hospitality. Guests enjoy spacious rooms, world-class dining, and a calm spa experience after a day in the city. Whether you are visiting for business or leisure, you will find thoughtful service and comfortable amenities throughout your stay.',
     rooms:[
-      { _id:'room-deluxe-king', name:'Deluxe King', capacity:{adults:2,children:1}, bedType:'King Bed', amenities:['City view','Workspace','Soundproofed','Rain shower'], pricePerNight:32000, image:'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=900' },
-      { _id:'room-superior-twin', name:'Superior Twin', capacity:{adults:2,children:2}, bedType:'Twin Beds', amenities:['Balcony','Free WiFi','Premium linens','Tea/coffee maker'], pricePerNight:27000, image:'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900' },
-      { _id:'room-family-suite', name:'Family Suite', capacity:{adults:3,children:3}, bedType:'1 King + 1 Sofa Bed', amenities:['Separate lounge','Microwave','Extra storage','Kids welcome kit'], pricePerNight:45000, image:'https://images.unsplash.com/photo-1551887373-6b5bd7c0d4f7?w=900' },
+      { _id:'room-deluxe-king', type:'Deluxe King', capacity:{adults:2,children:1}, bedType:'King Bed', amenities:['City view','Workspace','Soundproofed','Rain shower'], pricePerNight:32000, images:['https://images.unsplash.com/photo-1540518614846-7eded433c457?w=900'] },
+      { _id:'room-superior-twin', type:'Superior Twin', capacity:{adults:2,children:2}, bedType:'Twin Beds', amenities:['Balcony','Free WiFi','Premium linens','Tea/coffee maker'], pricePerNight:27000, images:['https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=900'] },
+      { _id:'room-family-suite', type:'Family Suite', capacity:{adults:3,children:3}, bedType:'1 King + 1 Sofa Bed', amenities:['Separate lounge','Microwave','Extra storage','Kids welcome kit'], pricePerNight:45000, images:['https://images.unsplash.com/photo-1551887373-6b5bd7c0d4f7?w=900'] },
     ],
     cleaningFeePerStay:2500,
     serviceFeePerStay:3200,
@@ -494,8 +494,7 @@ export default function HotelDetails() {
             </div>
 
             {/* ── Contact + About ── */}
-            <div className="hd-fade-up" style={{animationDelay:'80ms'}}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}} className="hd-fade-up" style={{animationDelay:'80ms'}}>
               {/* Contact */}
               <div className="hd-card" style={{padding:24}}>
                 <h2 style={{fontSize:16,fontWeight:900,color:T.text,margin:'0 0 16px',fontFamily:"'Playfair Display',serif"}}>Contact Info</h2>
@@ -531,7 +530,6 @@ export default function HotelDetails() {
                 </button>
               </div>
             </div>
-            </div>
 
             {/* ── Available Rooms ── */}
             <div className="hd-fade-up" style={{animationDelay:'120ms'}}>
@@ -549,8 +547,12 @@ export default function HotelDetails() {
                     >
                       {/* Room image */}
                       <div style={{width:140,flexShrink:0,position:'relative',overflow:'hidden'}}>
-                        <img src={room.images?.[0] || 'https://images.unsplash.com/photo-1505691723518-36a5ac3be353?w=900'} alt={room.name}
-                          style={{width:'100%',height:'100%',objectFit:'cover',display:'block',minHeight:130,transition:'transform .5s cubic-bezier(.22,1,.36,1)',transform:active?'scale(1.06)':'scale(1)'}} />
+                        <img 
+                          src={room.images?.[0] || 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=900'} 
+                          alt={room.type || room.name}
+                          style={{width:'100%',height:'100%',objectFit:'cover',display:'block',minHeight:130,transition:'transform .5s cubic-bezier(.22,1,.36,1)',transform:active?'scale(1.06)':'scale(1)'}} 
+                          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=900'; }}
+                        />
                         {active && <div style={{position:'absolute',inset:0,background:'rgba(245,158,11,0.12)'}} />}
                       </div>
 
