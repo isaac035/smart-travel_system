@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import {
@@ -184,6 +184,7 @@ function GalleryModal({ open, images, startIndex, onClose }) {
 ───────────────────────────────────────────────── */
 export default function HotelDetails() {
   const { id: hotelId } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading]         = useState(true);
   const [hotelData, setHotelData]     = useState(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -307,11 +308,22 @@ export default function HotelDetails() {
   
   const coords       = hotelData?.coordinates||{ lat:6.93, lng:79.85 };
 
-  const handleReserveNow = ()=>{
-    if(!selectedRoom)    { toast.error('Select a room first.'); return; }
-    if(!checkIn||!checkOut) { toast.error('Please choose your dates.'); return; }
-    if(nights<=0)        { toast.error('Check-out must be after check-in.'); return; }
-    toast.success('Reservation request created (demo).');
+  const handleReserveNow = () => {
+    if (!selectedRoom) { toast.error('Select a room first.'); return; }
+    if (!checkIn || !checkOut) { toast.error('Please choose your dates.'); return; }
+    if (nights <= 0) { toast.error('Check-out must be after check-in.'); return; }
+    
+    // Navigate to booking page with selected details
+    const bookingParams = new URLSearchParams({
+      checkIn,
+      checkOut,
+      adults,
+      children,
+      roomId: selectedRoom._id,
+      roomType: selectedRoom.type || selectedRoom.name,
+      pricePerNight: selectedRoom.pricePerNight,
+    });
+    navigate(`/hotels/${hotelId}/book?${bookingParams.toString()}`);
   };
 
   // Handle review submission
