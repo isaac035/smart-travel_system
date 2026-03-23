@@ -187,35 +187,51 @@ const hotelOwnerRegister = async (req, res) => {
   try {
     const { fullName, email, password, confirmPassword, phone, location, coordinates } = req.body;
 
-    if (!fullName || !email || !password || !confirmPassword || !phone || !location) {
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const normalizedFullName = typeof fullName === 'string' ? fullName.trim() : '';
+    const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
+    const normalizedLocation = typeof location === 'string' ? location.trim() : '';
+
+    if (!normalizedFullName || !normalizedEmail || !password || !confirmPassword || !normalizedPhone || !normalizedLocation) {
       return res.status(400).json({ message: 'Full name, email, password, confirm password, phone and location are required' });
     }
     if (password !== confirmPassword) {
       return res.status(400).json({ message: 'Password and confirm password do not match' });
     }
 
-    const exists = await User.findOne({ email });
+    const exists = await User.findOne({ email: normalizedEmail });
     if (exists) return res.status(400).json({ message: 'Email already registered' });
 
     const user = await User.create({
-      name: fullName,
-      email,
+      name: normalizedFullName,
+      email: normalizedEmail,
       password,
       role: 'hotelOwner',
-      phone: phone || '',
+      phone: normalizedPhone || '',
     });
+
+    let parsedCoordinates = coordinates;
+    if (typeof coordinates === 'string') {
+      try {
+        parsedCoordinates = JSON.parse(coordinates);
+      } catch {
+        parsedCoordinates = undefined;
+      }
+    }
 
     await HotelOwner.create({
       userId: user._id,
-      fullName,
-      phone: phone || '',
-      location,
-      coordinates: coordinates && typeof coordinates === 'object' ? coordinates : undefined,
+      fullName: normalizedFullName,
+      phone: normalizedPhone || '',
+      location: normalizedLocation,
+      coordinates: parsedCoordinates && typeof parsedCoordinates === 'object' ? parsedCoordinates : undefined,
     });
 
-    // No token returned: the owner will sign in using email/password
+    // Automatically log in the hotel owner after successful registration
     res.status(201).json({
-      message: 'Hotel owner registered successfully! Please sign in to continue.',
+      message: 'Hotel owner registered successfully!',
+      token: generateToken(user._id),
+      user: formatUser(user),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

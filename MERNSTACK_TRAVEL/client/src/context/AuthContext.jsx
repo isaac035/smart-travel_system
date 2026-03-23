@@ -30,8 +30,20 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+  const login = async (emailOrToken, passwordOrUser, user) => {
+    // If called with token and user directly (from registration)
+    if (typeof emailOrToken === 'string' && passwordOrUser && typeof passwordOrUser === 'object') {
+      const token = emailOrToken;
+      const userData = passwordOrUser;
+      localStorage.setItem('token', token);
+      setUser(userData);
+      return userData;
+    }
+    
+    // Traditional login with email/password
+    const email = emailOrToken;
+    const pass = passwordOrUser;
+    const { data } = await api.post('/auth/login', { email, password: pass });
     localStorage.setItem('token', data.token);
     setUser(data.user);
     return data.user;

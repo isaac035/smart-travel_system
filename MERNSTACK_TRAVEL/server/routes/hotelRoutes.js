@@ -10,7 +10,21 @@ const { upload } = require('../config/cloudinary');
 // ─── Hotel routes ───────────────────────────
 router.get('/', getHotels);
 router.get('/:id', getHotel);
-router.post('/', protect, (req, res, next) => (req.user.role === 'admin' || req.user.role === 'hotelOwner') ? next() : res.status(403).json({ message: 'Access denied' }), upload.array('images', 20), createHotel);
+router.post(
+  '/',
+  protect,
+  (req, res, next) =>
+    (req.user.role === 'admin' || req.user.role === 'hotelOwner')
+      ? next()
+      : res.status(403).json({ message: 'Access denied' }),
+  upload.fields([
+    // Existing admin/owner form uses `images` for hotel images
+    { name: 'images', maxCount: 20 },
+    // New: one uploaded room image per room (order matches rooms array)
+    { name: 'roomImages', maxCount: 200 },
+  ]),
+  createHotel
+);
 router.put('/:id', protect, adminOnly, upload.array('images', 20), updateHotel);
 router.delete('/:id', protect, adminOnly, deleteHotel);
 router.post('/:id/reviews', protect, addReview);

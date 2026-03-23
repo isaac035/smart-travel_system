@@ -43,10 +43,25 @@ const getHotel = async (req, res) => {
 // @route POST /api/hotels  (admin)
 const createHotel = async (req, res) => {
   try {
-    const images = req.files ? req.files.map((f) => f.path) : [];
-
     // Frontend sends fields wrapped in a 'data' JSON string
     const body = req.body.data ? JSON.parse(req.body.data) : req.body;
+
+    // Multer uploads arrive as `req.files` (object) when using upload.fields.
+    // We support:
+    // - `images` (hotel images) in both old and new flows
+    // - `roomImages` (one per room) for hotel owners
+    let hotelImages = [];
+    let roomImages = [];
+
+    if (req.files) {
+      if (Array.isArray(req.files)) {
+        // Safety: upload.array('images') case
+        hotelImages = req.files.map((f) => f.path);
+      } else {
+        if (req.files.images) hotelImages = req.files.images.map((f) => f.path);
+        if (req.files.roomImages) roomImages = req.files.roomImages.map((f) => f.path);
+      }
+    }
 
     let coordinates = body.coordinates;
     if (typeof coordinates === 'string') coordinates = JSON.parse(coordinates);
@@ -56,6 +71,25 @@ const createHotel = async (req, res) => {
 
     let amenities = body.amenities;
     if (typeof amenities === 'string') amenities = JSON.parse(amenities);
+
+    // Map uploaded room images (1 per room, order matches rooms array).
+    const roomsArr = Array.isArray(rooms) ? rooms : [];
+    if (roomImages.length > 0) {
+      if (roomImages.length < roomsArr.length) {
+        return res.status(400).json({ message: 'Please upload exactly one image per room' });
+      }
+      rooms = roomsArr.map((r, idx) => ({
+        ...r,
+        images: [roomImages[idx]],
+      }));
+    } else {
+      // If no room images were uploaded, keep whatever images were sent (if any),
+      // otherwise default to empty arrays.
+      rooms = roomsArr.map((r) => ({
+        ...r,
+        images: Array.isArray(r?.images) ? r.images : [],
+      }));
+    }
 
     // If hotel pricePerNight not provided, derive it from the cheapest room.
     const roomsWithPrice = Array.isArray(rooms) ? rooms : [];
@@ -67,7 +101,7 @@ const createHotel = async (req, res) => {
 
     const hotel = await Hotel.create({
       ...body,
-      images,
+      images: hotelImages,
       coordinates,
       rooms: rooms || [],
       amenities: amenities || [],
