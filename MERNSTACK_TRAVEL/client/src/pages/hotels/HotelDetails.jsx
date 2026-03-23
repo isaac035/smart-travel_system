@@ -294,7 +294,17 @@ export default function HotelDetails() {
   const serviceFee   = Number(hotelData?.serviceFeePerStay||0);
   const totalPrice   = roomTotal+cleaningFee+serviceFee;
   const startPrice   = selectedRoom?.pricePerNight||hotelData?.rooms?.[0]?.pricePerNight||0;
-  const avgRating    = hotelData?.reviewSummary?.averageRating||9.4;
+  
+  // Calculate average rating from actual reviews
+  const avgRating = useMemo(() => {
+    if (!hotelData?.reviews || hotelData.reviews.length === 0) return 0;
+    const total = hotelData.reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
+    return Math.round((total / hotelData.reviews.length) * 10) / 10;
+  }, [hotelData?.reviews]);
+  
+  // Get actual review count from reviews array
+  const reviewCount = hotelData?.reviews?.length || 0;
+  
   const coords       = hotelData?.coordinates||{ lat:6.93, lng:79.85 };
 
   const handleReserveNow = ()=>{
@@ -542,7 +552,7 @@ export default function HotelDetails() {
             </div>
 
             {/* ── Contact + About ── */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}} className="hd-fade-up" style={{animationDelay:'80ms'}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}} className="hd-fade-up" data-animation-delay="80ms">
               {/* Contact */}
               <div className="hd-card" style={{padding:24}}>
                 <h2 style={{fontSize:16,fontWeight:900,color:T.text,margin:'0 0 16px',fontFamily:"'Playfair Display',serif"}}>Contact Info</h2>
@@ -715,10 +725,10 @@ export default function HotelDetails() {
             </div>
 
             {/* ── Guest Reviews ── */}
-            <div className="hd-fade-up" style={{animationDelay:'240ms',paddingBottom:24}}>
+            <div className="hd-fade-up" data-delay="240ms" style={{paddingBottom:24}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
                 <h2 style={{fontSize:20,fontWeight:900,color:T.text,margin:0,fontFamily:"'Playfair Display',serif"}}>Guest Reviews</h2>
-                <span style={{fontSize:12,fontWeight:700,color:T.textLight}}>{hotelData.reviewSummary?.reviewCount||0} reviews</span>
+                <span style={{fontSize:12,fontWeight:700,color:T.textLight}}>{reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}</span>
               </div>
 
               {/* Review summary */}
