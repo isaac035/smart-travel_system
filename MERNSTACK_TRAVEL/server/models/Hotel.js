@@ -7,6 +7,16 @@ const roomSchema = new mongoose.Schema({
   count: { type: Number, default: 1 },
   amenities: [{ type: String }],
   images: [{ type: String }],
+
+  // Optional metadata for richer UI (owner form)
+  roomSize: { type: Number },
+  bedType: { type: String },
+  bedCount: { type: Number },
+
+  hasHotDeal: { type: Boolean, default: false },
+  originalPricePerNight: { type: Number },
+  discountPercentage: { type: Number },
+  discountValue: { type: Number },
 });
 
 const reviewSchema = new mongoose.Schema({
@@ -56,6 +66,8 @@ const hotelSchema = new mongoose.Schema(
     checkOutTime: { type: String, default: '12:00' },
     policies: { type: String },
     isActive: { type: Boolean, default: true },
+
+    hotelOwnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

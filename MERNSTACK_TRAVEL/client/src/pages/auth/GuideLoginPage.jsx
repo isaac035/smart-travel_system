@@ -133,6 +133,8 @@ export default function GuideLoginPage() {
           <Link to="/login" style={{ color: '#9ca3af', textDecoration: 'none' }}>User Login</Link>
           {' · '}
           <Link to="/admin/login" style={{ color: '#9ca3af', textDecoration: 'none' }}>Admin Login</Link>
+          {' · '}
+          <Link to="/hotel-owner/login" style={{ color: '#9ca3af', textDecoration: 'none' }}>Hotel Owner Login</Link>
         </p>
       </div>
     </div>
