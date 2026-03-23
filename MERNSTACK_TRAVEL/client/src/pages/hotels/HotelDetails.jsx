@@ -494,7 +494,8 @@ export default function HotelDetails() {
             </div>
 
             {/* ── Contact + About ── */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}} className="hd-fade-up" style={{animationDelay:'80ms'}}>
+            <div className="hd-fade-up" style={{animationDelay:'80ms'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
               {/* Contact */}
               <div className="hd-card" style={{padding:24}}>
                 <h2 style={{fontSize:16,fontWeight:900,color:T.text,margin:'0 0 16px',fontFamily:"'Playfair Display',serif"}}>Contact Info</h2>
@@ -530,6 +531,7 @@ export default function HotelDetails() {
                 </button>
               </div>
             </div>
+            </div>
 
             {/* ── Available Rooms ── */}
             <div className="hd-fade-up" style={{animationDelay:'120ms'}}>
@@ -547,7 +549,7 @@ export default function HotelDetails() {
                     >
                       {/* Room image */}
                       <div style={{width:140,flexShrink:0,position:'relative',overflow:'hidden'}}>
-                        <img src={room.image} alt={room.name}
+                        <img src={room.images?.[0] || 'https://images.unsplash.com/photo-1505691723518-36a5ac3be353?w=900'} alt={room.name}
                           style={{width:'100%',height:'100%',objectFit:'cover',display:'block',minHeight:130,transition:'transform .5s cubic-bezier(.22,1,.36,1)',transform:active?'scale(1.06)':'scale(1)'}} />
                         {active && <div style={{position:'absolute',inset:0,background:'rgba(245,158,11,0.12)'}} />}
                       </div>
