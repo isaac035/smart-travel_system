@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 
+
 export default function LoginPage() {
   const [role, setRole] = useState('user');
   const [form, setForm] = useState({ email: '', password: '' });

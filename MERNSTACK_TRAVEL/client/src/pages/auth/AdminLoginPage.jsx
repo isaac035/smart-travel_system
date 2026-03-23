@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Lock, Mail, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import loginBg from '../../assets/images/admin-login.png';
 
+
 export default function AdminLoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
