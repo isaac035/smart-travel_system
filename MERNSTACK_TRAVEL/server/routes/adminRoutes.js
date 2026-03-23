@@ -3,6 +3,7 @@ const router = express.Router();
 const { getStats, getAllPayments, updatePaymentStatus, getUsers, updateUser, updateUserRole, deleteUser, promoteToGuide, getGuideBookings, getTourBookings, getHotelBookings, getProductOrders } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
+
 router.use(protect, adminOnly);
 
 router.get('/stats', getStats);
