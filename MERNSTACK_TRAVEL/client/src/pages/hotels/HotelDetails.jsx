@@ -25,6 +25,7 @@ const STYLES = `
   @keyframes shimmer  { 0%{background-position:-700px 0} 100%{background-position:700px 0} }
   @keyframes progressFill { from{width:0} to{width:var(--w)} }
   @keyframes heartBeat { 0%,100%{transform:scale(1)} 30%{transform:scale(1.45)} 60%{transform:scale(.9)} }
+  @keyframes starPop { 0%{transform:scale(1)} 50%{transform:scale(1.3)} 100%{transform:scale(1)} }
 
   .hd-page { font-family:'DM Sans',sans-serif; background:#f4f5f7; min-height:100vh; color:#111827; }
   .hd-shimmer { background:linear-gradient(90deg,#efefef 25%,#e0e0e0 50%,#efefef 75%); background-size:700px 100%; animation:shimmer 1.6s infinite; border-radius:12px; }
@@ -47,6 +48,15 @@ const STYLES = `
   /* Booking widget on mobile */
   @media (max-width:1023px) {
     .booking-widget { position:fixed; bottom:0; left:0; right:0; z-index:50; border-radius:24px 24px 0 0 !important; box-shadow:0 -8px 40px rgba(0,0,0,.18) !important; max-height:70vh; overflow-y:auto; }
+  }
+
+  /* Star rating interactive */
+  .star-rating-input {
+    cursor:pointer;
+    transition:transform .15s ease;
+  }
+  .star-rating-input:hover {
+    transform:scale(1.15);
   }
 `;
 
@@ -194,6 +204,11 @@ export default function HotelDetails() {
   const guestsRef = useRef(null);
   const locationRef = useRef(null);
 
+  // Review form state
+  const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [hoverRating, setHoverRating] = useState(0);
+
   useEffect(()=>{
     const h=e=>{ if(guestsOpen && guestsRef.current && !guestsRef.current.contains(e.target)) setGuestsOpen(false); };
     window.addEventListener('mousedown',h);
@@ -233,11 +248,11 @@ export default function HotelDetails() {
     cleaningFeePerStay:2500,
     serviceFeePerStay:3200,
     reviews:[
-      { _id:'r1', userName:'Nuwan Perera',     avatar:'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=200', date:'2026-02-18', rating:5, text:'Excellent service and very clean rooms. The breakfast spread was fantastic and the staff were genuinely helpful.' },
-      { _id:'r2', userName:'Sasika Jayasinghe',avatar:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200', date:'2026-01-29', rating:4, text:'Great location and comfortable beds. Would love more variety in the evening dining options, but overall a great stay.' },
-      { _id:'r3', userName:'Chamath Silva',    avatar:'https://images.unsplash.com/photo-1550525811-e5869dd03032?w=200', date:'2025-12-07', rating:5, text:'Smooth check-in and super friendly concierge. The spa experience was amazing—highly recommend.' },
-      { _id:'r4', userName:'Tharushi Fernando',avatar:'https://images.unsplash.com/photo-1520975661595-6453be3f7070?w=200', date:'2025-11-12', rating:4, text:'Good value for money with excellent cleanliness. Location made it easy to explore the city.' },
-      { _id:'r5', userName:'Malaka Bandara',   avatar:'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=200', date:'2025-10-03', rating:5, text:'Rooms are spacious and quiet. WiFi was strong and the team responded quickly to our requests.' },
+      { _id:'r1', userName:'Nuwan Perera',     userAvatar:'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=200', createdAt:new Date('2026-02-18'), rating:5, comment:'Excellent service and very clean rooms. The breakfast spread was fantastic and the staff were genuinely helpful.' },
+      { _id:'r2', userName:'Sasika Jayasinghe',userAvatar:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200', createdAt:new Date('2026-01-29'), rating:4, comment:'Great location and comfortable beds. Would love more variety in the evening dining options, but overall a great stay.' },
+      { _id:'r3', userName:'Chamath Silva',    userAvatar:'https://images.unsplash.com/photo-1550525811-e5869dd03032?w=200', createdAt:new Date('2025-12-07'), rating:5, comment:'Smooth check-in and super friendly concierge. The spa experience was amazing—highly recommend.' },
+      { _id:'r4', userName:'Tharushi Fernando',userAvatar:'https://images.unsplash.com/photo-1520975661595-6453be3f7070?w=200', createdAt:new Date('2025-11-12'), rating:4, comment:'Good value for money with excellent cleanliness. Location made it easy to explore the city.' },
+      { _id:'r5', userName:'Malaka Bandara',   userAvatar:'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=200', createdAt:new Date('2025-10-03'), rating:5, comment:'Rooms are spacious and quiet. WiFi was strong and the team responded quickly to our requests.' },
     ],
     reviewSummary:{ averageRating:9.4, reviewCount:512, subCategories:[{key:'Cleanliness',rating:9.6},{key:'Comfort',rating:9.3},{key:'Location',rating:9.7}] },
     nearbyAttractions:[
@@ -287,6 +302,39 @@ export default function HotelDetails() {
     if(!checkIn||!checkOut) { toast.error('Please choose your dates.'); return; }
     if(nights<=0)        { toast.error('Check-out must be after check-in.'); return; }
     toast.success('Reservation request created (demo).');
+  };
+
+  // Handle review submission
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (reviewForm.rating === 0) {
+      toast.error('Please select a star rating');
+      return;
+    }
+    if (!reviewForm.comment.trim()) {
+      toast.error('Please write a comment for your review');
+      return;
+    }
+
+    setSubmittingReview(true);
+    try {
+      await api.post(`/hotels/${hotelId}/reviews`, {
+        rating: reviewForm.rating,
+        comment: reviewForm.comment,
+      });
+
+      toast.success('Review submitted successfully!');
+      setReviewForm({ rating: 0, comment: '' });
+      
+      // Refresh hotel data to show new review
+      const res = await api.get(`/hotels/${hotelId}`);
+      setHotelData(res.data);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   /* ── INPUT STYLE ── */
@@ -691,30 +739,166 @@ export default function HotelDetails() {
 
               {/* Review cards */}
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
-                {(hotelData.reviews||[]).slice(0,6).map((r,ri)=>(
+                {(hotelData.reviews||[]).slice(0,12).map((r,ri)=>(
                   <div key={r._id} className="hd-card" style={{padding:20,display:'flex',flexDirection:'column',gap:14,animationDelay:`${ri*50}ms`,transition:'all .3s'}}
                     onMouseOver={e=>{e.currentTarget.style.borderColor=T.goldBorder;e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow=`0 12px 32px rgba(245,158,11,0.1)`;}}
                     onMouseOut={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none';}}
                   >
                     <div style={{display:'flex',alignItems:'center',gap:12}}>
                       <div style={{width:42,height:42,borderRadius:'50%',overflow:'hidden',background:'#f3f4f6',border:`2px solid ${T.border}`,flexShrink:0}}>
-                        {r.avatar
-                          ? <img src={r.avatar} alt={r.userName} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                        {r.userAvatar
+                          ? <img src={r.userAvatar} alt={r.userName} style={{width:'100%',height:'100%',objectFit:'cover'}} />
                           : <span style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',fontWeight:900,color:T.textMid}}>{(r.userName||'?')[0].toUpperCase()}</span>
                         }
                       </div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontWeight:900,fontSize:14,color:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.userName}</div>
-                        <div style={{fontSize:11,color:T.textLight,fontWeight:600,marginTop:1}}>{new Date(r.date).toLocaleDateString()}</div>
+                        <div style={{fontSize:11,color:T.textLight,fontWeight:600,marginTop:1}}>{new Date(r.createdAt).toLocaleDateString()}</div>
                       </div>
                       <div style={{display:'flex',alignItems:'center',gap:4,background:T.goldBg,border:`1px solid ${T.goldBorder}`,padding:'4px 10px',borderRadius:99,flexShrink:0}}>
                         <span style={{color:T.gold,fontSize:12}}>★</span>
                         <span style={{fontWeight:900,fontSize:13,color:T.goldDk}}>{r.rating.toFixed(1)}</span>
                       </div>
                     </div>
-                    <p style={{fontSize:13,color:T.textLight,lineHeight:1.65,margin:0}}>{r.text}</p>
+                    <p style={{fontSize:13,color:T.textLight,lineHeight:1.65,margin:0}}>{r.comment}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* ── Write a Review Form ── */}
+            <div className="hd-fade-up" style={{animationDelay:'300ms',paddingTop:24,borderTop:`1px solid ${T.border}`,marginTop:24}}>
+              <h2 style={{fontSize:20,fontWeight:900,color:T.text,margin:'0 0 20px',fontFamily:"'Playfair Display',serif"}}>Write a Review</h2>
+              
+              <div className="hd-card" style={{padding:24}}>
+                <form onSubmit={handleReviewSubmit} style={{display:'flex',flexDirection:'column',gap:16}}>
+                  {/* Star Rating */}
+                  <div>
+                    <label style={{display:'block',fontSize:12,fontWeight:800,color:T.text,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>
+                      Your Rating *
+                    </label>
+                    <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                      {[1,2,3,4,5].map((star)=>(
+                        <span
+                          key={star}
+                          className="star-rating-input"
+                          onClick={()=>setReviewForm(p=>({...p, rating: star}))}
+                          onMouseEnter={()=>setHoverRating(star)}
+                          onMouseLeave={()=>setHoverRating(0)}
+                          style={{
+                            fontSize:32,
+                            color: star <= (hoverRating || reviewForm.rating) ? T.gold : '#d1d5db',
+                            transition:'all .15s ease',
+                            cursor:'pointer',
+                          }}
+                        >
+                          ★
+                        </span>
+                      ))}
+                      {reviewForm.rating > 0 && (
+                        <span style={{marginLeft:12,fontSize:13,fontWeight:700,color:T.goldDk}}>
+                          {['Poor','Fair','Good','Very Good','Excellent'][reviewForm.rating-1]}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Comment Textarea */}
+                  <div>
+                    <label style={{display:'block',fontSize:12,fontWeight:800,color:T.text,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>
+                      Your Review *
+                    </label>
+                    <textarea
+                      value={reviewForm.comment}
+                      onChange={(e)=>setReviewForm(p=>({...p, comment: e.target.value}))}
+                      placeholder="Share your experience at this hotel... What did you like? What could be improved?"
+                      rows={5}
+                      style={{
+                        width:'100%',
+                        padding:'12px 16px',
+                        borderRadius:12,
+                        border:`1.5px solid ${T.border}`,
+                        fontSize:13,
+                        fontWeight:500,
+                        background:'#f9fafb',
+                        color:T.text,
+                        outline:'none',
+                        fontFamily:"'DM Sans',sans-serif",
+                        resize:'vertical',
+                        transition:'border-color .2s,box-shadow .2s',
+                      }}
+                      onFocus={(e)=>{
+                        e.target.style.borderColor=T.gold;
+                        e.target.style.boxShadow=`0 0 0 3px rgba(245,158,11,0.18)`;
+                      }}
+                      onBlur={(e)=>{
+                        e.target.style.borderColor=T.border;
+                        e.target.style.boxShadow='none';
+                      }}
+                      required
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={submittingReview || reviewForm.rating === 0 || !reviewForm.comment.trim()}
+                    style={{
+                      alignSelf:'flex-start',
+                      padding:'12px 32px',
+                      borderRadius:14,
+                      background: submittingReview || reviewForm.rating === 0 || !reviewForm.comment.trim() 
+                        ? '#e5e7eb' 
+                        : `linear-gradient(135deg,${T.gold},${T.goldDk})`,
+                      color: submittingReview || reviewForm.rating === 0 || !reviewForm.comment.trim()
+                        ? T.textLight
+                        : '#fff',
+                      fontWeight:900,
+                      fontSize:14,
+                      border:'none',
+                      cursor: submittingReview || reviewForm.rating === 0 || !reviewForm.comment.trim()
+                        ? 'not-allowed'
+                        : 'pointer',
+                      boxShadow: submittingReview || reviewForm.rating === 0 || !reviewForm.comment.trim()
+                        ? 'none'
+                        : `0 8px 28px rgba(245,158,11,0.38)`,
+                      transition:'all .25s',
+                      display:'flex',
+                      alignItems:'center',
+                      gap:10,
+                      fontFamily:"'DM Sans',sans-serif",
+                      minWidth:180,
+                    }}
+                    onMouseOver={(e)=>{
+                      if(!submittingReview && reviewForm.rating > 0 && reviewForm.comment.trim()){
+                        e.currentTarget.style.transform='translateY(-2px)';
+                        e.currentTarget.style.boxShadow=`0 14px 36px rgba(245,158,11,0.48)`;
+                      }
+                    }}
+                    onMouseOut={(e)=>{
+                      e.currentTarget.style.transform='translateY(0)';
+                      if(!submittingReview && reviewForm.rating > 0 && reviewForm.comment.trim()){
+                        e.currentTarget.style.boxShadow=`0 8px 28px rgba(245,158,11,0.38)`;
+                      }
+                    }}
+                  >
+                    {submittingReview ? (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} style={{animation:'spin .7s linear infinite'}}>
+                          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                        </svg>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        Submit Review
+                      </>
+                    )}
+                  </button>
+                </form>
               </div>
             </div>
 

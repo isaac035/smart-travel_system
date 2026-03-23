@@ -166,21 +166,19 @@ const addReview = async (req, res) => {
 
     const { rating, comment } = req.body;
 
-    // Prevent duplicate reviews from same user
-    const existing = hotel.reviews.find((r) => r.userId?.toString() === req.user._id.toString());
-    if (existing) return res.status(400).json({ message: 'You have already reviewed this hotel' });
-
+    // Add the review (allow multiple reviews from same user)
     hotel.reviews.push({
       userId: req.user._id,
       userName: req.user.name,
       userAvatar: req.user.avatar,
       rating: Number(rating),
       comment,
+      createdAt: new Date(),
     });
 
     hotel.updateRating();
     await hotel.save();
-    res.status(201).json({ message: 'Review added', averageRating: hotel.averageRating, reviewCount: hotel.reviewCount });
+    res.status(201).json({ message: 'Review added successfully', averageRating: hotel.averageRating, reviewCount: hotel.reviewCount });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
