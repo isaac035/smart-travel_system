@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Guide = require('../models/Guide');
 const HotelOwner = require('../models/HotelOwner');
 
+
 const generateToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
