@@ -57,12 +57,25 @@ const createHotel = async (req, res) => {
     let amenities = body.amenities;
     if (typeof amenities === 'string') amenities = JSON.parse(amenities);
 
+    // If hotel pricePerNight not provided, derive it from the cheapest room.
+    const roomsWithPrice = Array.isArray(rooms) ? rooms : [];
+    const derivedHotelPrice = roomsWithPrice
+      .map((r) => Number(r?.pricePerNight || 0))
+      .filter((n) => n > 0);
+
+    const hotelOwnerId = req.user?.role === 'hotelOwner' ? req.user._id : undefined;
+
     const hotel = await Hotel.create({
       ...body,
       images,
       coordinates,
       rooms: rooms || [],
       amenities: amenities || [],
+      hotelOwnerId,
+      pricePerNight:
+        body.pricePerNight !== undefined && body.pricePerNight !== ''
+          ? body.pricePerNight
+          : (derivedHotelPrice.length ? Math.min(...derivedHotelPrice) : 0),
     });
 
     res.status(201).json(hotel);
@@ -179,11 +192,22 @@ const getAllBookings = async (req, res) => {
 // @route PUT /api/hotel-bookings/:id/status  (admin)
 const updateBookingStatus = async (req, res) => {
   try {
-    const booking = await HotelBooking.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status },
-      { new: true }
-    );
+    const booking = await HotelBooking.findById(req.params.id).populate('hotelId', 'hotelOwnerId');
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Admin can update any booking, hotel owner can update bookings for hotels they own.
+    if (req.user?.role === 'hotelOwner') {
+      const ownerId = booking.hotelId?.hotelOwnerId?.toString();
+      const currentOwnerId = req.user._id?.toString();
+      if (!ownerId || ownerId !== currentOwnerId) {
+        return res.status(403).json({ message: 'Access denied: Not your hotel booking' });
+      }
+    } else if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    booking.status = req.body.status;
+    await booking.save();
     res.json(booking);
   } catch (error) {
     res.status(500).json({ message: error.message });
