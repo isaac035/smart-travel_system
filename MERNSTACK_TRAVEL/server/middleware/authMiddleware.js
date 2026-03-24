@@ -16,6 +16,14 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
+    // Check account status
+    if (req.user.status === 'hold') {
+      return res.status(403).json({ message: 'Your account is currently on hold. Please contact the administrator.', accountStatus: 'hold' });
+    }
+    if (req.user.status === 'deactivated') {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.', accountStatus: 'deactivated' });
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Not authorized, token invalid' });
@@ -43,4 +51,9 @@ const guideOrAdmin = (req, res, next) => {
   return res.status(403).json({ message: 'Access denied: Guide or Admin only' });
 };
 
-module.exports = { protect, adminOnly, guideOnly, guideOrAdmin };
+const hotelOwnerOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'hotelOwner') return next();
+  return res.status(403).json({ message: 'Access denied: Hotel owners only' });
+};
+
+module.exports = { protect, adminOnly, guideOnly, guideOrAdmin, hotelOwnerOnly };

@@ -22,8 +22,11 @@ import LocationDetailPage from './pages/explore/LocationDetailPage';
 
 import HotelLandingPage from './pages/hotels/HotelLandingPage';
 import HotelSearchPage from './pages/hotels/HotelSearchPage';
-import HotelDetailsPage from './pages/hotels/HotelDetailsPage';
+import HotelDetails from './pages/hotels/HotelDetails';
 import HotelBookingPage from './pages/hotels/HotelBookingPage';
+import HotelOwnerLoginPage from './pages/auth/HotelOwnerLoginPage';
+import AddHotelsFromOwners from './pages/hotels/AddHotelsFromOwners';
+import HotelOwnerRoute from './components/HotelOwnerRoute';
 
 import ProductsPage from './pages/products/ProductsPage';
 import CartPage from './pages/products/CartPage';
@@ -82,8 +85,13 @@ export default function App() {
               {/* Hotels */}
               <Route path="/hotels" element={<HotelLandingPage />} />
               <Route path="/hotels/search" element={<HotelSearchPage />} />
-              <Route path="/hotels/:id" element={<HotelDetailsPage />} />
+              <Route path="/hotels/:id" element={<HotelDetails />} />
               <Route path="/hotels/:id/book" element={<PrivateRoute><HotelBookingPage /></PrivateRoute>} />
+
+              {/* Hotel Owners */}
+              <Route path="/hotel-owner/login" element={<HotelOwnerLoginPage />} />
+              <Route path="/hotel-owner/register" element={<HotelOwnerLoginPage initialMode="signin" />} />
+              <Route path="/hotel-owner/dashboard" element={<HotelOwnerRoute><AddHotelsFromOwners /></HotelOwnerRoute>} />
 
               {/* Travel Products */}
               <Route path="/services/travel-products" element={<ProductsPage />} />

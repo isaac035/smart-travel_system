@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Lock, Mail, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import loginBg from '../../assets/images/admin-login.png';
 
+
 export default function AdminLoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,16 @@ export default function AdminLoginPage() {
       toast.success(`Welcome, ${user.name}`);
       navigate('/admin');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed');
+      if (err.response?.status === 403 && err.response?.data?.accountStatus) {
+        const status = err.response.data.accountStatus;
+        if (status === 'hold') {
+          toast.error('⚠️ Your admin account is currently on hold. Please contact another administrator.');
+        } else if (status === 'deactivated') {
+          toast.error('🚫 Your admin account has been deactivated. Please contact another administrator.');
+        }
+      } else {
+        toast.error(err.response?.data?.message || 'Invalid email or password. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }

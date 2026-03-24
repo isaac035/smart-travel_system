@@ -6,6 +6,7 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const Bundle = require('../models/Bundle');
 const ProductOrder = require('../models/ProductOrder');
+const HotelBooking = require('../models/HotelBooking');
 
 
 // POST /api/payments/upload-slip
@@ -20,6 +21,24 @@ router.post('/upload-slip', protect, upload.single('slip'), async (req, res) => 
     }
 
     const slipUrl = req.file.path; // Cloudinary URL
+
+    // Hotel booking slip upload
+    if (req.body.source === 'hotel') {
+      const referenceId = req.body.referenceId;
+      if (!referenceId) {
+        return res.status(400).json({ message: 'referenceId is required for hotel slip upload' });
+      }
+
+      const booking = await HotelBooking.findById(referenceId);
+      if (!booking) return res.status(404).json({ message: 'Hotel booking not found' });
+
+      booking.paymentSlip = slipUrl;
+      booking.paymentStatus = 'pending';
+      // booking.status stays as-is (typically 'pending')
+      await booking.save();
+
+      return res.status(201).json({ message: 'Hotel payment slip uploaded', booking });
+    }
 
     // Fetch current cart to snapshot items
     const cart = await Cart.findOne({ userId });

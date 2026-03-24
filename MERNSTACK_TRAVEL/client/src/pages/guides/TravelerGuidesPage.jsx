@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
 import { formatLKR } from '../../utils/currency';
 
+
 const STATUS_LABELS = {
   deposit_submitted: 'Deposit Submitted',
   pending_guide_review: 'Under Review',
@@ -28,25 +29,25 @@ const STATUS_LABELS = {
 };
 
 const STATUS_STYLES = {
-  deposit_submitted:          { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  pending_guide_review:       { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  guide_accepted:             { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
-  guide_rejected:             { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' },
-  under_admin_review:         { bg: '#dbeafe', color: '#1e40af', border: '#bfdbfe' },
-  admin_confirmed:            { bg: '#dbeafe', color: '#1e40af', border: '#bfdbfe' },
-  remaining_payment_pending:  { bg: '#ffedd5', color: '#9a3412', border: '#fed7aa' },
-  remaining_payment_submitted:{ bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  fully_paid:                 { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
-  completed:                  { bg: '#e0e7ff', color: '#3730a3', border: '#c7d2fe' },
-  cancelled_by_user:          { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
-  cancelled_by_admin:         { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' },
-  refund_pending:             { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  partially_refunded:         { bg: '#ffedd5', color: '#9a3412', border: '#fed7aa' },
-  refunded:                   { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
-  no_refund:                  { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
-  pending:                    { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  confirmed:                  { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
-  cancelled:                  { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
+  deposit_submitted: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  pending_guide_review: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  guide_accepted: { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
+  guide_rejected: { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' },
+  under_admin_review: { bg: '#dbeafe', color: '#1e40af', border: '#bfdbfe' },
+  admin_confirmed: { bg: '#dbeafe', color: '#1e40af', border: '#bfdbfe' },
+  remaining_payment_pending: { bg: '#ffedd5', color: '#9a3412', border: '#fed7aa' },
+  remaining_payment_submitted: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  fully_paid: { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
+  completed: { bg: '#e0e7ff', color: '#3730a3', border: '#c7d2fe' },
+  cancelled_by_user: { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
+  cancelled_by_admin: { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' },
+  refund_pending: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  partially_refunded: { bg: '#ffedd5', color: '#9a3412', border: '#fed7aa' },
+  refunded: { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
+  no_refund: { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
+  pending: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  confirmed: { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
+  cancelled: { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
 };
 
 const STATUS_MESSAGES = {
@@ -91,7 +92,7 @@ export default function TravelerGuidesPage() {
 
   const fetchBookings = async () => {
     try { const { data } = await api.get('/guides/bookings/my'); setBookings(data); }
-    catch {} finally { setLoading(false); }
+    catch { } finally { setLoading(false); }
   };
 
   const handleCancel = async (bookingId, startDate) => {
@@ -176,7 +177,7 @@ export default function TravelerGuidesPage() {
               ))}
             </div>
 
-          /* Empty */
+            /* Empty */
           ) : bookings.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
               <div style={{ width: 80, height: 80, background: '#f3f4f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 36 }}>
@@ -193,7 +194,7 @@ export default function TravelerGuidesPage() {
               </Link>
             </div>
 
-          /* Booking Cards */
+            /* Booking Cards */
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {bookings.map((b) => {
@@ -231,7 +232,7 @@ export default function TravelerGuidesPage() {
                           <div>
                             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>{guide?.name || 'Guide'}</h3>
                             <p style={{ fontSize: 13, color: '#6b7280', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
                               {b.location}
                             </p>
                           </div>
@@ -327,7 +328,7 @@ export default function TravelerGuidesPage() {
                             cursor: 'pointer', fontSize: 13, color: '#9a3412',
                             display: 'flex', alignItems: 'center', gap: 8, transition: 'border-color 0.2s',
                           }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                             {remainingSlipFile ? (
                               <span style={{ fontWeight: 600, color: '#ea580c' }}>{remainingSlipFile.name}</span>
                             ) : (

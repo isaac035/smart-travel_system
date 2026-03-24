@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import RatingStars from '../../components/RatingStars';
 import { formatLKR } from '../../utils/currency';
 
+
 export default function GuideDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function GuideDetailsPage() {
   useEffect(() => {
     Promise.all([api.get(`/guides/${id}`), api.get(`/guides/${id}/reviews`)])
       .then(([g, r]) => { setGuide(g.data); setReviews(r.data); })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [id]);
 

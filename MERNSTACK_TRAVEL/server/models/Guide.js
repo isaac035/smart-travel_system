@@ -24,4 +24,5 @@ const guideSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+
 module.exports = mongoose.model('Guide', guideSchema);

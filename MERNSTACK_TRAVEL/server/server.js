@@ -26,6 +26,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/locations', require('./routes/locationRoutes'));
 app.use('/api/hotels', require('./routes/hotelRoutes'));
+app.use('/api/hotel-owner-dashboard', require('./routes/hotelOwnerDashboardRoutes'));
 app.use('/api', require('./routes/productRoutes'));
 app.use('/api/guides', require('./routes/guideRoutes'));
 app.use('/api/guide-dashboard', require('./routes/guideDashboardRoutes'));

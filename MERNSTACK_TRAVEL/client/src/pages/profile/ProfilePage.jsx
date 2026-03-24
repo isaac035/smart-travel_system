@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { formatLKR } from '../../utils/currency';
 
+
 /* ── fallback cover (reliable Unsplash Sri Lanka photo) ── */
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1588598198321-9735fd510275?w=1400&q=80';
 

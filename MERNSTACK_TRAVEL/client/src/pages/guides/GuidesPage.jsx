@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import RatingStars from '../../components/RatingStars';
 import { formatLKR } from '../../utils/currency';
 
+
 const LANGUAGES = ['Sinhala', 'Tamil', 'English', 'French', 'German', 'Chinese', 'Japanese', 'Korean'];
 const LOCATIONS = ['Colombo', 'Kandy', 'Galle', 'Ella', 'Nuwara Eliya', 'Sigiriya', 'Trincomalee', 'Jaffna', 'Anuradhapura'];
 
@@ -140,7 +141,7 @@ export default function GuidesPage() {
       if (f.maxPrice) params.set('maxPrice', f.maxPrice);
       const { data } = await api.get(`/guides?${params}`);
       setGuides(data);
-    } catch {}
+    } catch { }
     finally { setLoading(false); }
   };
 
