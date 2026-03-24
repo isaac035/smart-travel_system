@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 
+
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [loading, setLoading] = useState(false);

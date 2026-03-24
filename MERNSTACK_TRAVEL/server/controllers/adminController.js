@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const Location = require('../models/Location');
 const Hotel = require('../models/Hotel');
 const HotelBooking = require('../models/HotelBooking');
@@ -9,6 +10,7 @@ const TourBooking = require('../models/TourBooking');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const ProductOrder = require('../models/ProductOrder');
+
 
 // GET /api/admin/users
 exports.getUsers = async (req, res) => {
@@ -41,13 +43,24 @@ exports.getUsers = async (req, res) => {
 // PUT /api/admin/users/:id
 exports.updateUser = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, phone, password } = req.body;
     if (!name || !email) return res.status(400).json({ message: 'Name and email are required' });
     const existing = await User.findOne({ email, _id: { $ne: req.params.id } });
     if (existing) return res.status(400).json({ message: 'Email already in use by another user' });
-    const user = await User.findByIdAndUpdate(req.params.id, { name, email }, { new: true }).select('-password');
+
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+
+    user.name = name;
+    user.email = email;
+    if (phone !== undefined) user.phone = phone;
+    if (password && password.trim()) {
+      user.password = password; // will be hashed by pre-save hook
+    }
+
+    await user.save();
+    const updated = await User.findById(user._id).select('-password');
+    res.json(updated);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -132,7 +145,7 @@ exports.getGuideBookings = async (req, res) => {
 // GET /api/admin/stats
 exports.getStats = async (req, res) => {
   try {
-    const [users, locations, hotels, guides, tourPackages, hotelBookings, guideBookings, tourBookings, productOrders] =
+    const [users, locations, hotels, guides, tourPackages, hotelBookings, guideBookings, tourBookings, productOrders, products] =
       await Promise.all([
         User.countDocuments(),
         Location.countDocuments(),
@@ -143,6 +156,7 @@ exports.getStats = async (req, res) => {
         GuideBooking.countDocuments(),
         TourBooking.countDocuments(),
         ProductOrder.countDocuments(),
+        Product.countDocuments(),
       ]);
 
     // Real revenue from all booking types
@@ -253,6 +267,7 @@ exports.getStats = async (req, res) => {
     res.json({
       users, locations, hotels, guides, tourPackages,
       hotelBookings, guideBookings, tourBookings, productOrders,
+      products,
       totalRevenue,
       monthlyRevenue,
       popularDestinations,
@@ -469,3 +484,70 @@ exports.updateOwnerHotelDetails = async (req, res) => {
   }
 };
 
+
+// PUT /api/admin/users/:id/status
+exports.updateUserStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['active', 'hold', 'deactivated'].includes(status)) {
+      return res.status(400).json({ message: 'Status must be active, hold, or deactivated' });
+    }
+    // Prevent admin from changing their own status
+    if (req.params.id === req.user._id.toString()) {
+      return res.status(400).json({ message: 'Cannot change your own account status' });
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// GET /api/admin/users/:id
+exports.getUserDetails = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Include guide profile if guide
+    if (user.role === 'guide') {
+      const guideProfile = await Guide.findOne({ userId: user._id })
+        .select('userId approvalStatus rejectionReason location languages experience isAvailable pricePerDay bio services certifications').lean();
+      if (guideProfile) user.guideProfile = guideProfile;
+    }
+
+    // Include hotel owner profile if hotelOwner
+    if (user.role === 'hotelOwner') {
+      const HotelOwner = require('../models/HotelOwner');
+      const ownerProfile = await HotelOwner.findOne({ userId: user._id })
+        .select('fullName phone location coordinates').lean();
+      if (ownerProfile) user.hotelOwnerProfile = ownerProfile;
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// POST /api/admin/users/create-admin
+exports.createAdmin = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ message: 'Email already registered' });
+
+    const user = await User.create({ name, email, password, role: 'admin', status: 'active' });
+    const created = await User.findById(user._id).select('-password');
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};

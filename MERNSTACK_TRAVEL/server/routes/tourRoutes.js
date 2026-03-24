@@ -6,6 +6,7 @@ const {
   createPackage,
   updatePackage,
   deletePackage,
+  calculatePrice,
   createBooking,
   getMyBookings,
   getAllBookings,
@@ -14,6 +15,9 @@ const {
 } = require('../controllers/tourController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const { upload } = require('../config/cloudinary');
+
+// Price preview (public — must be before /:id)
+router.post('/calculate-price', calculatePrice);
 
 // Bookings (must be before /:id to avoid conflicts)
 router.post('/bookings', protect, upload.single('slip'), createBooking);

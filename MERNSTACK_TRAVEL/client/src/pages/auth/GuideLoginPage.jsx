@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
+
 export default function GuideLoginPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -56,7 +57,7 @@ export default function GuideLoginPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24
           }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+              <circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
             </svg>
           </div>
           <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>

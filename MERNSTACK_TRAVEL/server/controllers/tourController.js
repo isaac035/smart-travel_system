@@ -4,6 +4,38 @@ const { upload } = require('../config/cloudinary');
 
 // ── Package CRUD ──────────────────────────────────────────────────
 
+// POST /api/tours/calculate-price  (public — price preview only)
+exports.calculatePrice = async (req, res) => {
+  try {
+    const { packageId, vehicle, travelers, customDuration } = req.body;
+    const pkg = await TourPackage.findById(packageId);
+    if (!pkg) return res.status(404).json({ message: 'Package not found' });
+    const multiplier = pkg.vehicleMultipliers?.[vehicle] || 1;
+    const t = Math.max(1, Number(travelers) || 1);
+    // Duration-based pricing: pricePerDay = basePrice / pkg.duration; total += extra days
+    const baseDur = pkg.duration || 1;
+    const dur = Math.max(1, Number(customDuration) || baseDur);
+    const pricePerDay = pkg.basePrice / baseDur;
+    const totalPrice = pricePerDay * dur * multiplier * t;
+    const vehicleCapacity = pkg.maxTravelersByVehicle?.[vehicle] ?? (vehicle === 'car' ? 4 : vehicle === 'van' ? 8 : 50);
+    res.json({
+      basePrice: pkg.basePrice,
+      pricePerDay,
+      vehicleMultiplier: multiplier,
+      travelers: t,
+      customDuration: dur,
+      baseDuration: baseDur,
+      totalPrice,
+      vehicleCapacity,
+      exceedsCapacity: t > vehicleCapacity,
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// ── Package CRUD ──────────────────────────────────────────────────
+
 // GET /api/tours
 exports.getPackages = async (req, res) => {
   try {
@@ -73,12 +105,23 @@ exports.deletePackage = async (req, res) => {
 // POST /api/tours/bookings  (user)
 exports.createBooking = async (req, res) => {
   try {
-    const { packageId, vehicle, travelers, startDate, notes } = req.body;
+    const { packageId, vehicle, travelers, customDuration, startDate, notes } = req.body;
     const pkg = await TourPackage.findById(packageId);
     if (!pkg) return res.status(404).json({ message: 'Package not found' });
 
+    // Capacity validation
+    const maxForVehicle = pkg.maxTravelersByVehicle?.[vehicle] ?? (vehicle === 'car' ? 4 : vehicle === 'van' ? 8 : 50);
+    if (Number(travelers) > maxForVehicle) {
+      return res.status(400).json({
+        message: `A ${vehicle} can accommodate a maximum of ${maxForVehicle} traveler${maxForVehicle !== 1 ? 's' : ''}. Please choose a larger vehicle or reduce the number of travelers.`,
+      });
+    }
+
     const multiplier = pkg.vehicleMultipliers[vehicle] || 1;
-    const totalPrice = pkg.basePrice * multiplier * travelers;
+    const baseDur = pkg.duration || 1;
+    const dur = Math.max(1, Number(customDuration) || baseDur);
+    const pricePerDay = pkg.basePrice / baseDur;
+    const totalPrice = pricePerDay * dur * multiplier * Number(travelers);
 
     const slipUrl = req.file ? req.file.path : undefined;
 
@@ -87,6 +130,7 @@ exports.createBooking = async (req, res) => {
       packageId,
       vehicle,
       travelers,
+      customDuration: dur,
       startDate,
       totalPrice,
       slipUrl,

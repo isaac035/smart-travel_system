@@ -1,19 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; 
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import {
+  validateTravelProductCheckoutField,
+  validateTravelProductCheckoutForm,
+} from '../../utils/validators';
 
 const card = {
   background: '#fff', border: '1px solid #e8eaed', borderRadius: 18,
   boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-};
-
-const labelStyle = {
-  display: 'block', fontSize: 12, fontWeight: 600, color: '#6b7280',
-  marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3,
 };
 
 export default function CartPage() {
@@ -22,6 +21,18 @@ export default function CartPage() {
   const navigate = useNavigate();
   const [slipFile, setSlipFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState([]);
+
+  // User details form state
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [checkoutErrors, setCheckoutErrors] = useState({});
+  const [checkoutTouched, setCheckoutTouched] = useState({});
+
+  // Fetch bank accounts on mount
+  useEffect(() => {
+    api.get('/bank-accounts').then(r => setBankAccounts(r.data)).catch(() => {});
+  }, []);
 
   const items = cart.items || [];
 
@@ -37,10 +48,60 @@ export default function CartPage() {
   const tax = subtotal * 0.05;
   const total = subtotal + tax;
 
+  const checkoutValues = {
+    customerName: user?.name || '',
+    phone,
+    address,
+    items,
+    slipFile,
+  };
+
+  const updateCheckoutError = (field, message) => {
+    setCheckoutErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[field] = message;
+      else delete next[field];
+      return next;
+    });
+  };
+
+  const onCheckoutFieldBlur = (field) => () => {
+    setCheckoutTouched((prev) => ({ ...prev, [field]: true }));
+    updateCheckoutError(field, validateTravelProductCheckoutField(field, checkoutValues));
+  };
+
+  const onPhoneChange = (e) => {
+    const value = e.target.value;
+    setPhone(value);
+    if (checkoutTouched.phone) {
+      updateCheckoutError('phone', validateTravelProductCheckoutField('phone', { ...checkoutValues, phone: value }));
+    }
+  };
+
+  const onAddressChange = (e) => {
+    const value = e.target.value;
+    setAddress(value);
+    if (checkoutTouched.address) {
+      updateCheckoutError('address', validateTravelProductCheckoutField('address', { ...checkoutValues, address: value }));
+    }
+  };
+
+  const canPlaceOrder =
+    !!slipFile &&
+    phone.trim() !== '' &&
+    address.trim() !== '' &&
+    !checkoutErrors.phone &&
+    !checkoutErrors.address;
+
   const handleCheckout = async () => {
     if (!user) return toast.error('Please login to checkout');
-    if (!slipFile) return toast.error('Please upload your payment slip');
-    if (items.length === 0) return toast.error('Your cart is empty');
+    const result = validateTravelProductCheckoutForm(checkoutValues);
+    if (!result.isValid) {
+      setCheckoutErrors(result.errors);
+      setCheckoutTouched({ customerName: true, phone: true, address: true, slipFile: true });
+      toast.error('Please fix the highlighted checkout fields');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -49,6 +110,8 @@ export default function CartPage() {
       formData.append('source', 'product');
       formData.append('referenceId', user.id);
       formData.append('amount', total);
+      formData.append('phone', result.sanitized.phone);
+      formData.append('address', result.sanitized.address);
       await api.post('/payments/upload-slip', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       await clearCart();
       toast.success('Order placed! Payment slip submitted for approval.');
@@ -218,7 +281,7 @@ export default function CartPage() {
                           background: '#f3f4f6', borderRadius: 10,
                           border: '1px solid #e5e7eb',
                         }}>
-                          <button onClick={() => updateQty(item._id, item.qty - 1)} style={{
+                          <button onClick={() => updateQty(item._id, Math.max(1, item.qty - 1))} style={{
                             width: 32, height: 32, border: 'none', background: 'transparent',
                             cursor: 'pointer', fontSize: 16, fontWeight: 700, color: '#6b7280',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -271,10 +334,10 @@ export default function CartPage() {
               </div>
             </div>
 
-            {/* ── Right: Order Summary ── */}
+            {/* ── Right: Order Summary + Bank + Payment + User Details ── */}
             <div style={{ position: 'sticky', top: 90, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* Summary card */}
+              {/* ─ 1. Order Summary card ─ */}
               <div style={{ ...card, padding: '24px 24px' }}>
                 <h2 style={{
                   fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 20px',
@@ -326,7 +389,50 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Payment slip upload */}
+              {/* ─ 2. Bank Transfer Details card ─ */}
+              {bankAccounts.length > 0 && (
+                <div style={{ ...card, padding: '22px 24px' }}>
+                  <h2 style={{
+                    fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 16px',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
+                    <span style={{
+                      width: 30, height: 30, borderRadius: 8,
+                      background: '#eff6ff', border: '1px solid #bfdbfe',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+                    }}>🏦</span>
+                    Bank Transfer Details
+                  </h2>
+                  <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 14, lineHeight: 1.5 }}>
+                    Transfer the total amount to one of the accounts below, then upload your payment slip.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {bankAccounts.map((acc) => (
+                      <div key={acc._id} style={{
+                        background: '#f8fafc', borderRadius: 12,
+                        border: '1px solid #e2e8f0', padding: '14px 16px',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span style={{ fontSize: 14 }}>🏛️</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{acc.bankName}</span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                            <span style={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>Account No.</span>
+                            <span style={{ color: '#111827', fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{acc.accountNumber}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                            <span style={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>Branch</span>
+                            <span style={{ color: '#374151', fontWeight: 500 }}>{acc.branch}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ─ 3. Payment slip upload card ─ */}
               <div style={{ ...card, padding: '24px 24px' }}>
                 <h2 style={{
                   fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 6px',
@@ -337,7 +443,7 @@ export default function CartPage() {
                     background: '#eff6ff', border: '1px solid #bfdbfe',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
                   }}>💳</span>
-                  Payment
+                  Payment Slip
                 </h2>
                 <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 16 }}>
                   Upload your bank transfer slip to complete your order.
@@ -346,14 +452,16 @@ export default function CartPage() {
                 <label style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   padding: '24px 16px', borderRadius: 14,
-                  border: '2px dashed #e5e7eb', background: '#fafafa',
+                  border: `2px dashed ${checkoutErrors.slipFile ? '#ef4444' : slipFile ? '#10b981' : '#e5e7eb'}`,
+                  background: checkoutErrors.slipFile ? '#fef2f2' : slipFile ? '#f0fdf4' : '#fafafa',
                   cursor: 'pointer', transition: 'all 0.2s',
                   minHeight: 90,
                 }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#fcd34d'; e.currentTarget.style.background = '#fffbeb'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#fafafa'; }}
+                  onMouseEnter={(e) => { if (!slipFile) { e.currentTarget.style.borderColor = '#fcd34d'; e.currentTarget.style.background = '#fffbeb'; } }}
+                  onMouseLeave={(e) => { if (!slipFile) { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#fafafa'; } }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" strokeWidth={1.5}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"
+                    stroke={slipFile ? '#10b981' : '#9ca3af'} strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                   <p style={{ fontSize: 13, color: '#6b7280', margin: '8px 0 0', textAlign: 'center' }}>
@@ -363,26 +471,140 @@ export default function CartPage() {
                       <>Click to upload payment slip</>
                     )}
                   </p>
-                  <input type="file" accept="image/*" onChange={(e) => setSlipFile(e.target.files[0])} style={{ display: 'none' }} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0] || null;
+                      setSlipFile(file);
+                      setCheckoutTouched((prev) => ({ ...prev, slipFile: true }));
+                      updateCheckoutError('slipFile', file ? '' : 'Please upload your payment slip');
+                    }}
+                    style={{ display: 'none' }}
+                  />
                 </label>
+                {checkoutErrors.slipFile && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 8 }}>{checkoutErrors.slipFile}</p>}
               </div>
 
-              {/* Checkout button */}
-              <button onClick={handleCheckout} disabled={submitting || !slipFile}
-                style={{
-                  width: '100%', padding: '15px 0',
-                  fontSize: 15, fontWeight: 700, color: '#fff',
-                  background: (submitting || !slipFile) ? '#d1d5db' : 'linear-gradient(135deg, #f59e0b, #d97706)',
-                  border: 'none', borderRadius: 14,
-                  cursor: (submitting || !slipFile) ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  boxShadow: (submitting || !slipFile) ? 'none' : '0 4px 14px rgba(245,158,11,0.3)',
-                }}
-                onMouseEnter={(e) => { if (!submitting && slipFile) e.target.style.boxShadow = '0 6px 20px rgba(245,158,11,0.4)'; }}
-                onMouseLeave={(e) => { if (!submitting && slipFile) e.target.style.boxShadow = '0 4px 14px rgba(245,158,11,0.3)'; }}
-              >
-                {submitting ? 'Processing...' : `Place Order — LKR ${Math.round(total).toLocaleString()}`}
-              </button>
+              {/* ─ 4. User Details card (only shown after slip is uploaded) ─ */}
+              {slipFile && (
+                <div style={{ ...card, padding: '24px 24px', animation: 'cartFadeIn 0.35s ease both' }}>
+                  <h2 style={{
+                    fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 6px',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
+                    <span style={{
+                      width: 30, height: 30, borderRadius: 8,
+                      background: '#f0fdf4', border: '1px solid #bbf7d0',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+                    }}>👤</span>
+                    Your Details
+                  </h2>
+                  <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 18 }}>
+                    Please confirm your details to complete the order.
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* Name — read-only */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>
+                        Full Name
+                      </label>
+                      <div style={{
+                        padding: '10px 14px', background: '#f3f4f6', borderRadius: 10,
+                        border: `1.5px solid ${checkoutErrors.customerName ? '#ef4444' : '#e5e7eb'}`, fontSize: 13, color: '#374151', fontWeight: 600,
+                      }}>
+                        {user?.name || '—'}
+                      </div>
+                      {checkoutErrors.customerName && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{checkoutErrors.customerName}</p>}
+                    </div>
+
+                    {/* Email — read-only */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>
+                        Email Address
+                      </label>
+                      <div style={{
+                        padding: '10px 14px', background: '#f3f4f6', borderRadius: 10,
+                        border: '1.5px solid #e5e7eb', fontSize: 13, color: '#374151', fontWeight: 600,
+                      }}>
+                        {user?.email || '—'}
+                      </div>
+                    </div>
+
+                    {/* Phone — manual */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>
+                        Phone Number <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        placeholder="e.g. 0771234567"
+                        value={phone}
+                        onChange={onPhoneChange}
+                        style={{
+                          width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, color: '#111827',
+                          border: `1.5px solid ${checkoutErrors.phone ? '#ef4444' : phone.trim() ? '#10b981' : '#e5e7eb'}`,
+                          background: '#fff', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
+                        }}
+                        onFocus={e => { e.target.style.borderColor = '#f59e0b'; }}
+                        onBlur={onCheckoutFieldBlur('phone')}
+                      />
+                      {checkoutErrors.phone && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{checkoutErrors.phone}</p>}
+                    </div>
+
+                    {/* Address — manual */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>
+                        Delivery Address <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <textarea
+                        placeholder="Enter your full delivery address..."
+                        value={address}
+                        rows={3}
+                        onChange={onAddressChange}
+                        style={{
+                          width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, color: '#111827',
+                          border: `1.5px solid ${checkoutErrors.address ? '#ef4444' : address.trim() ? '#10b981' : '#e5e7eb'}`,
+                          background: '#fff', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
+                          transition: 'border-color 0.2s', fontFamily: 'inherit', lineHeight: 1.5,
+                        }}
+                        onFocus={e => { e.target.style.borderColor = '#f59e0b'; }}
+                        onBlur={onCheckoutFieldBlur('address')}
+                      />
+                      {checkoutErrors.address && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{checkoutErrors.address}</p>}
+                    </div>
+
+                    {/* ── Place Order button ── */}
+                    <button
+                      onClick={handleCheckout}
+                      disabled={submitting || !canPlaceOrder}
+                      style={{
+                        width: '100%', padding: '15px 0', marginTop: 4,
+                        fontSize: 15, fontWeight: 700, color: '#fff',
+                        background: (submitting || !canPlaceOrder)
+                          ? '#d1d5db'
+                          : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                        border: 'none', borderRadius: 14,
+                        cursor: (submitting || !canPlaceOrder) ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s',
+                        boxShadow: (submitting || !canPlaceOrder) ? 'none' : '0 4px 14px rgba(245,158,11,0.3)',
+                      }}
+                      onMouseEnter={(e) => { if (!submitting && canPlaceOrder) e.target.style.boxShadow = '0 6px 20px rgba(245,158,11,0.4)'; }}
+                      onMouseLeave={(e) => { if (!submitting && canPlaceOrder) e.target.style.boxShadow = '0 4px 14px rgba(245,158,11,0.3)'; }}
+                    >
+                      {submitting ? 'Processing...' : `Place Order — LKR ${Math.round(total).toLocaleString()}`}
+                    </button>
+
+                    {!canPlaceOrder && !submitting && (
+                      <p style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', margin: '-6px 0 0' }}>
+                        {!slipFile ? 'Upload payment slip first' : (!phone.trim() || !address.trim()) ? 'Fill in valid phone & address to place order' : ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>

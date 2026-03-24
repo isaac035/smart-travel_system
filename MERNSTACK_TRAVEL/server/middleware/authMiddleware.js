@@ -16,6 +16,14 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
+    // Check account status
+    if (req.user.status === 'hold') {
+      return res.status(403).json({ message: 'Your account is currently on hold. Please contact the administrator.', accountStatus: 'hold' });
+    }
+    if (req.user.status === 'deactivated') {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.', accountStatus: 'deactivated' });
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Not authorized, token invalid' });

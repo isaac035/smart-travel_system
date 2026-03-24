@@ -6,7 +6,7 @@ import api from '../../utils/api';
 import { Plus, Pencil, Trash2, Map, Upload, Search, ChevronLeft, ChevronRight, Eye, CheckCircle, XCircle, Ban, CreditCard, X } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
 
-const EMPTY = { name:'', description:'', duration:'', basePrice:'', vehicleOptions:['car','van','bus'], includes:'', excludes:'', isActive:true };
+const EMPTY = { name:'', destination:'', description:'', duration:'', basePrice:'', vehicleOptions:['car','van','bus'], maxTravelersByVehicle:{ car:4, van:8, bus:50 }, includes:'', excludes:'', isActive:true };
 
 export default function AdminToursPage() {
   /* ── shared state ── */
@@ -61,7 +61,7 @@ export default function AdminToursPage() {
 
   const openCreate = () => { setForm(EMPTY); setSelectedLocations([]); setSelectedGuides([]); setImages([]); setExistingImages([]); setEditId(null); setLocSearch(''); setGuideSearch(''); setShowForm(true); };
   const openEdit = (pkg) => {
-    setForm({ name: pkg.name, description: pkg.description, duration: pkg.duration, basePrice: pkg.basePrice, vehicleOptions: pkg.vehicleOptions || ['car','van','bus'], includes: (pkg.includes || []).join('\n'), excludes: (pkg.excludes || []).join('\n'), isActive: pkg.isActive ?? true });
+    setForm({ name: pkg.name, destination: pkg.destination || '', description: pkg.description, duration: pkg.duration, basePrice: pkg.basePrice, vehicleOptions: pkg.vehicleOptions || ['car','van','bus'], maxTravelersByVehicle: pkg.maxTravelersByVehicle || { car:4, van:8, bus:50 }, includes: (pkg.includes || []).join('\n'), excludes: (pkg.excludes || []).join('\n'), isActive: pkg.isActive ?? true });
     setSelectedLocations((pkg.locations || []).map((l) => l._id || l));
     setSelectedGuides((pkg.guideIds || []).map((g) => g._id || g));
     setExistingImages(pkg.images || []); setImages([]); setEditId(pkg._id); setLocSearch(''); setGuideSearch(''); setShowForm(true);
@@ -76,7 +76,7 @@ export default function AdminToursPage() {
     e.preventDefault(); setSaving(true);
     try {
       const fd = new FormData();
-      const payload = { name: form.name, description: form.description, duration: Number(form.duration), basePrice: Number(form.basePrice), vehicleOptions: form.vehicleOptions, locations: selectedLocations, guideIds: selectedGuides, includes: form.includes.split('\n').map((s) => s.trim()).filter(Boolean), excludes: form.excludes.split('\n').map((s) => s.trim()).filter(Boolean), isActive: form.isActive };
+      const payload = { name: form.name, destination: form.destination, description: form.description, duration: Number(form.duration), basePrice: Number(form.basePrice), vehicleOptions: form.vehicleOptions, maxTravelersByVehicle: { car: Number(form.maxTravelersByVehicle.car) || 4, van: Number(form.maxTravelersByVehicle.van) || 8, bus: Number(form.maxTravelersByVehicle.bus) || 50 }, locations: selectedLocations, guideIds: selectedGuides, includes: form.includes.split('\n').map((s) => s.trim()).filter(Boolean), excludes: form.excludes.split('\n').map((s) => s.trim()).filter(Boolean), isActive: form.isActive };
       if (editId) payload.existingImages = existingImages;
       fd.append('data', JSON.stringify(payload));
       images.forEach((f) => fd.append('images', f));
@@ -145,12 +145,18 @@ export default function AdminToursPage() {
         <AdminDrawer open={showForm} onClose={closeForm} title={editId ? 'Edit Package' : 'Add New Package'} saving={saving} onSubmit={handleSave} submitLabel={editId ? 'Update Package' : 'Create Package'}>
           <div className="field-row cols-4">
             <div className="field"><label>Package Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter package name" className="adm-input" /></div>
+            <div className="field"><label>Destination</label><input value={form.destination} onChange={f('destination')} placeholder="e.g. Nuwara Eliya" className="adm-input" /></div>
             <div className="field"><label>Duration (days)</label><input type="number" min={1} value={form.duration} onChange={f('duration')} placeholder="3" className="adm-input" /></div>
             <div className="field"><label>Base Price ($)</label><input type="number" value={form.basePrice} onChange={f('basePrice')} placeholder="299" className="adm-input" /></div>
+          </div>
+          <div className="field-row cols-4">
             <div className="field">
               <label>Vehicles</label>
               <div className="flex gap-2">{['car', 'van', 'bus'].map((v) => (<button key={v} type="button" onClick={() => toggleVehicle(v)} className={`adm-vehicle-btn ${form.vehicleOptions.includes(v) ? 'active' : ''}`}>{v}</button>))}</div>
             </div>
+            <div className="field"><label>Car max travelers</label><input type="number" min={1} value={form.maxTravelersByVehicle.car} onChange={(e) => setForm(p => ({ ...p, maxTravelersByVehicle: { ...p.maxTravelersByVehicle, car: e.target.value } }))} className="adm-input" /></div>
+            <div className="field"><label>Van max travelers</label><input type="number" min={1} value={form.maxTravelersByVehicle.van} onChange={(e) => setForm(p => ({ ...p, maxTravelersByVehicle: { ...p.maxTravelersByVehicle, van: e.target.value } }))} className="adm-input" /></div>
+            <div className="field"><label>Bus max travelers</label><input type="number" min={1} value={form.maxTravelersByVehicle.bus} onChange={(e) => setForm(p => ({ ...p, maxTravelersByVehicle: { ...p.maxTravelersByVehicle, bus: e.target.value } }))} className="adm-input" /></div>
           </div>
           <div className="field-row cols-2">
             <div className="field">

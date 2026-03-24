@@ -13,6 +13,7 @@ const {
 
 router.use(protect, guideOnly);
 
+
 router.get('/profile', getMyGuideProfile);
 router.put('/profile', upload.single('image'), updateMyGuideProfile);
 router.get('/bookings', getMyBookingRequests);

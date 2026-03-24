@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 
+
 export default function LoginPage() {
   const [role, setRole] = useState('user');
   const [form, setForm] = useState({ email: '', password: '' });
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [approvalStatus, setApprovalStatus] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [accountStatus, setAccountStatus] = useState(null);
   const [focusedField, setFocusedField] = useState(null);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -24,12 +26,14 @@ export default function LoginPage() {
     setForm({ email: '', password: '' });
     setApprovalStatus(null);
     setRejectionReason('');
+    setAccountStatus(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setApprovalStatus(null);
+    setAccountStatus(null);
 
     if (role === 'user') {
       try {
@@ -37,7 +41,11 @@ export default function LoginPage() {
         toast.success(`Welcome back, ${user.name}!`);
         navigate('/');
       } catch (err) {
-        toast.error(err.response?.data?.message || 'Login failed. Please try again.');
+        if (err.response?.status === 403 && err.response?.data?.accountStatus) {
+          setAccountStatus(err.response.data.accountStatus);
+        } else {
+          toast.error(err.response?.data?.message || 'Invalid email or password. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -49,11 +57,15 @@ export default function LoginPage() {
         window.location.href = '/guide/dashboard';
       } catch (err) {
         if (err.response?.status === 403) {
-          const status = err.response.data.approvalStatus;
-          setApprovalStatus(status);
-          if (status === 'rejected') setRejectionReason(err.response.data.reason || '');
+          if (err.response.data.accountStatus) {
+            setAccountStatus(err.response.data.accountStatus);
+          } else {
+            const status = err.response.data.approvalStatus;
+            setApprovalStatus(status);
+            if (status === 'rejected') setRejectionReason(err.response.data.reason || '');
+          }
         } else {
-          toast.error(err.response?.data?.message || 'Login failed');
+          toast.error(err.response?.data?.message || 'Invalid guide credentials. Please try again.');
         }
       } finally {
         setLoading(false);
@@ -67,11 +79,15 @@ export default function LoginPage() {
         window.location.href = '/hotel-owner/dashboard';
       } catch (err) {
         if (err.response?.status === 403) {
-          const status = err.response.data.approvalStatus;
-          setApprovalStatus(status);
-          if (status === 'rejected') setRejectionReason(err.response.data.reason || '');
+          if (err.response.data.accountStatus) {
+            setAccountStatus(err.response.data.accountStatus);
+          } else {
+            const status = err.response.data.approvalStatus;
+            setApprovalStatus(status);
+            if (status === 'rejected') setRejectionReason(err.response.data.reason || '');
+          }
         } else {
-          toast.error(err.response?.data?.message || 'Login failed');
+          toast.error(err.response?.data?.message || 'Invalid hotel owner credentials. Please try again.');
         }
       } finally {
         setLoading(false);
@@ -262,6 +278,26 @@ export default function LoginPage() {
               }}>
                 <p style={{ color: '#ef4444', fontSize: 12, fontWeight: 700, margin: '0 0 3px' }}>Registration Rejected</p>
                 <p style={{ color: '#6b7280', fontSize: 11, margin: 0 }}>{rejectionReason || 'Please contact support.'}</p>
+              </div>
+            )}
+
+            {/* Account Status Alerts */}
+            {accountStatus === 'hold' && (
+              <div style={{
+                borderRadius: 14, padding: '12px 16px', marginBottom: 20, textAlign: 'center',
+                background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)',
+              }}>
+                <p style={{ color: '#f59e0b', fontSize: 12, fontWeight: 700, margin: '0 0 3px' }}>⚠️ Account On Hold</p>
+                <p style={{ color: '#6b7280', fontSize: 11, margin: 0 }}>Your account is currently on hold. Please contact the administrator for assistance.</p>
+              </div>
+            )}
+            {accountStatus === 'deactivated' && (
+              <div style={{
+                borderRadius: 14, padding: '12px 16px', marginBottom: 20, textAlign: 'center',
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)',
+              }}>
+                <p style={{ color: '#ef4444', fontSize: 12, fontWeight: 700, margin: '0 0 3px' }}>🚫 Account Deactivated</p>
+                <p style={{ color: '#6b7280', fontSize: 11, margin: 0 }}>Your account has been deactivated. Please contact the administrator for assistance.</p>
               </div>
             )}
 
