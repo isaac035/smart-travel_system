@@ -12,6 +12,7 @@ const formatUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  status: user.status || 'active',
   avatar: user.avatar,
   coverPhoto: user.coverPhoto,
   phone: user.phone,
@@ -55,6 +56,14 @@ const login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // Check account status
+    if (user.status === 'hold') {
+      return res.status(403).json({ message: 'Your account is currently on hold. Please contact the administrator.', accountStatus: 'hold' });
+    }
+    if (user.status === 'deactivated') {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.', accountStatus: 'deactivated' });
     }
 
     res.json({
@@ -152,6 +161,14 @@ const guideLogin = async (req, res) => {
     const user = await User.findOne({ email, role: 'guide' });
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ message: 'Invalid guide credentials' });
+    }
+
+    // Check account status
+    if (user.status === 'hold') {
+      return res.status(403).json({ message: 'Your account is currently on hold. Please contact the administrator.', accountStatus: 'hold' });
+    }
+    if (user.status === 'deactivated') {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.', accountStatus: 'deactivated' });
     }
 
     const guide = await Guide.findOne({ userId: user._id });
@@ -252,6 +269,14 @@ const hotelOwnerLogin = async (req, res) => {
     const user = await User.findOne({ email, role: 'hotelOwner' });
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ message: 'Invalid hotel owner credentials' });
+    }
+
+    // Check account status
+    if (user.status === 'hold') {
+      return res.status(403).json({ message: 'Your account is currently on hold. Please contact the administrator.', accountStatus: 'hold' });
+    }
+    if (user.status === 'deactivated') {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.', accountStatus: 'deactivated' });
     }
 
     // Ensure profile exists

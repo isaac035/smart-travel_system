@@ -13,6 +13,7 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 const { upload } = require('../config/cloudinary');
 
+
 // Public routes
 router.post('/register', register);
 router.post('/login', login);
