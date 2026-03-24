@@ -5,6 +5,9 @@ const {
   getBundles, getBundle, createBundle, updateBundle, deleteBundle,
   getCart, addToCart, updateCartItem, removeFromCart, clearCart,
 } = require('../controllers/productController');
+const {
+  getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
+} = require('../controllers/bankAccountController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const { upload } = require('../config/cloudinary');
 
@@ -29,5 +32,11 @@ router.post('/cart/add', protect, addToCart);
 router.put('/cart/update', protect, updateCartItem);
 router.delete('/cart/remove/:itemId', protect, removeFromCart);
 router.delete('/cart/clear', protect, clearCart);
+
+// ─── Bank Accounts ────────────────────────────────────────────
+router.get('/bank-accounts', getBankAccounts);
+router.post('/bank-accounts', protect, adminOnly, createBankAccount);
+router.put('/bank-accounts/:id', protect, adminOnly, updateBankAccount);
+router.delete('/bank-accounts/:id', protect, adminOnly, deleteBankAccount);
 
 module.exports = router;
