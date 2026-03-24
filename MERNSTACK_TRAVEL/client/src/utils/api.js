@@ -21,9 +21,11 @@ api.interceptors.response.use(
     });
     
     if (error.response?.status === 401) {
+      const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
       localStorage.removeItem('token');
-      // Redirect to login or show message
-      window.location.href = '/login';
+      // Redirect hotel owners to their login page, others to the regular login
+      const isHotelOwner = storedUser?.role === 'hotelOwner';
+      window.location.href = isHotelOwner ? '/hotel-owner/login' : '/login';
     }
     return Promise.reject(error);
   }

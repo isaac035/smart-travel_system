@@ -1131,7 +1131,7 @@ function EditHotelForm({ hotel, amenitiesOptions, roomFacilityOptions, onSuccess
       // Room images
       roomImageFiles.forEach(f => { if (f) fd.append('roomImages', f); });
 
-      await api.put(`/hotels/${hotel._id}`, fd, {headers:{'Content-Type':'multipart/form-data'}});
+      await api.put(`/hotel-owner-dashboard/hotels/${hotel._id}`, fd, {headers:{'Content-Type':'multipart/form-data'}});
       await onSuccess?.();
     } catch(err) {
       toast.error(err.response?.data?.message||'Failed to update hotel');
