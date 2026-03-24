@@ -225,9 +225,14 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const user = await login(signIn.email, signIn.password);
-      if (user?.role !== 'hotelOwner') { toast.error('Access denied. Hotel owners only.'); return; }
-      toast.success(`Welcome back, ${user.name || 'Hotel Owner'}!`);
+      const { data } = await api.post('/auth/hotel-owner/login', {
+        email: signIn.email,
+        password: signIn.password,
+      });
+      // Store token and update auth context
+      localStorage.setItem('token', data.token);
+      updateUser(data.user);
+      toast.success(`Welcome back, ${data.user?.name || 'Hotel Owner'}!`);
       navigate('/hotel-owner/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Sign in failed');

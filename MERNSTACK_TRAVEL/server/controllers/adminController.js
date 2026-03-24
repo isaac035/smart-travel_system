@@ -47,17 +47,17 @@ exports.updateUser = async (req, res) => {
     if (!name || !email) return res.status(400).json({ message: 'Name and email are required' });
     const existing = await User.findOne({ email, _id: { $ne: req.params.id } });
     if (existing) return res.status(400).json({ message: 'Email already in use by another user' });
-    
+
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    
+
     user.name = name;
     user.email = email;
     if (phone !== undefined) user.phone = phone;
     if (password && password.trim()) {
       user.password = password; // will be hashed by pre-save hook
     }
-    
+
     await user.save();
     const updated = await User.findById(user._id).select('-password');
     res.json(updated);
@@ -410,6 +410,104 @@ exports.updatePaymentStatus = async (req, res) => {
   }
 };
 
+// GET /api/admin/owner-hotels — all hotels submitted by hotel owners
+exports.getOwnerSubmittedHotels = async (req, res) => {
+  try {
+    console.log('User:', req.user);
+    console.log('Query params:', req.query);
+    
+    const { search, district, approvalStatus } = req.query;
+
+    const filter = {
+      hotelOwnerId: { $exists: true, $ne: null },
+    };
+
+    if (approvalStatus && approvalStatus !== 'all') {
+      filter.approvalStatus = approvalStatus;
+    }
+
+    if (district && district.trim()) {
+      filter.location = { $regex: district.trim(), $options: 'i' };
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      filter.$or = [
+        { name: { $regex: q, $options: 'i' } },
+        { location: { $regex: q, $options: 'i' } },
+        { address: { $regex: q, $options: 'i' } },
+      ];
+    }
+
+    const hotels = await Hotel.find(filter)
+      .populate('hotelOwnerId', 'name email')
+      .sort({ publishedAt: -1, createdAt: -1 })
+      .lean();
+
+    console.log('Found hotels:', hotels.length);
+    res.json(hotels);
+  } catch (err) {
+    console.error('Error in getOwnerSubmittedHotels:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PUT /api/admin/owner-hotels/:id/approval
+exports.updateOwnerHotelApproval = async (req, res) => {
+  try {
+    const { approvalStatus } = req.body;
+    const valid = ['pending_approval', 'approved', 'hold'];
+    if (!valid.includes(approvalStatus)) {
+      return res.status(400).json({ message: 'Invalid approval status' });
+    }
+    const hotel = await Hotel.findByIdAndUpdate(
+      req.params.id,
+      { approvalStatus },
+      { new: true }
+    ).populate('hotelOwnerId', 'name email');
+    if (!hotel) return res.status(404).json({ message: 'Hotel not found' });
+    res.json(hotel);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// PUT /api/admin/owner-hotels/:id — full hotel update (details + rooms)
+exports.updateOwnerHotelDetails = async (req, res) => {
+  try {
+    const updates = req.body;
+    if (typeof updates.coordinates === 'string') updates.coordinates = JSON.parse(updates.coordinates);
+    if (typeof updates.rooms === 'string') updates.rooms = JSON.parse(updates.rooms);
+    if (typeof updates.amenities === 'string') updates.amenities = JSON.parse(updates.amenities);
+
+    const hotel = await Hotel.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true })
+      .populate('hotelOwnerId', 'name email');
+    if (!hotel) return res.status(404).json({ message: 'Hotel not found' });
+    res.json(hotel);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// POST /api/admin/users/create-admin — Create admin user (for initial setup)
+exports.createAdmin = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    
+    // Check if admin already exists
+    const existingAdmin = await User.findOne({ role: 'admin' });
+    if (existingAdmin) {
+      return res.status(400).json({ message: 'Admin user already exists. Use that account or delete it first.' });
+    }
+    
+    const admin = await User.create({ name, email, password, role: 'admin' });
+    res.status(201).json({ message: 'Admin created successfully', adminId: admin._id });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+
 // PUT /api/admin/users/:id/status
 exports.updateUserStatus = async (req, res) => {
   try {
@@ -434,14 +532,14 @@ exports.getUserDetails = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
-    
+
     // Include guide profile if guide
     if (user.role === 'guide') {
       const guideProfile = await Guide.findOne({ userId: user._id })
         .select('userId approvalStatus rejectionReason location languages experience isAvailable pricePerDay bio services certifications').lean();
       if (guideProfile) user.guideProfile = guideProfile;
     }
-    
+
     // Include hotel owner profile if hotelOwner
     if (user.role === 'hotelOwner') {
       const HotelOwner = require('../models/HotelOwner');
@@ -449,7 +547,7 @@ exports.getUserDetails = async (req, res) => {
         .select('fullName phone location coordinates').lean();
       if (ownerProfile) user.hotelOwnerProfile = ownerProfile;
     }
-    
+
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -468,7 +566,7 @@ exports.createAdmin = async (req, res) => {
     }
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: 'Email already registered' });
-    
+
     const user = await User.create({ name, email, password, role: 'admin', status: 'active' });
     const created = await User.findById(user._id).select('-password');
     res.status(201).json(created);

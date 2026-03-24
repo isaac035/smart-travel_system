@@ -1,5 +1,6 @@
 const Hotel = require('../models/Hotel');
 const HotelBooking = require('../models/HotelBooking');
+const { upload } = require('../config/cloudinary');
 
 const getOwnerHotels = async (req, res) => {
   try {
@@ -131,11 +132,90 @@ const rejectBooking = async (req, res) => {
   }
 };
 
+const deleteHotel = async (req, res) => {
+  try {
+    const hotel = await Hotel.findOne({ _id: req.params.id, hotelOwnerId: req.user._id });
+    if (!hotel) return res.status(404).json({ message: 'Hotel not found' });
+    
+    // Delete all associated bookings
+    await HotelBooking.deleteMany({ hotelId: req.params.id });
+    
+    // Delete the hotel
+    await hotel.deleteOne();
+    res.json({ message: 'Hotel deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// POST /hotel-owner-dashboard/hotels/:id/publish
+const publishHotel = async (req, res) => {
+  try {
+    const hotel = await Hotel.findOne({ _id: req.params.id, hotelOwnerId: req.user._id });
+    if (!hotel) return res.status(404).json({ message: 'Hotel not found or access denied' });
+
+    hotel.approvalStatus = 'pending_approval';
+    hotel.publishedAt = new Date();
+    await hotel.save();
+
+    res.json({ message: 'Hotel submitted for approval', hotel });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PUT /hotel-owner-dashboard/hotels/:id
+const updateHotel = async (req, res) => {
+  try {
+    const hotel = await Hotel.findOne({ _id: req.params.id, hotelOwnerId: req.user._id });
+    if (!hotel) return res.status(404).json({ message: 'Hotel not found or access denied' });
+
+    // Parse body — supports both multipart (with images) and plain JSON
+    const body = req.body.data ? JSON.parse(req.body.data) : req.body;
+
+    if (typeof body.coordinates === 'string') body.coordinates = JSON.parse(body.coordinates);
+    if (typeof body.rooms === 'string') body.rooms = JSON.parse(body.rooms);
+    if (typeof body.amenities === 'string') body.amenities = JSON.parse(body.amenities);
+
+    // Handle new hotel images
+    if (req.files) {
+      const hotelImgFiles = Array.isArray(req.files)
+        ? req.files
+        : (req.files.images || []);
+      if (hotelImgFiles.length > 0) {
+        const newUrls = hotelImgFiles.map(f => f.path);
+        body.images = [...(hotel.images || []), ...newUrls];
+      }
+
+      // Handle per-room images (one per room)
+      const roomImgFiles = Array.isArray(req.files) ? [] : (req.files.roomImages || []);
+      if (roomImgFiles.length > 0 && Array.isArray(body.rooms)) {
+        body.rooms = body.rooms.map((r, idx) => ({
+          ...r,
+          images: roomImgFiles[idx] ? [roomImgFiles[idx].path] : (r.images || []),
+        }));
+      }
+    }
+
+    const updated = await Hotel.findByIdAndUpdate(
+      req.params.id,
+      body,
+      { new: true, runValidators: true }
+    );
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getOwnerHotels,
   getOwnerStats,
   getOwnerBookings,
   acceptBooking,
   rejectBooking,
+  deleteHotel,
+  publishHotel,
+  updateHotel,
 };
 

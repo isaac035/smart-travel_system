@@ -13,8 +13,19 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Log error for debugging
+    console.error('API Error:', {
+      status: error.response?.status,
+      message: error.response?.data?.message,
+      url: error.config?.url,
+    });
+    
     if (error.response?.status === 401) {
+      const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
       localStorage.removeItem('token');
+      // Redirect hotel owners to their login page, others to the regular login
+      const isHotelOwner = storedUser?.role === 'hotelOwner';
+      window.location.href = isHotelOwner ? '/hotel-owner/login' : '/login';
     }
     return Promise.reject(error);
   }

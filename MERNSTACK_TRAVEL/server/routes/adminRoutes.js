@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { getStats, getAllPayments, updatePaymentStatus, getUsers, updateUser, updateUserRole, deleteUser, promoteToGuide, getGuideBookings, getTourBookings, getHotelBookings, getProductOrders, updateUserStatus, getUserDetails, createAdmin } = require('../controllers/adminController');
+const {
+  getStats, getAllPayments, updatePaymentStatus,
+  getUsers, updateUser, updateUserRole, deleteUser, promoteToGuide, getGuideBookings,
+  getTourBookings, getHotelBookings, getProductOrders,
+  updateUserStatus, getUserDetails, createAdmin,
+  getOwnerSubmittedHotels, updateOwnerHotelApproval, updateOwnerHotelDetails,
+} = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 
@@ -22,6 +28,11 @@ router.put('/users/:id/promote-guide', promoteToGuide);
 router.get('/users/:id/guide-bookings', getGuideBookings);
 router.put('/users/:id', updateUser);
 router.delete('/users/:id', deleteUser);
+
+// Owner-submitted hotel management
+router.get('/owner-hotels', getOwnerSubmittedHotels);
+router.put('/owner-hotels/:id/approval', updateOwnerHotelApproval);
+router.put('/owner-hotels/:id', updateOwnerHotelDetails);
 
 module.exports = router;
 
