@@ -5,6 +5,7 @@ import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
 import { Plus, Pencil, Trash2, Compass, Upload, Search, ClipboardList, CheckCircle, XCircle, Calendar, MapPin, Users, DollarSign, Clock, Eye, ShieldCheck, RefreshCw, ArrowRight, AlertTriangle, Ban, FileText, X, UserCheck, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
+import { formatLKR } from '../../utils/currency';
 
 const EMPTY = { name:'', bio:'', email:'', phone:'', languages:'', pricePerDay:'', services:'', location:'', isAvailable:true };
 
@@ -339,7 +340,7 @@ export default function AdminGuidesPage() {
                         <tr key={g._id}>
                           <td><div className="flex items-center gap-3">{g.image ? <img src={g.image} alt={g.name} className="adm-thumb" style={{ borderRadius: '50%' }} /> : <div className="adm-thumb-placeholder bg-amber-50" style={{ borderRadius: '50%' }}><Compass size={18} className="text-amber-600" /></div>}<span className="text-sm font-semibold text-gray-900">{g.name}</span></div></td>
                           <td><div className="flex flex-wrap gap-1">{(g.languages || []).map((lang) => <span key={lang} className="adm-badge adm-badge-neutral" style={{ fontSize: '11px', padding: '2px 8px' }}>{lang}</span>)}</div></td>
-                          <td className="text-sm font-bold text-gray-900">LKR {g.pricePerDay?.toLocaleString()}</td>
+                          <td className="text-sm font-bold text-gray-900">{formatLKR(g.pricePerDay)}</td>
                           <td className="text-sm font-bold text-amber-500">{g.rating?.toFixed(1) || '--'}</td>
                           <td>
                             {g.approvalStatus === 'pending' ? (
@@ -407,7 +408,7 @@ export default function AdminGuidesPage() {
                 { label: 'Total', value: bookings.length, icon: ClipboardList, gradient: 'linear-gradient(135deg, #6366f1, #4f46e5)' },
                 { label: 'Needs Action', value: actionCount, icon: AlertTriangle, gradient: 'linear-gradient(135deg, #f59e0b, #d97706)', pulse: actionCount > 0 },
                 { label: 'Active', value: activeCount, icon: Clock, gradient: 'linear-gradient(135deg, #3b82f6, #2563eb)' },
-                { label: 'Revenue', value: `LKR ${totalRevenue.toLocaleString()}`, icon: DollarSign, gradient: 'linear-gradient(135deg, #10b981, #059669)' },
+                { label: 'Revenue', value: formatLKR(totalRevenue), icon: DollarSign, gradient: 'linear-gradient(135deg, #10b981, #059669)' },
               ].map((s, i) => (
                 <div key={i} style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e5e7eb', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: s.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -622,10 +623,10 @@ export default function AdminGuidesPage() {
 
                           {/* Amount */}
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>LKR {b.totalPrice?.toLocaleString()}</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>{formatLKR(b.totalPrice)}</div>
                             {b.depositAmount > 0 && (
                               <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>
-                                Dep: {b.depositAmount?.toLocaleString()} | Rem: {b.remainingAmount?.toLocaleString()}
+                                Dep: {formatLKR(b.depositAmount)} | Rem: {formatLKR(b.remainingAmount)}
                               </div>
                             )}
                           </div>
@@ -678,7 +679,7 @@ export default function AdminGuidesPage() {
                                     <Ban size={13} color="#ef4444" />
                                     <span style={{ color: '#dc2626', fontWeight: 600 }}>Cancelled by {b.cancellation.cancelledBy}</span>
                                     <span style={{ color: '#94a3b8' }}>|</span>
-                                    <span style={{ color: '#64748b' }}>Refund: LKR {b.cancellation.refundAmount?.toLocaleString()}</span>
+                                    <span style={{ color: '#64748b' }}>Refund: {formatLKR(b.cancellation.refundAmount)}</span>
                                     <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: b.cancellation.refundStatus === 'pending' ? '#fef3c7' : '#d1fae5', color: b.cancellation.refundStatus === 'pending' ? '#92400e' : '#065f46' }}>
                                       {b.cancellation.refundStatus}
                                     </span>
@@ -690,15 +691,15 @@ export default function AdminGuidesPage() {
                                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
                                     <div style={{ padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
                                       <div style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px' }}>Total</div>
-                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>LKR {b.totalPrice?.toLocaleString()}</div>
+                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>{formatLKR(b.totalPrice)}</div>
                                     </div>
                                     <div style={{ padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
                                       <div style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px' }}>Deposit</div>
-                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669' }}>LKR {b.depositAmount?.toLocaleString()}</div>
+                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669' }}>{formatLKR(b.depositAmount)}</div>
                                     </div>
                                     <div style={{ padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
                                       <div style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px' }}>Remaining</div>
-                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#d97706' }}>LKR {b.remainingAmount?.toLocaleString()}</div>
+                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#d97706' }}>{formatLKR(b.remainingAmount)}</div>
                                     </div>
                                   </div>
                                 )}
@@ -774,7 +775,7 @@ export default function AdminGuidesPage() {
                                     <>
                                       <button onClick={() => processRefund(b._id, 'processed')}
                                         style={{ fontSize: '12px', fontWeight: 700, padding: '10px 18px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', boxShadow: '0 2px 8px rgba(16,185,129,0.25)' }}>
-                                        <RefreshCw size={14} /> Refund LKR {b.cancellation?.refundAmount?.toLocaleString()}
+                                        <RefreshCw size={14} /> Refund {formatLKR(b.cancellation?.refundAmount)}
                                       </button>
                                       <button onClick={() => processRefund(b._id, 'none')}
                                         style={{ fontSize: '12px', fontWeight: 600, padding: '9px 18px', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff', color: '#64748b', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>

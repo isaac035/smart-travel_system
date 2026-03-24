@@ -5,11 +5,12 @@ import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
 import { Plus, Pencil, Trash2, Hotel, Star, Upload, Search, Eye, CheckCircle, XCircle, Ban, Calendar, CreditCard, X } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
+import { formatLKR } from '../../utils/currency';
 
 const EMPTY = { name:'', description:'', location:'', district:'', province:'', stars:3, pricePerNight:'', amenities:'', lat:'', lng:'' };
 
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-const fmtCurrency = (v) => `LKR ${Number(v).toLocaleString()}`;
+const fmtCurrency = (v) => formatLKR(v);
 
 export default function AdminHotelsPage() {
   /* ─── shared state ─── */
@@ -132,7 +133,7 @@ export default function AdminHotelsPage() {
           </div>
           <div className="field-row cols-4">
             <div className="field"><label>Stars</label><select value={form.stars} onChange={f('stars')} className="adm-select">{[1,2,3,4,5].map(n => <option key={n} value={n}>{n} Star{n>1?'s':''}</option>)}</select></div>
-            <div className="field"><label>Price/Night ($)</label><input type="number" value={form.pricePerNight} onChange={f('pricePerNight')} placeholder="150" className="adm-input" /></div>
+              <div className="field"><label>Price/Night (LKR)</label><input type="number" value={form.pricePerNight} onChange={f('pricePerNight')} placeholder="150" className="adm-input" /></div>
             <div className="field"><label>Latitude</label><input type="number" step="any" value={form.lat} onChange={f('lat')} placeholder="6.9271" className="adm-input" /></div>
             <div className="field"><label>Longitude</label><input type="number" step="any" value={form.lng} onChange={f('lng')} placeholder="79.8612" className="adm-input" /></div>
           </div>
@@ -199,7 +200,7 @@ export default function AdminHotelsPage() {
                           <td><div className="flex items-center gap-3">{h.images?.[0] ? <img src={h.images[0]} alt={h.name} className="adm-thumb" /> : <div className="adm-thumb-placeholder bg-violet-50"><Hotel size={18} className="text-violet-600" /></div>}<span className="text-sm font-semibold text-gray-900">{h.name}</span></div></td>
                           <td className="text-sm text-gray-500">{h.location}</td>
                           <td><div className="flex items-center gap-0.5">{[...Array(h.stars || 0)].map((_, i) => <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />)}</div></td>
-                          <td><span className="adm-badge adm-badge-active">${h.pricePerNight}</span></td>
+                          <td><span className="adm-badge adm-badge-active">{formatLKR(h.pricePerNight)}</span></td>
                           <td><div className="flex items-center justify-end gap-2"><button onClick={() => openEdit(h)} className="adm-btn-edit"><Pencil size={14} /> Edit</button><button onClick={() => handleDelete(h._id)} className="adm-btn-delete"><Trash2 size={14} /> Delete</button></div></td>
                         </tr>
                       ))}

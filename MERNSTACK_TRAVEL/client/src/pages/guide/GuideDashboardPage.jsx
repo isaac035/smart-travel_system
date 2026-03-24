@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { formatLKR } from '../../utils/currency';
 
 const STATUS_LABELS = {
   deposit_submitted: 'Deposit Submitted',
@@ -234,10 +235,10 @@ export default function GuideDashboardPage() {
 
                     <div style={{ textAlign: 'right', minWidth: 140 }}>
                       <div style={{ fontSize: 18, fontWeight: 700, color: '#d97706' }}>
-                        LKR {booking.totalPrice?.toLocaleString()}
+                        {formatLKR(booking.totalPrice)}
                       </div>
                       <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
-                        Deposit: LKR {booking.depositAmount?.toLocaleString()}
+                        Deposit: {formatLKR(booking.depositAmount)}
                       </div>
                     </div>
                   </div>

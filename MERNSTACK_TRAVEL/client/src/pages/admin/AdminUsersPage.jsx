@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
 import api from '../../utils/api';
+import { formatLKR } from '../../utils/currency';
 import {
   Search, Shield, ShieldOff, Trash2, Users, Compass,
   CheckCircle, XCircle, Eye, UserPlus, ChevronDown,
@@ -656,7 +657,7 @@ export default function AdminUsersPage() {
                           <Calendar size={11} /> {new Date(b.startDate).toLocaleDateString()} — {new Date(b.endDate).toLocaleDateString()}
                         </span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <DollarSign size={11} /> LKR {b.totalPrice?.toLocaleString()}
+                          <DollarSign size={11} /> {formatLKR(b.totalPrice)}
                         </span>
                       </div>
                     </div>

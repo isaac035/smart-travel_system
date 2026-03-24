@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import { useCart } from '../../context/CartContext';
 import { ShoppingCart, X, MapPin } from 'lucide-react';
 import bannerImage from '../../assets/images/travel-products-banner.png';
+import { formatLKR } from '../../utils/currency';
 
 
 const MAX_PRICE = 200000;
@@ -138,11 +139,11 @@ const ProductCard = ({ item, type, onAddToCart, index, onCardClick }) => {
           <div>
             {type === 'bundle' && item.discount > 0 && (
               <span style={{ fontSize: 11, color: '#b0b0b0', textDecoration: 'line-through', marginRight: 6 }}>
-                LKR {item.totalPrice?.toLocaleString()}
+                {formatLKR(item.totalPrice)}
               </span>
             )}
             <span style={{ fontSize: 16, fontWeight: 700, color: '#d97706' }}>
-              LKR {Math.round(price).toLocaleString()}
+              {formatLKR(Math.round(price))}
             </span>
           </div>
           <button
@@ -292,11 +293,11 @@ export default function ProductsPage() {
         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
           <div style={{ flex: 1, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
             <p style={{ fontSize: 9, color: '#9ca3af', textTransform: 'uppercase', marginBottom: 2 }}>From</p>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: 0 }}>Rs. {priceMin.toLocaleString()}</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: 0 }}>{formatLKR(priceMin)}</p>
           </div>
           <div style={{ flex: 1, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
             <p style={{ fontSize: 9, color: '#9ca3af', textTransform: 'uppercase', marginBottom: 2 }}>To</p>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: 0 }}>Rs. {priceMax.toLocaleString()}</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: 0 }}>{formatLKR(priceMax)}</p>
           </div>
         </div>
         {/* Slider track */}
@@ -565,11 +566,11 @@ export default function ProductsPage() {
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Total Price</p>
                   {selectedBundle.discount > 0 && (
                     <div style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through', marginBottom: 2 }}>
-                      LKR {selectedBundle.totalPrice?.toLocaleString()}
+                      {formatLKR(selectedBundle.totalPrice)}
                     </div>
                   )}
                   <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706', marginBottom: 16 }}>
-                    LKR {Math.round(selectedBundle.totalPrice * (1 - (selectedBundle.discount || 0) / 100)).toLocaleString()}
+                    {formatLKR(Math.round(selectedBundle.totalPrice * (1 - (selectedBundle.discount || 0) / 100)))}
                   </div>
                   <button onClick={() => { addToCart(selectedBundle._id, 'bundle'); setSelectedBundle(null); }} style={{ width: '100%', padding: '12px 0', fontSize: 14, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#f59e0b,#d97706)', border: 'none', borderRadius: 12, cursor: 'pointer', boxShadow: '0 4px 12px rgba(245,158,11,0.3)' }}>Add to Cart</button>
                 </div>

@@ -5,6 +5,7 @@ import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
 import { Plus, Pencil, Trash2, Map, Upload, Search, ChevronLeft, ChevronRight, Eye, CheckCircle, XCircle, Ban, CreditCard, X } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
+import { formatLKR } from '../../utils/currency';
 
 const EMPTY = { name:'', description:'', duration:'', basePrice:'', vehicleOptions:['car','van','bus'], includes:'', excludes:'', isActive:true };
 
@@ -113,7 +114,7 @@ export default function AdminToursPage() {
   const bookingTotalPages = Math.ceil(filteredBookings.length / bookingPerPage);
 
   const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const fmtCurrency = (v) => `LKR ${Number(v).toLocaleString()}`;
+  const fmtCurrency = (v) => formatLKR(v);
 
   const statusBadge = (status) => {
     const map = { pending: 'bg-amber-50 text-amber-700', confirmed: 'bg-green-50 text-green-700', rejected: 'bg-red-50 text-red-700', cancelled: 'bg-gray-100 text-gray-500' };
@@ -146,7 +147,7 @@ export default function AdminToursPage() {
           <div className="field-row cols-4">
             <div className="field"><label>Package Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter package name" className="adm-input" /></div>
             <div className="field"><label>Duration (days)</label><input type="number" min={1} value={form.duration} onChange={f('duration')} placeholder="3" className="adm-input" /></div>
-            <div className="field"><label>Base Price ($)</label><input type="number" value={form.basePrice} onChange={f('basePrice')} placeholder="299" className="adm-input" /></div>
+              <div className="field"><label>Base Price (LKR)</label><input type="number" value={form.basePrice} onChange={f('basePrice')} placeholder="299" className="adm-input" /></div>
             <div className="field">
               <label>Vehicles</label>
               <div className="flex gap-2">{['car', 'van', 'bus'].map((v) => (<button key={v} type="button" onClick={() => toggleVehicle(v)} className={`adm-vehicle-btn ${form.vehicleOptions.includes(v) ? 'active' : ''}`}>{v}</button>))}</div>
@@ -259,7 +260,7 @@ export default function AdminToursPage() {
                           <tr key={pkg._id}>
                             <td><div className="flex items-center gap-3">{pkg.images?.[0] ? <img src={pkg.images[0]} alt={pkg.name} className="adm-thumb" /> : <div className="adm-thumb-placeholder bg-amber-50"><Map size={18} className="text-amber-400" /></div>}<span className="text-sm font-semibold text-gray-900">{pkg.name}</span></div></td>
                             <td className="text-sm text-gray-500">{pkg.duration} days</td>
-                            <td className="text-sm font-bold text-gray-900">${pkg.basePrice}</td>
+                            <td className="text-sm font-bold text-gray-900">{formatLKR(pkg.basePrice)}</td>
                             <td className="text-sm text-gray-500">{(pkg.locations || []).length}</td>
                             <td><span className={`adm-badge ${pkg.isActive ? 'adm-badge-active' : 'adm-badge-inactive'}`}>{pkg.isActive ? 'Active' : 'Inactive'}</span></td>
                             <td><div className="flex items-center justify-end gap-2"><button onClick={() => openEdit(pkg)} className="adm-btn-edit"><Pencil size={14} /> Edit</button><button onClick={() => handleDelete(pkg._id)} className="adm-btn-delete"><Trash2 size={14} /> Delete</button></div></td>

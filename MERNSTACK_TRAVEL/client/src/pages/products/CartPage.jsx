@@ -5,6 +5,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import { formatLKR } from '../../utils/currency';
 import {
   validateTravelProductCheckoutField,
   validateTravelProductCheckoutForm,
@@ -308,7 +309,7 @@ export default function CartPage() {
                         </div>
 
                         <span style={{ fontSize: 16, fontWeight: 800, color: '#d97706' }}>
-                          LKR {Math.round(price * item.qty).toLocaleString()}
+                          {formatLKR(Math.round(price * item.qty))}
                         </span>
                       </div>
                     </div>
@@ -361,7 +362,7 @@ export default function CartPage() {
                           {item.details?.name} × {item.qty}
                         </span>
                         <span style={{ color: '#374151', fontWeight: 500 }}>
-                          LKR {Math.round(price * item.qty).toLocaleString()}
+                          {formatLKR(Math.round(price * item.qty))}
                         </span>
                       </div>
                     );
@@ -372,11 +373,11 @@ export default function CartPage() {
                 <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#6b7280', marginBottom: 8 }}>
                     <span>Subtotal</span>
-                    <span style={{ color: '#374151', fontWeight: 500 }}>LKR {Math.round(subtotal).toLocaleString()}</span>
+                    <span style={{ color: '#374151', fontWeight: 500 }}>{formatLKR(Math.round(subtotal))}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#6b7280', marginBottom: 14 }}>
                     <span>Tax (5%)</span>
-                    <span style={{ color: '#374151', fontWeight: 500 }}>LKR {Math.round(tax).toLocaleString()}</span>
+                    <span style={{ color: '#374151', fontWeight: 500 }}>{formatLKR(Math.round(tax))}</span>
                   </div>
                   <div style={{
                     display: 'flex', justifyContent: 'space-between',
@@ -384,7 +385,7 @@ export default function CartPage() {
                     paddingTop: 14, borderTop: '1px solid #f3f4f6',
                   }}>
                     <span>Total</span>
-                    <span style={{ color: '#d97706', fontSize: 20 }}>LKR {Math.round(total).toLocaleString()}</span>
+                    <span style={{ color: '#d97706', fontSize: 20 }}>{formatLKR(Math.round(total))}</span>
                   </div>
                 </div>
               </div>
@@ -593,7 +594,7 @@ export default function CartPage() {
                       onMouseEnter={(e) => { if (!submitting && canPlaceOrder) e.target.style.boxShadow = '0 6px 20px rgba(245,158,11,0.4)'; }}
                       onMouseLeave={(e) => { if (!submitting && canPlaceOrder) e.target.style.boxShadow = '0 4px 14px rgba(245,158,11,0.3)'; }}
                     >
-                      {submitting ? 'Processing...' : `Place Order — LKR ${Math.round(total).toLocaleString()}`}
+                      {submitting ? 'Processing...' : `Place Order — ${formatLKR(Math.round(total))}`}
                     </button>
 
                     {!canPlaceOrder && !submitting && (

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import api from '../../utils/api';
 import { useCart } from '../../context/CartContext';
 import { ArrowLeft, MapPin, ShoppingBag, Info, ShieldCheck, Wind } from 'lucide-react';
+import { formatLKR } from '../../utils/currency';
 
 
 const getAvailabilityConfig = (availability, stock) => {
@@ -43,7 +44,7 @@ const ProductCard = ({ item, onAddToCart }) => {
         {item.images?.[0] ? (
           <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#fef3c7,#fde68a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>🛍️</div>
+          <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#fef3c7,#fde68a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>ðŸ›ï¸</div>
         )}
         {availConfig && (
           <div style={{ position: 'absolute', top: 10, right: 10, padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, backdropFilter: 'blur(8px)', background: availConfig.bg, color: availConfig.color, border: `1px solid ${availConfig.border}` }}>
@@ -54,7 +55,7 @@ const ProductCard = ({ item, onAddToCart }) => {
       <div style={{ padding: '16px' }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</h3>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#d97706' }}>LKR {item.price.toLocaleString()}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#d97706' }}>{formatLKR(item.price)}</span>
           <button
             onClick={() => onAddToCart(item._id, 'product')} disabled={isUnavailable}
             style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: isUnavailable ? '#e5e7eb' : 'linear-gradient(135deg,#f59e0b,#d97706)', color: isUnavailable ? '#9ca3af' : '#fff', border: 'none', borderRadius: 8, cursor: isUnavailable ? 'not-allowed' : 'pointer' }}
@@ -135,7 +136,7 @@ export default function ProductDetailsPage() {
                 {product.images?.[mainImage] ? (
                   <img src={product.images[mainImage]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#fef3c7,#fde68a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 80 }}>🛍️</div>
+                  <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#fef3c7,#fde68a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 80 }}>ðŸ›ï¸</div>
                 )}
                 <div style={{ position: 'absolute', top: 16, right: 16, padding: '6px 16px', borderRadius: 30, fontSize: 12, fontWeight: 700, background: availConfig.bg, color: availConfig.color, border: `1px solid ${availConfig.border}`, backdropFilter: 'blur(8px)' }}>
                   {availConfig.text}
@@ -164,7 +165,7 @@ export default function ProductDetailsPage() {
                   )}
                 </div>
                 <h1 style={{ fontSize: 32, fontWeight: 800, color: '#111827', margin: 0, marginBottom: 12, lineHeight: 1.2 }}>{product.name}</h1>
-                <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706', marginBottom: 20 }}>LKR {product.price.toLocaleString()}</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706', marginBottom: 20 }}>{formatLKR(product.price)}</div>
               </div>
 
               <div style={{ padding: '24px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -206,7 +207,7 @@ export default function ProductDetailsPage() {
                 onMouseEnter={(e) => { if (!isUnavailable) e.target.style.transform = 'translateY(-2px)' }}
                 onMouseLeave={(e) => { if (!isUnavailable) e.target.style.transform = 'translateY(0)' }}
               >
-                {isUnavailable ? 'Currently Unavailable' : 'Add to Cart — LKR ' + product.price.toLocaleString()}
+                {isUnavailable ? 'Currently Unavailable' : `Add to Cart - ${formatLKR(product.price)}`}
               </button>
             </div>
           </div>

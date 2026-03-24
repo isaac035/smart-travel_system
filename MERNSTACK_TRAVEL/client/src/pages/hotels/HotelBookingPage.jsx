@@ -4,6 +4,7 @@ import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { formatLKR } from '../../utils/currency';
 
 const STEPS = ['Dates & Room', 'Guest Details', 'Payment'];
 
@@ -182,7 +183,7 @@ export default function HotelBookingPage() {
                           <label style={labelStyle}>Room Type</label>
                           <select name="roomType" value={form.roomType} onChange={handleChange} style={inputStyle}>
                             {hotel.rooms.map((r) => (
-                              <option key={r.type} value={r.type}>{r.type} — LKR {r.pricePerNight?.toLocaleString()}/night</option>
+                              <option key={r.type} value={r.type}>{r.type} — {formatLKR(r.pricePerNight)}/night</option>
                             ))}
                           </select>
                         </div>
@@ -302,7 +303,7 @@ export default function HotelBookingPage() {
                         cursor: (submitting || !slipFile) ? 'not-allowed' : 'pointer', fontSize: '14px',
                         boxShadow: (submitting || !slipFile) ? 'none' : '0 4px 15px rgba(245,158,11,0.4)',
                       }}>
-                      {submitting ? 'Processing...' : `Pay & Book — LKR ${Math.round(total).toLocaleString()}`}
+                      {submitting ? 'Processing...' : `Pay & Book — ${formatLKR(Math.round(total))}`}
                     </button>
                   )}
                 </div>
@@ -324,16 +325,16 @@ export default function HotelBookingPage() {
                         <span style={{ color: '#111827', fontWeight: 600 }}>{form.roomType || 'Standard'}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                        <span>LKR {Math.round(discountedPrice).toLocaleString()} x {form.roomCount} x {nights}n</span>
-                        <span style={{ color: '#111827', fontWeight: 600 }}>LKR {Math.round(subtotal).toLocaleString()}</span>
+                        <span>{formatLKR(Math.round(discountedPrice))} x {form.roomCount} x {nights}n</span>
+                        <span style={{ color: '#111827', fontWeight: 600 }}>{formatLKR(Math.round(subtotal))}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
                         <span>Service Charge (10%)</span>
-                        <span style={{ color: '#111827', fontWeight: 600 }}>LKR {Math.round(tax).toLocaleString()}</span>
+                        <span style={{ color: '#111827', fontWeight: 600 }}>{formatLKR(Math.round(tax))}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '16px', borderTop: '1px solid #f3f4f6', paddingTop: '12px', marginTop: '4px' }}>
                         <span style={{ color: '#111827' }}>Total</span>
-                        <span style={{ color: '#d97706' }}>LKR {Math.round(total).toLocaleString()}</span>
+                        <span style={{ color: '#d97706' }}>{formatLKR(Math.round(total))}</span>
                       </div>
                     </div>
                   </div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import { formatLKR } from '../../utils/currency';
 import {
   Users,
   MapPin,
@@ -82,8 +83,7 @@ function fmtShortDate(d) {
 }
 
 function fmtLKR(amount) {
-  if (!amount && amount !== 0) return 'LKR 0';
-  return `LKR ${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  return formatLKR(amount);
 }
 
 function timeAgo(dateStr) {
