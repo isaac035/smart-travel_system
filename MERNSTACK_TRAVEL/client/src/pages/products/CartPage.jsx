@@ -5,6 +5,10 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import {
+  validateTravelProductCheckoutField,
+  validateTravelProductCheckoutForm,
+} from '../../utils/validators';
 
 const card = {
   background: '#fff', border: '1px solid #e8eaed', borderRadius: 18,
@@ -22,6 +26,8 @@ export default function CartPage() {
   // User details form state
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [checkoutErrors, setCheckoutErrors] = useState({});
+  const [checkoutTouched, setCheckoutTouched] = useState({});
 
   // Fetch bank accounts on mount
   useEffect(() => {
@@ -42,15 +48,60 @@ export default function CartPage() {
   const tax = subtotal * 0.05;
   const total = subtotal + tax;
 
-  // Place Order is only active when all three are filled
-  const canPlaceOrder = !!slipFile && phone.trim() !== '' && address.trim() !== '';
+  const checkoutValues = {
+    customerName: user?.name || '',
+    phone,
+    address,
+    items,
+    slipFile,
+  };
+
+  const updateCheckoutError = (field, message) => {
+    setCheckoutErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[field] = message;
+      else delete next[field];
+      return next;
+    });
+  };
+
+  const onCheckoutFieldBlur = (field) => () => {
+    setCheckoutTouched((prev) => ({ ...prev, [field]: true }));
+    updateCheckoutError(field, validateTravelProductCheckoutField(field, checkoutValues));
+  };
+
+  const onPhoneChange = (e) => {
+    const value = e.target.value;
+    setPhone(value);
+    if (checkoutTouched.phone) {
+      updateCheckoutError('phone', validateTravelProductCheckoutField('phone', { ...checkoutValues, phone: value }));
+    }
+  };
+
+  const onAddressChange = (e) => {
+    const value = e.target.value;
+    setAddress(value);
+    if (checkoutTouched.address) {
+      updateCheckoutError('address', validateTravelProductCheckoutField('address', { ...checkoutValues, address: value }));
+    }
+  };
+
+  const canPlaceOrder =
+    !!slipFile &&
+    phone.trim() !== '' &&
+    address.trim() !== '' &&
+    !checkoutErrors.phone &&
+    !checkoutErrors.address;
 
   const handleCheckout = async () => {
     if (!user) return toast.error('Please login to checkout');
-    if (!slipFile) return toast.error('Please upload your payment slip');
-    if (!phone.trim()) return toast.error('Please enter your phone number');
-    if (!address.trim()) return toast.error('Please enter your address');
-    if (items.length === 0) return toast.error('Your cart is empty');
+    const result = validateTravelProductCheckoutForm(checkoutValues);
+    if (!result.isValid) {
+      setCheckoutErrors(result.errors);
+      setCheckoutTouched({ customerName: true, phone: true, address: true, slipFile: true });
+      toast.error('Please fix the highlighted checkout fields');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -59,8 +110,8 @@ export default function CartPage() {
       formData.append('source', 'product');
       formData.append('referenceId', user.id);
       formData.append('amount', total);
-      formData.append('phone', phone.trim());
-      formData.append('address', address.trim());
+      formData.append('phone', result.sanitized.phone);
+      formData.append('address', result.sanitized.address);
       await api.post('/payments/upload-slip', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       await clearCart();
       toast.success('Order placed! Payment slip submitted for approval.');
@@ -230,7 +281,7 @@ export default function CartPage() {
                           background: '#f3f4f6', borderRadius: 10,
                           border: '1px solid #e5e7eb',
                         }}>
-                          <button onClick={() => updateQty(item._id, item.qty - 1)} style={{
+                          <button onClick={() => updateQty(item._id, Math.max(1, item.qty - 1))} style={{
                             width: 32, height: 32, border: 'none', background: 'transparent',
                             cursor: 'pointer', fontSize: 16, fontWeight: 700, color: '#6b7280',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -401,8 +452,8 @@ export default function CartPage() {
                 <label style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   padding: '24px 16px', borderRadius: 14,
-                  border: `2px dashed ${slipFile ? '#10b981' : '#e5e7eb'}`,
-                  background: slipFile ? '#f0fdf4' : '#fafafa',
+                  border: `2px dashed ${checkoutErrors.slipFile ? '#ef4444' : slipFile ? '#10b981' : '#e5e7eb'}`,
+                  background: checkoutErrors.slipFile ? '#fef2f2' : slipFile ? '#f0fdf4' : '#fafafa',
                   cursor: 'pointer', transition: 'all 0.2s',
                   minHeight: 90,
                 }}
@@ -420,8 +471,19 @@ export default function CartPage() {
                       <>Click to upload payment slip</>
                     )}
                   </p>
-                  <input type="file" accept="image/*" onChange={(e) => setSlipFile(e.target.files[0])} style={{ display: 'none' }} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0] || null;
+                      setSlipFile(file);
+                      setCheckoutTouched((prev) => ({ ...prev, slipFile: true }));
+                      updateCheckoutError('slipFile', file ? '' : 'Please upload your payment slip');
+                    }}
+                    style={{ display: 'none' }}
+                  />
                 </label>
+                {checkoutErrors.slipFile && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 8 }}>{checkoutErrors.slipFile}</p>}
               </div>
 
               {/* ─ 4. User Details card (only shown after slip is uploaded) ─ */}
@@ -450,10 +512,11 @@ export default function CartPage() {
                       </label>
                       <div style={{
                         padding: '10px 14px', background: '#f3f4f6', borderRadius: 10,
-                        border: '1.5px solid #e5e7eb', fontSize: 13, color: '#374151', fontWeight: 600,
+                        border: `1.5px solid ${checkoutErrors.customerName ? '#ef4444' : '#e5e7eb'}`, fontSize: 13, color: '#374151', fontWeight: 600,
                       }}>
                         {user?.name || '—'}
                       </div>
+                      {checkoutErrors.customerName && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{checkoutErrors.customerName}</p>}
                     </div>
 
                     {/* Email — read-only */}
@@ -476,17 +539,18 @@ export default function CartPage() {
                       </label>
                       <input
                         type="tel"
-                        placeholder="e.g. +94 77 123 4567"
+                        placeholder="e.g. 0771234567"
                         value={phone}
-                        onChange={e => setPhone(e.target.value)}
+                        onChange={onPhoneChange}
                         style={{
                           width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, color: '#111827',
-                          border: `1.5px solid ${phone.trim() ? '#10b981' : '#e5e7eb'}`,
+                          border: `1.5px solid ${checkoutErrors.phone ? '#ef4444' : phone.trim() ? '#10b981' : '#e5e7eb'}`,
                           background: '#fff', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
                         }}
                         onFocus={e => { e.target.style.borderColor = '#f59e0b'; }}
-                        onBlur={e => { e.target.style.borderColor = phone.trim() ? '#10b981' : '#e5e7eb'; }}
+                        onBlur={onCheckoutFieldBlur('phone')}
                       />
+                      {checkoutErrors.phone && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{checkoutErrors.phone}</p>}
                     </div>
 
                     {/* Address — manual */}
@@ -498,16 +562,17 @@ export default function CartPage() {
                         placeholder="Enter your full delivery address..."
                         value={address}
                         rows={3}
-                        onChange={e => setAddress(e.target.value)}
+                        onChange={onAddressChange}
                         style={{
                           width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, color: '#111827',
-                          border: `1.5px solid ${address.trim() ? '#10b981' : '#e5e7eb'}`,
+                          border: `1.5px solid ${checkoutErrors.address ? '#ef4444' : address.trim() ? '#10b981' : '#e5e7eb'}`,
                           background: '#fff', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
                           transition: 'border-color 0.2s', fontFamily: 'inherit', lineHeight: 1.5,
                         }}
                         onFocus={e => { e.target.style.borderColor = '#f59e0b'; }}
-                        onBlur={e => { e.target.style.borderColor = address.trim() ? '#10b981' : '#e5e7eb'; }}
+                        onBlur={onCheckoutFieldBlur('address')}
                       />
+                      {checkoutErrors.address && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{checkoutErrors.address}</p>}
                     </div>
 
                     {/* ── Place Order button ── */}
@@ -533,7 +598,7 @@ export default function CartPage() {
 
                     {!canPlaceOrder && !submitting && (
                       <p style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', margin: '-6px 0 0' }}>
-                        {!slipFile ? 'Upload payment slip first' : (!phone.trim() || !address.trim()) ? 'Fill in phone & address to place order' : ''}
+                        {!slipFile ? 'Upload payment slip first' : (!phone.trim() || !address.trim()) ? 'Fill in valid phone & address to place order' : ''}
                       </p>
                     )}
                   </div>
