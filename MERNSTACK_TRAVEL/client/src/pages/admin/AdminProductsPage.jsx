@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
 import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
-import { Plus, Pencil, Trash2, ShoppingBag, Upload, Search, Eye, CheckCircle, XCircle, Ban, Package, CreditCard, X, Layers } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Upload, Search, Eye, CheckCircle, XCircle, Ban, Package, CreditCard, X, Layers, Landmark } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
 
 const CATEGORIES = ['Clothing','Gear','Accessories','Food','Souvenirs','Other'];
@@ -60,13 +60,53 @@ export default function AdminProductsPage() {
   const ordersPerPage = 8;
   const [slipModal, setSlipModal] = useState(null);
 
+  /* ───── bank accounts state ───── */
+  const EMPTY_BANK = { bankName: '', accountNumber: '', branch: '' };
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [bankLoading, setBankLoading] = useState(true);
+  const [bankForm, setBankForm] = useState(EMPTY_BANK);
+  const [bankEditId, setBankEditId] = useState(null);
+  const [savingBank, setSavingBank] = useState(false);
+  const [showBankForm, setShowBankForm] = useState(false);
+
   /* ───── fetch on mount ───── */
   useEffect(() => {
     api.get('/locations').then((r) => setLocations(r.data)).catch(() => {});
     api.get('/products').then((r) => { setProducts(r.data); setLoading(false); }).catch(() => setLoading(false));
     api.get('/bundles').then((r) => { setBundles(r.data); setBundlesLoading(false); }).catch(() => setBundlesLoading(false));
     api.get('/admin/product-orders').then((r) => { setOrders(r.data); setOrdersLoading(false); }).catch(() => setOrdersLoading(false));
+    api.get('/bank-accounts').then((r) => { setBankAccounts(r.data); setBankLoading(false); }).catch(() => setBankLoading(false));
   }, []);
+
+  /* ───── bank accounts logic ───── */
+  const openBankCreate = () => { setBankForm(EMPTY_BANK); setBankEditId(null); setShowBankForm(true); };
+  const openBankEdit = (acc) => { setBankForm({ bankName: acc.bankName, accountNumber: acc.accountNumber, branch: acc.branch }); setBankEditId(acc._id); setShowBankForm(true); };
+  const closeBankForm = () => { setShowBankForm(false); setBankEditId(null); setBankForm(EMPTY_BANK); };
+
+  const handleBankSave = async (e) => {
+    e.preventDefault();
+    if (!bankForm.bankName || !bankForm.accountNumber || !bankForm.branch) return toast.error('All fields required');
+    setSavingBank(true);
+    try {
+      if (bankEditId) {
+        const r = await api.put(`/bank-accounts/${bankEditId}`, bankForm);
+        setBankAccounts(prev => prev.map(a => a._id === bankEditId ? r.data : a));
+        toast.success('Bank account updated');
+      } else {
+        const r = await api.post('/bank-accounts', bankForm);
+        setBankAccounts(prev => [r.data, ...prev]);
+        toast.success('Bank account added');
+      }
+      closeBankForm();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+    finally { setSavingBank(false); }
+  };
+
+  const handleBankDelete = async (id) => {
+    if (!window.confirm('Delete this bank account?')) return;
+    try { await api.delete(`/bank-accounts/${id}`); setBankAccounts(prev => prev.filter(a => a._id !== id)); toast.success('Deleted'); }
+    catch { toast.error('Failed'); }
+  };
 
   /* ───── products logic (unchanged) ───── */
   const openCreate = () => { setForm(EMPTY); setImages([]); setExistingImages([]); setEditId(null); setShowForm(true); };
@@ -249,6 +289,7 @@ export default function AdminProductsPage() {
             { label: 'Products', icon: ShoppingBag },
             { label: 'Travel Bundles', icon: Layers },
             { label: 'Orders & Payments', icon: CreditCard, badge: pendingOrdersCount },
+            { label: 'Bank Details', icon: Landmark },
           ]}
         />
 
@@ -516,6 +557,114 @@ export default function AdminProductsPage() {
                     <button onClick={() => setSlipModal(null)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#6b7280' }}>&times;</button>
                   </div>
                   <img src={slipModal} alt="Payment slip" style={{ maxWidth: '80vw', maxHeight: '75vh', borderRadius: 12, objectFit: 'contain' }} />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ═══════════════ TAB 3 — Bank Details ═══════════════ */}
+        {activeTab === 3 && (
+          <>
+            <div className="adm-toolbar mb-6" style={{ alignItems: 'center' }}>
+              <h2 className="text-base font-bold text-gray-800" style={{ margin: 0 }}>Bank Transfer Accounts</h2>
+              <div style={{ flex: 1 }} />
+              {!showBankForm && (
+                <button onClick={openBankCreate} className="adm-btn-primary" style={{ whiteSpace: 'nowrap' }}>
+                  <Plus size={18} /> Add Bank Account
+                </button>
+              )}
+            </div>
+
+            {/* Inline Add / Edit Form */}
+            {showBankForm && (
+              <div style={{
+                background: '#fff', border: '1.5px solid #fcd34d', borderRadius: 16,
+                padding: '24px 28px', marginBottom: 24,
+                boxShadow: '0 4px 16px rgba(245,158,11,0.08)',
+              }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 20 }}>
+                  {bankEditId ? 'Edit Bank Account' : 'Add New Bank Account'}
+                </h3>
+                <form onSubmit={handleBankSave}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label>Bank Name *</label>
+                      <input required className="adm-input" placeholder="e.g. Bank of Ceylon" value={bankForm.bankName}
+                        onChange={e => setBankForm(p => ({ ...p, bankName: e.target.value }))} />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label>Account Number *</label>
+                      <input required className="adm-input" placeholder="e.g. 0001234567890" value={bankForm.accountNumber}
+                        onChange={e => setBankForm(p => ({ ...p, accountNumber: e.target.value }))} />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label>Branch *</label>
+                      <input required className="adm-input" placeholder="e.g. Colombo" value={bankForm.branch}
+                        onChange={e => setBankForm(p => ({ ...p, branch: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button type="submit" className="adm-btn-primary" disabled={savingBank}>
+                      {savingBank ? 'Saving...' : (bankEditId ? 'Update Account' : 'Save Account')}
+                    </button>
+                    <button type="button" onClick={closeBankForm}
+                      style={{ padding: '8px 20px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', fontSize: 13, fontWeight: 600, color: '#6b7280', cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Account List */}
+            {bankLoading ? (
+              <div className="flex flex-col gap-3">
+                {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-white rounded-2xl animate-pulse" style={{ border: '1px solid #e5e7eb' }} />)}
+              </div>
+            ) : bankAccounts.length === 0 ? (
+              <div className="adm-table-wrap">
+                <div className="text-center py-16">
+                  <Landmark className="w-14 h-14 text-gray-200 mx-auto mb-3" />
+                  <p className="text-base text-gray-500 font-semibold">No bank accounts added yet</p>
+                  <p className="text-sm text-gray-400">Add accounts so users know where to transfer payment</p>
+                </div>
+              </div>
+            ) : (
+              <div className="adm-table-wrap">
+                <div className="overflow-x-auto">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Bank Name</th>
+                        <th>Account Number</th>
+                        <th>Branch</th>
+                        <th className="text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bankAccounts.map(acc => (
+                        <tr key={acc._id}>
+                          <td>
+                            <div className="flex items-center gap-3">
+                              <div className="adm-thumb-placeholder" style={{ background: '#eff6ff' }}>
+                                <Landmark size={18} style={{ color: '#3b82f6' }} />
+                              </div>
+                              <span className="text-sm font-semibold text-gray-900">{acc.bankName}</span>
+                            </div>
+                          </td>
+                          <td><span className="text-sm font-mono text-gray-700">{acc.accountNumber}</span></td>
+                          <td><span className="adm-badge adm-badge-neutral">{acc.branch}</span></td>
+                          <td>
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => openBankEdit(acc)} className="adm-btn-edit"><Pencil size={14} /> Edit</button>
+                              <button onClick={() => handleBankDelete(acc._id)} className="adm-btn-delete"><Trash2 size={14} /> Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
