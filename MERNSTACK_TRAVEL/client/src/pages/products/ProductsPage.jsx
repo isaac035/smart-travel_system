@@ -254,7 +254,9 @@ export default function ProductsPage() {
   };
 
   /* ── Filter Sidebar Content (shared between desktop sidebar + mobile drawer) ── */
-  const FilterContent = () => (
+  // NOTE: defined as a plain JSX variable, NOT a component function, to avoid
+  // React remounting the input on every render and losing focus mid-typing.
+  const renderFilters = (
     <>
       <div>
         <SideLabel>Search by Name</SideLabel>
@@ -467,7 +469,7 @@ export default function ProductsPage() {
                       </span>
                     )}
                   </div>
-                  <FilterContent />
+                  {renderFilters}
                 </div>
               </aside>
 
