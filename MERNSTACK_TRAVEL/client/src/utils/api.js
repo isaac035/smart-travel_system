@@ -13,8 +13,17 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Log error for debugging
+    console.error('API Error:', {
+      status: error.response?.status,
+      message: error.response?.data?.message,
+      url: error.config?.url,
+    });
+    
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
+      // Redirect to login or show message
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

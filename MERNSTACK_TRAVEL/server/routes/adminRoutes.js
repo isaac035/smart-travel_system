@@ -4,9 +4,9 @@ const {
   getStats, getAllPayments, updatePaymentStatus,
   getUsers, updateUser, updateUserRole, deleteUser, promoteToGuide, getGuideBookings,
   getTourBookings, getHotelBookings, getProductOrders,
+  updateUserStatus, getUserDetails, createAdmin,
   getOwnerSubmittedHotels, updateOwnerHotelApproval, updateOwnerHotelDetails,
 } = require('../controllers/adminController');
-const { getStats, getAllPayments, updatePaymentStatus, getUsers, updateUser, updateUserRole, deleteUser, promoteToGuide, getGuideBookings, getTourBookings, getHotelBookings, getProductOrders, updateUserStatus, getUserDetails, createAdmin } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 

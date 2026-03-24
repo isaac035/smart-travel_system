@@ -40,7 +40,7 @@ export default function AdminHotelsPage() {
   const [updatingId, setUpdatingId] = useState(null);
 
   /* ─── owner hotels tab state ─── */
-  const [ownerHotels, setOwnerHotels] = useState([]);
+  const [allOwnerHotels, setAllOwnerHotels] = useState([]); // full unfiltered list
   const [ownerHotelsLoading, setOwnerHotelsLoading] = useState(false);
   const [ownerSearch, setOwnerSearch] = useState('');
   const [ownerDistrict, setOwnerDistrict] = useState('');
@@ -53,28 +53,35 @@ export default function AdminHotelsPage() {
   const [savingDetails, setSavingDetails] = useState(false);
   const [approvalDraft, setApprovalDraft] = useState('');
 
+  // Compute filtered owner hotels client-side
+  const ownerHotels = allOwnerHotels.filter(h => {
+    const matchStatus = ownerStatusFilter === 'all' || h.approvalStatus === ownerStatusFilter;
+    const q = ownerSearch.toLowerCase().trim();
+    const matchSearch = !q || (h.name || '').toLowerCase().includes(q) || (h.location || '').toLowerCase().includes(q);
+    const matchDistrict = !ownerDistrict.trim() || (h.location || '').toLowerCase().includes(ownerDistrict.toLowerCase().trim());
+    return matchStatus && matchSearch && matchDistrict;
+  });
+
   /* ─── fetch data on mount ─── */
   useEffect(() => {
     api.get('/hotels').then((r) => { setHotels(r.data); setLoading(false); }).catch(() => setLoading(false));
     api.get('/admin/hotel-bookings').then((r) => { setBookings(r.data); setBookingsLoading(false); }).catch(() => setBookingsLoading(false));
+    // Fetch all owner hotels on mount for badge count
+    api.get('/admin/owner-hotels').then((r) => setAllOwnerHotels(r.data)).catch(() => {});
   }, []);
 
-  /* ─── fetch owner hotels when tab 2 active ─── */
+  /* ─── fetch owner hotels (full list, no server-side filter) ─── */
   const fetchOwnerHotels = async () => {
     setOwnerHotelsLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (ownerSearch.trim()) params.set('search', ownerSearch.trim());
-      if (ownerDistrict.trim()) params.set('district', ownerDistrict.trim());
-      if (ownerStatusFilter !== 'all') params.set('approvalStatus', ownerStatusFilter);
-      const { data } = await api.get(`/admin/owner-hotels?${params}`);
-      setOwnerHotels(data);
+      const { data } = await api.get('/admin/owner-hotels');
+      setAllOwnerHotels(data);
     } catch { toast.error('Failed to load owner hotels'); }
     finally { setOwnerHotelsLoading(false); }
   };
 
+  // Refetch full list when tab becomes active
   useEffect(() => { if (activeTab === 2) fetchOwnerHotels(); }, [activeTab]);
-  useEffect(() => { if (activeTab === 2) fetchOwnerHotels(); }, [ownerSearch, ownerDistrict, ownerStatusFilter]);
 
   const openHotelDetail = (h) => {
     setSelectedHotel(h);
@@ -89,7 +96,7 @@ export default function AdminHotelsPage() {
     try {
       const { data } = await api.put(`/admin/owner-hotels/${selectedHotel._id}/approval`, { approvalStatus: approvalDraft });
       setSelectedHotel(data);
-      setOwnerHotels(prev => prev.map(h => h._id === data._id ? data : h));
+      setAllOwnerHotels(prev => prev.map(h => h._id === data._id ? data : h));
       toast.success('Approval status updated');
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
     finally { setSavingApproval(false); }
@@ -102,7 +109,7 @@ export default function AdminHotelsPage() {
       if (typeof payload.amenities === 'string') payload.amenities = payload.amenities.split(',').map(s => s.trim()).filter(Boolean);
       const { data } = await api.put(`/admin/owner-hotels/${selectedHotel._id}`, payload);
       setSelectedHotel(data);
-      setOwnerHotels(prev => prev.map(h => h._id === data._id ? data : h));
+      setAllOwnerHotels(prev => prev.map(h => h._id === data._id ? data : h));
       setEditMode(false);
       toast.success('Hotel details updated');
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
@@ -256,7 +263,7 @@ export default function AdminHotelsPage() {
           tabs={[
             { label: 'Hotels', icon: Hotel },
             { label: 'Bookings & Payments', icon: CreditCard, badge: pendingBookingsCount },
-            { label: 'Owner Submitted', icon: Building2, badge: ownerHotels.filter(h => h.approvalStatus === 'pending_approval').length || 0 },
+            { label: 'Owner Submitted', icon: Building2, badge: allOwnerHotels.filter(h => h.approvalStatus === 'pending_approval').length || 0 },
           ]}
         />
 
@@ -444,14 +451,14 @@ export default function AdminHotelsPage() {
             {/* Status pill badges summary */}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
               {[
-                ['all', 'All', ownerHotels.length, '#6366f1', '#eef2ff'],
-                ['pending_approval', 'Pending', ownerHotels.filter(h => h.approvalStatus === 'pending_approval').length, '#d97706', '#fffbeb'],
-                ['approved', 'Approved', ownerHotels.filter(h => h.approvalStatus === 'approved').length, '#059669', '#ecfdf5'],
-                ['hold', 'On Hold', ownerHotels.filter(h => h.approvalStatus === 'hold').length, '#dc2626', '#fef2f2']
+                ['all', 'All', allOwnerHotels.length, '#6366f1', '#eef2ff'],
+                ['pending_approval', 'Pending', allOwnerHotels.filter(h => h.approvalStatus === 'pending_approval').length, '#d97706', '#fffbeb'],
+                ['approved', 'Approved', allOwnerHotels.filter(h => h.approvalStatus === 'approved').length, '#059669', '#ecfdf5'],
+                ['hold', 'On Hold', allOwnerHotels.filter(h => h.approvalStatus === 'hold').length, '#dc2626', '#fef2f2']
               ].map(([k, lbl, cnt, clr, bg]) => (
                 <button 
                   key={k} 
-                  onClick={() => { setOwnerStatusFilter(k); setBookingPage(1); }}
+                  onClick={() => setOwnerStatusFilter(k)}
                   style={{ 
                     padding: '8px 18px', 
                     borderRadius: 24, 

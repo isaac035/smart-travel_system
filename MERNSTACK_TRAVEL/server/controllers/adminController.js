@@ -413,6 +413,9 @@ exports.updatePaymentStatus = async (req, res) => {
 // GET /api/admin/owner-hotels — all hotels submitted by hotel owners
 exports.getOwnerSubmittedHotels = async (req, res) => {
   try {
+    console.log('User:', req.user);
+    console.log('Query params:', req.query);
+    
     const { search, district, approvalStatus } = req.query;
 
     const filter = {
@@ -441,8 +444,10 @@ exports.getOwnerSubmittedHotels = async (req, res) => {
       .sort({ publishedAt: -1, createdAt: -1 })
       .lean();
 
+    console.log('Found hotels:', hotels.length);
     res.json(hotels);
   } catch (err) {
+    console.error('Error in getOwnerSubmittedHotels:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -479,6 +484,24 @@ exports.updateOwnerHotelDetails = async (req, res) => {
       .populate('hotelOwnerId', 'name email');
     if (!hotel) return res.status(404).json({ message: 'Hotel not found' });
     res.json(hotel);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// POST /api/admin/users/create-admin — Create admin user (for initial setup)
+exports.createAdmin = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    
+    // Check if admin already exists
+    const existingAdmin = await User.findOne({ role: 'admin' });
+    if (existingAdmin) {
+      return res.status(400).json({ message: 'Admin user already exists. Use that account or delete it first.' });
+    }
+    
+    const admin = await User.create({ name, email, password, role: 'admin' });
+    res.status(201).json({ message: 'Admin created successfully', adminId: admin._id });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
