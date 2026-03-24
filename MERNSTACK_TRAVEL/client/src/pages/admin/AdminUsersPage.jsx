@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
 import api from '../../utils/api';
+import { formatLKR } from '../../utils/currency';
 import {
   Search, Shield, ShieldOff, Trash2, Users, Compass, Hotel,
   CheckCircle, XCircle, Eye, UserPlus, ChevronDown,
@@ -14,8 +15,8 @@ import {
 ───────────────────────────────────────────── */
 const TOKEN = {
   // Surfaces
-  pageBg:   '#f5f4f1',
-  cardBg:   '#ffffff',
+  pageBg: '#f5f4f1',
+  cardBg: '#ffffff',
   rowHover: '#fafaf8',
 
   // Ink
@@ -25,17 +26,17 @@ const TOKEN = {
   ink4: '#c4c2be',
 
   // Accent (amber)
-  accent:     '#f59e0b',
+  accent: '#f59e0b',
   accentDark: '#d97706',
   accentGlow: 'rgba(245,158,11,0.18)',
 
   // Status palette
   greenBg: '#f0fdf4', greenText: '#15803d', greenBorder: '#bbf7d0',
-  redBg:   '#fef2f2', redText:   '#b91c1c', redBorder:   '#fecaca',
+  redBg: '#fef2f2', redText: '#b91c1c', redBorder: '#fecaca',
   amberBg: '#fffbeb', amberText: '#a16207', amberBorder: '#fde68a',
-  blueBg:  '#eff6ff', blueText:  '#1d4ed8', blueBorder:  '#bfdbfe',
-  pinkBg:  '#fdf2f8', pinkText:  '#9d174d', pinkBorder:  '#fbcfe8',
-  grayBg:  '#f3f4f6', grayText:  '#374151', grayBorder:  '#e5e7eb',
+  blueBg: '#eff6ff', blueText: '#1d4ed8', blueBorder: '#bfdbfe',
+  pinkBg: '#fdf2f8', pinkText: '#9d174d', pinkBorder: '#fbcfe8',
+  grayBg: '#f3f4f6', grayText: '#374151', grayBorder: '#e5e7eb',
 
   // Radii
   radiusSm: 8,
@@ -58,51 +59,51 @@ const TOKEN = {
    CONFIGS  (unchanged from original)
 ───────────────────────────────────────────── */
 const ROLE_CONFIG = {
-  user:       { label: 'User',        bg: TOKEN.grayBg,  color: TOKEN.grayText,  border: TOKEN.grayBorder,  icon: Users },
-  guide:      { label: 'Guide',       bg: TOKEN.blueBg,  color: TOKEN.blueText,  border: TOKEN.blueBorder,  icon: Compass },
-  admin:      { label: 'Admin',       bg: TOKEN.amberBg, color: TOKEN.amberText, border: TOKEN.amberBorder, icon: Shield },
-  hotelOwner: { label: 'Hotel Owner', bg: TOKEN.pinkBg,  color: TOKEN.pinkText,  border: TOKEN.pinkBorder,  icon: Hotel },
+  user: { label: 'User', bg: TOKEN.grayBg, color: TOKEN.grayText, border: TOKEN.grayBorder, icon: Users },
+  guide: { label: 'Guide', bg: TOKEN.blueBg, color: TOKEN.blueText, border: TOKEN.blueBorder, icon: Compass },
+  admin: { label: 'Admin', bg: TOKEN.amberBg, color: TOKEN.amberText, border: TOKEN.amberBorder, icon: Shield },
+  hotelOwner: { label: 'Hotel Owner', bg: TOKEN.pinkBg, color: TOKEN.pinkText, border: TOKEN.pinkBorder, icon: Hotel },
 };
 
 const STATUS_CONFIG = {
-  active:      { label: 'Active',      bg: TOKEN.greenBg,  color: TOKEN.greenText,  border: TOKEN.greenBorder,  icon: CheckCircle },
-  hold:        { label: 'On Hold',     bg: TOKEN.amberBg,  color: TOKEN.amberText,  border: TOKEN.amberBorder,  icon: PauseCircle },
-  deactivated: { label: 'Deactivated', bg: TOKEN.redBg,    color: TOKEN.redText,    border: TOKEN.redBorder,    icon: Ban },
+  active: { label: 'Active', bg: TOKEN.greenBg, color: TOKEN.greenText, border: TOKEN.greenBorder, icon: CheckCircle },
+  hold: { label: 'On Hold', bg: TOKEN.amberBg, color: TOKEN.amberText, border: TOKEN.amberBorder, icon: PauseCircle },
+  deactivated: { label: 'Deactivated', bg: TOKEN.redBg, color: TOKEN.redText, border: TOKEN.redBorder, icon: Ban },
 };
 
 const APPROVAL_CONFIG = {
-  pending:  { label: 'Pending',  bg: '#fefce8',       color: TOKEN.amberText, border: TOKEN.amberBorder },
-  approved: { label: 'Approved', bg: TOKEN.greenBg,   color: TOKEN.greenText, border: TOKEN.greenBorder },
-  rejected: { label: 'Rejected', bg: TOKEN.redBg,     color: TOKEN.redText,   border: TOKEN.redBorder },
+  pending: { label: 'Pending', bg: '#fefce8', color: TOKEN.amberText, border: TOKEN.amberBorder },
+  approved: { label: 'Approved', bg: TOKEN.greenBg, color: TOKEN.greenText, border: TOKEN.greenBorder },
+  rejected: { label: 'Rejected', bg: TOKEN.redBg, color: TOKEN.redText, border: TOKEN.redBorder },
 };
 
 const TABS = [
-  { key: 'all',        label: 'All Users',    icon: Users },
-  { key: 'user',       label: 'Users',        icon: Users },
-  { key: 'guide',      label: 'Guides',       icon: Compass },
+  { key: 'all', label: 'All Users', icon: Users },
+  { key: 'user', label: 'Users', icon: Users },
+  { key: 'guide', label: 'Guides', icon: Compass },
   { key: 'hotelOwner', label: 'Hotel Owners', icon: Hotel },
-  { key: 'admin',      label: 'Admins',       icon: Shield },
+  { key: 'admin', label: 'Admins', icon: Shield },
 ];
 
 const BOOKING_STATUS_COLORS = {
-  deposit_submitted:          '#f59e0b',
-  pending_guide_review:       '#f59e0b',
-  guide_accepted:             '#22c55e',
-  guide_rejected:             '#ef4444',
-  remaining_payment_pending:  '#f59e0b',
-  remaining_payment_submitted:'#3b82f6',
-  fully_paid:                 '#22c55e',
-  completed:                  '#22c55e',
-  cancelled_by_user:          '#ef4444',
-  cancelled_by_admin:         '#ef4444',
+  deposit_submitted: '#f59e0b',
+  pending_guide_review: '#f59e0b',
+  guide_accepted: '#22c55e',
+  guide_rejected: '#ef4444',
+  remaining_payment_pending: '#f59e0b',
+  remaining_payment_submitted: '#3b82f6',
+  fully_paid: '#22c55e',
+  completed: '#22c55e',
+  cancelled_by_user: '#ef4444',
+  cancelled_by_admin: '#ef4444',
 };
 
 /* Role → avatar gradient */
 const ROLE_GRADIENT = {
-  admin:      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-  guide:      'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+  admin: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+  guide: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
   hotelOwner: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
-  user:       'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
+  user: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
 };
 
 /* ─────────────────────────────────────────────
@@ -284,28 +285,28 @@ export default function AdminUsersPage() {
 
   /* ── Filtering ── */
   const filtered = users.filter(u => {
-    const matchTab   = activeTab === 'all' || u.role === activeTab;
+    const matchTab = activeTab === 'all' || u.role === activeTab;
     const matchSearch = !search
       || u.name.toLowerCase().includes(search.toLowerCase())
       || u.email.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
 
-  const paginated  = filtered.slice((page - 1) * perPage, page * perPage);
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 
   const counts = {
-    all:        users.length,
-    user:       users.filter(u => u.role === 'user').length,
-    guide:      users.filter(u => u.role === 'guide').length,
+    all: users.length,
+    user: users.filter(u => u.role === 'user').length,
+    guide: users.filter(u => u.role === 'guide').length,
     hotelOwner: users.filter(u => u.role === 'hotelOwner').length,
-    admin:      users.filter(u => u.role === 'admin').length,
+    admin: users.filter(u => u.role === 'admin').length,
   };
   const pendingGuides = users.filter(u => u.role === 'guide' && u.guideProfile?.approvalStatus === 'pending').length;
 
   /* ── Badge components ── */
   const RoleBadge = ({ role }) => {
-    const cfg  = ROLE_CONFIG[role] || ROLE_CONFIG.user;
+    const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.user;
     const Icon = cfg.icon;
     return (
       <span style={{
@@ -321,7 +322,7 @@ export default function AdminUsersPage() {
   };
 
   const StatusBadge = ({ status }) => {
-    const cfg  = STATUS_CONFIG[status] || STATUS_CONFIG.active;
+    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.active;
     const Icon = cfg.icon;
     return (
       <span style={{
@@ -350,8 +351,8 @@ export default function AdminUsersPage() {
         background: cfg.bg, color: cfg.color, border: `1.5px solid ${cfg.border}`,
       }}>
         {status === 'approved' && <CheckCircle size={11} strokeWidth={2.5} />}
-        {status === 'rejected' && <XCircle    size={11} strokeWidth={2.5} />}
-        {status === 'pending'  && <Clock       size={11} strokeWidth={2.5} />}
+        {status === 'rejected' && <XCircle size={11} strokeWidth={2.5} />}
+        {status === 'pending' && <Clock size={11} strokeWidth={2.5} />}
         {cfg.label}
       </span>
     );
@@ -904,7 +905,7 @@ export default function AdminUsersPage() {
         {/* ── Stat Cards ── */}
         <div className="aup-stat-grid">
           {TABS.map(tab => {
-            const Icon     = tab.icon;
+            const Icon = tab.icon;
             const isActive = activeTab === tab.key;
             return (
               <button key={tab.key} className={`aup-stat-card ${isActive ? 'active' : ''}`}
@@ -1372,272 +1373,279 @@ export default function AdminUsersPage() {
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Calendar size={11} /> {new Date(b.startDate).toLocaleDateString()} — {new Date(b.endDate).toLocaleDateString()}
                         </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600, color: TOKEN.accentDark }}>
-                          <DollarSign size={11} /> LKR {b.totalPrice?.toLocaleString()}
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <DollarSign size={11} /> {formatLKR(b.totalPrice)}
                         </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+  </div>
+                    </div >
+                  ))
+}
+                </div >
               )}
-            </div>
-            <div className="aup-modal-footer">
-              <button className="aup-btn-secondary" onClick={() => setBookingsModal(null)}>Close</button>
-            </div>
-          </div>
-        </div>
+            </div >
+  <div className="aup-modal-footer">
+    <button className="aup-btn-secondary" onClick={() => setBookingsModal(null)}>Close</button>
+  </div>
+          </div >
+        </div >
       )}
 
-      {/* Edit User */}
-      {editModal && (
-        <div className="aup-overlay" onClick={() => setEditModal(null)}>
-          <div className="aup-modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
-            <div className="aup-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: 10,
-                  background: TOKEN.amberBg, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  border: `1.5px solid ${TOKEN.amberBorder}`,
-                }}>
-                  <Pencil size={16} style={{ color: TOKEN.accentDark }} />
-                </div>
-                <h3 className="aup-modal-title">Edit User Details</h3>
-              </div>
-              <button className="aup-modal-close" onClick={() => setEditModal(null)}>
-                <X size={16} />
-              </button>
+{/* Edit User */ }
+{
+  editModal && (
+    <div className="aup-overlay" onClick={() => setEditModal(null)}>
+      <div className="aup-modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+        <div className="aup-modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 10,
+              background: TOKEN.amberBg, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              border: `1.5px solid ${TOKEN.amberBorder}`,
+            }}>
+              <Pencil size={16} style={{ color: TOKEN.accentDark }} />
             </div>
-            <div className="aup-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label className="aup-label">Full Name</label>
-                <input className="aup-input" value={editForm.name}
-                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                  placeholder="Enter full name" />
-              </div>
-              <div>
-                <label className="aup-label">Email Address</label>
-                <input className="aup-input" type="email" value={editForm.email}
-                  onChange={e => setEditForm({ ...editForm, email: e.target.value })}
-                  placeholder="Enter email address" />
-              </div>
-              <div>
-                <label className="aup-label">Phone Number</label>
-                <input className="aup-input" type="tel" value={editForm.phone}
-                  onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
-                  placeholder="Enter phone number" />
-              </div>
-              <div>
-                <label className="aup-label">
-                  New Password{' '}
-                  <span style={{ fontWeight: 400, color: TOKEN.ink4, textTransform: 'none', letterSpacing: 0 }}>
-                    — leave blank to keep current
-                  </span>
-                </label>
-                <input className="aup-input" type="password" value={editForm.password}
-                  onChange={e => setEditForm({ ...editForm, password: e.target.value })}
-                  placeholder="Enter new password (min 6 characters)" />
-              </div>
-            </div>
-            <div className="aup-modal-footer">
-              <button className="aup-btn-secondary" onClick={() => setEditModal(null)}>Cancel</button>
-              <button className="aup-btn-primary" onClick={saveEdit}>Save Changes</button>
-            </div>
+            <h3 className="aup-modal-title">Edit User Details</h3>
+          </div>
+          <button className="aup-modal-close" onClick={() => setEditModal(null)}>
+            <X size={16} />
+          </button>
+        </div>
+        <div className="aup-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label className="aup-label">Full Name</label>
+            <input className="aup-input" value={editForm.name}
+              onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+              placeholder="Enter full name" />
+          </div>
+          <div>
+            <label className="aup-label">Email Address</label>
+            <input className="aup-input" type="email" value={editForm.email}
+              onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+              placeholder="Enter email address" />
+          </div>
+          <div>
+            <label className="aup-label">Phone Number</label>
+            <input className="aup-input" type="tel" value={editForm.phone}
+              onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
+              placeholder="Enter phone number" />
+          </div>
+          <div>
+            <label className="aup-label">
+              New Password{' '}
+              <span style={{ fontWeight: 400, color: TOKEN.ink4, textTransform: 'none', letterSpacing: 0 }}>
+                — leave blank to keep current
+              </span>
+            </label>
+            <input className="aup-input" type="password" value={editForm.password}
+              onChange={e => setEditForm({ ...editForm, password: e.target.value })}
+              placeholder="Enter new password (min 6 characters)" />
           </div>
         </div>
-      )}
+        <div className="aup-modal-footer">
+          <button className="aup-btn-secondary" onClick={() => setEditModal(null)}>Cancel</button>
+          <button className="aup-btn-primary" onClick={saveEdit}>Save Changes</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-      {/* View User Details */}
-      {viewModal && (
-        <div className="aup-overlay" onClick={() => { setViewModal(null); setViewData(null); }}>
-          <div className="aup-modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
-            <div className="aup-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: 10,
-                  background: TOKEN.blueBg, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  border: `1.5px solid ${TOKEN.blueBorder}`,
-                }}>
-                  <Eye size={16} style={{ color: TOKEN.blueText }} />
-                </div>
-                <h3 className="aup-modal-title">User Details</h3>
-              </div>
-              <button className="aup-modal-close" onClick={() => { setViewModal(null); setViewData(null); }}>
-                <X size={16} />
-              </button>
+{/* View User Details */ }
+{
+  viewModal && (
+    <div className="aup-overlay" onClick={() => { setViewModal(null); setViewData(null); }}>
+      <div className="aup-modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+        <div className="aup-modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 10,
+              background: TOKEN.blueBg, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              border: `1.5px solid ${TOKEN.blueBorder}`,
+            }}>
+              <Eye size={16} style={{ color: TOKEN.blueText }} />
             </div>
-            <div className="aup-modal-body" style={{ maxHeight: 520, overflowY: 'auto' }}>
-              {viewLoading ? (
-                <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                  <div className="aup-spinner" />
-                </div>
-              ) : viewData ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <h3 className="aup-modal-title">User Details</h3>
+          </div>
+          <button className="aup-modal-close" onClick={() => { setViewModal(null); setViewData(null); }}>
+            <X size={16} />
+          </button>
+        </div>
+        <div className="aup-modal-body" style={{ maxHeight: 520, overflowY: 'auto' }}>
+          {viewLoading ? (
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <div className="aup-spinner" />
+            </div>
+          ) : viewData ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-                  {/* Avatar + name row */}
+              {/* Avatar + name row */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 18,
+                paddingBottom: 18, borderBottom: '1.5px solid #f0ede6',
+              }}>
+                {viewData.avatar ? (
+                  <img src={viewData.avatar} alt={viewData.name}
+                    style={{ width: 68, height: 68, borderRadius: 18, objectFit: 'cover', flexShrink: 0 }} />
+                ) : (
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: 18,
-                    paddingBottom: 18, borderBottom: '1.5px solid #f0ede6',
+                    width: 68, height: 68, borderRadius: 18, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 26, fontWeight: 800, color: '#fff',
+                    background: ROLE_GRADIENT[viewData.role] || ROLE_GRADIENT.user,
+                    fontFamily: "'Syne', sans-serif",
                   }}>
-                    {viewData.avatar ? (
-                      <img src={viewData.avatar} alt={viewData.name}
-                        style={{ width: 68, height: 68, borderRadius: 18, objectFit: 'cover', flexShrink: 0 }} />
-                    ) : (
-                      <div style={{
-                        width: 68, height: 68, borderRadius: 18, flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 26, fontWeight: 800, color: '#fff',
-                        background: ROLE_GRADIENT[viewData.role] || ROLE_GRADIENT.user,
-                        fontFamily: "'Syne', sans-serif",
-                      }}>
-                        {viewData.name?.[0]?.toUpperCase()}
+                    {viewData.name?.[0]?.toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <h3 style={{ fontSize: 19, fontWeight: 800, color: TOKEN.ink1, margin: '0 0 8px', fontFamily: "'Syne', sans-serif", letterSpacing: '-0.3px' }}>
+                    {viewData.name}
+                  </h3>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <RoleBadge role={viewData.role} />
+                    <StatusBadge status={viewData.status || 'active'} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Details grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <DetailItem icon={<Mail size={12} />} label="Email" value={viewData.email} />
+                <DetailItem icon={<Phone size={12} />} label="Phone" value={viewData.phone || 'Not set'} />
+                <DetailItem icon={<Shield size={12} />} label="Role" value={ROLE_CONFIG[viewData.role]?.label || viewData.role} />
+                <DetailItem icon={<Key size={12} />} label="Password" value="••••••••" />
+                <DetailItem icon={<Calendar size={12} />} label="Joined" value={new Date(viewData.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} />
+                <DetailItem icon={<Clock size={12} />} label="Last Updated" value={new Date(viewData.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} />
+              </div>
+
+              {/* Guide Profile */}
+              {viewData.guideProfile && (
+                <div style={{
+                  background: '#f9f8f5', borderRadius: 14,
+                  padding: '16px 18px', border: '1.5px solid #f0ede6',
+                }}>
+                  <h4 style={{
+                    fontSize: 12, fontWeight: 800, color: TOKEN.ink2,
+                    margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6,
+                    textTransform: 'uppercase', letterSpacing: '0.06em',
+                  }}>
+                    <Compass size={13} style={{ color: TOKEN.blueText }} /> Guide Profile
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <DetailItem label="Location" value={viewData.guideProfile.location} small />
+                    <DetailItem label="Experience" value={`${viewData.guideProfile.experience || 0} years`} small />
+                    <DetailItem label="Price/Day" value={`LKR ${viewData.guideProfile.pricePerDay || 0}`} small />
+                    <DetailItem label="Approval" value={viewData.guideProfile.approvalStatus} small />
+                    {viewData.guideProfile.languages?.length > 0 && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <DetailItem label="Languages" value={viewData.guideProfile.languages.join(', ')} small />
                       </div>
                     )}
-                    <div>
-                      <h3 style={{ fontSize: 19, fontWeight: 800, color: TOKEN.ink1, margin: '0 0 8px', fontFamily: "'Syne', sans-serif", letterSpacing: '-0.3px' }}>
-                        {viewData.name}
-                      </h3>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <RoleBadge role={viewData.role} />
-                        <StatusBadge status={viewData.status || 'active'} />
-                      </div>
-                    </div>
                   </div>
-
-                  {/* Details grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                    <DetailItem icon={<Mail size={12} />}     label="Email"        value={viewData.email} />
-                    <DetailItem icon={<Phone size={12} />}    label="Phone"        value={viewData.phone || 'Not set'} />
-                    <DetailItem icon={<Shield size={12} />}   label="Role"         value={ROLE_CONFIG[viewData.role]?.label || viewData.role} />
-                    <DetailItem icon={<Key size={12} />}      label="Password"     value="••••••••" />
-                    <DetailItem icon={<Calendar size={12} />} label="Joined"       value={new Date(viewData.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} />
-                    <DetailItem icon={<Clock size={12} />}    label="Last Updated" value={new Date(viewData.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} />
-                  </div>
-
-                  {/* Guide Profile */}
-                  {viewData.guideProfile && (
-                    <div style={{
-                      background: '#f9f8f5', borderRadius: 14,
-                      padding: '16px 18px', border: '1.5px solid #f0ede6',
-                    }}>
-                      <h4 style={{
-                        fontSize: 12, fontWeight: 800, color: TOKEN.ink2,
-                        margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6,
-                        textTransform: 'uppercase', letterSpacing: '0.06em',
-                      }}>
-                        <Compass size={13} style={{ color: TOKEN.blueText }} /> Guide Profile
-                      </h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <DetailItem label="Location"   value={viewData.guideProfile.location} small />
-                        <DetailItem label="Experience" value={`${viewData.guideProfile.experience || 0} years`} small />
-                        <DetailItem label="Price/Day"  value={`LKR ${viewData.guideProfile.pricePerDay || 0}`} small />
-                        <DetailItem label="Approval"   value={viewData.guideProfile.approvalStatus} small />
-                        {viewData.guideProfile.languages?.length > 0 && (
-                          <div style={{ gridColumn: '1 / -1' }}>
-                            <DetailItem label="Languages" value={viewData.guideProfile.languages.join(', ')} small />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Hotel Owner Profile */}
-                  {viewData.hotelOwnerProfile && (
-                    <div style={{
-                      background: '#f9f8f5', borderRadius: 14,
-                      padding: '16px 18px', border: '1.5px solid #f0ede6',
-                    }}>
-                      <h4 style={{
-                        fontSize: 12, fontWeight: 800, color: TOKEN.ink2,
-                        margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6,
-                        textTransform: 'uppercase', letterSpacing: '0.06em',
-                      }}>
-                        <Hotel size={13} style={{ color: TOKEN.pinkText }} /> Hotel Owner Profile
-                      </h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <DetailItem label="Full Name" value={viewData.hotelOwnerProfile.fullName} small />
-                        <DetailItem label="Location"  value={viewData.hotelOwnerProfile.location} small />
-                        <DetailItem label="Phone"     value={viewData.hotelOwnerProfile.phone || 'Not set'} small />
-                      </div>
-                    </div>
-                  )}
                 </div>
-              ) : (
-                <p style={{ color: TOKEN.ink3, textAlign: 'center', padding: '32px 0' }}>Failed to load user details</p>
               )}
-            </div>
-            <div className="aup-modal-footer">
-              <button className="aup-btn-secondary" onClick={() => { setViewModal(null); setViewData(null); }}>Close</button>
-              {viewData && (
-                <button className="aup-btn-primary"
-                  onClick={() => { openEdit(viewData); setViewModal(null); setViewData(null); }}>
-                  Edit User
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Add Admin */}
-      {addAdminModal && (
-        <div className="aup-overlay" onClick={() => setAddAdminModal(false)}>
-          <div className="aup-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-            <div className="aup-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Hotel Owner Profile */}
+              {viewData.hotelOwnerProfile && (
                 <div style={{
-                  width: 34, height: 34, borderRadius: 10,
-                  background: TOKEN.amberBg, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  border: `1.5px solid ${TOKEN.amberBorder}`,
+                  background: '#f9f8f5', borderRadius: 14,
+                  padding: '16px 18px', border: '1.5px solid #f0ede6',
                 }}>
-                  <Shield size={17} style={{ color: TOKEN.accentDark }} />
+                  <h4 style={{
+                    fontSize: 12, fontWeight: 800, color: TOKEN.ink2,
+                    margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6,
+                    textTransform: 'uppercase', letterSpacing: '0.06em',
+                  }}>
+                    <Hotel size={13} style={{ color: TOKEN.pinkText }} /> Hotel Owner Profile
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <DetailItem label="Full Name" value={viewData.hotelOwnerProfile.fullName} small />
+                    <DetailItem label="Location" value={viewData.hotelOwnerProfile.location} small />
+                    <DetailItem label="Phone" value={viewData.hotelOwnerProfile.phone || 'Not set'} small />
+                  </div>
                 </div>
-                <h3 className="aup-modal-title">Add New Admin</h3>
-              </div>
-              <button className="aup-modal-close" onClick={() => setAddAdminModal(false)}>
-                <X size={16} />
-              </button>
+              )}
             </div>
-            <div className="aup-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <p style={{
-                fontSize: 13, color: TOKEN.ink2, margin: 0, lineHeight: 1.6,
-                background: '#f5f3ef', borderRadius: 10, padding: '10px 14px',
-                border: '1.5px solid #ede9e0',
-              }}>
-                Create a new administrator account with full system access.
-              </p>
-              <div>
-                <label className="aup-label">Full Name <span style={{ color: TOKEN.redText }}>*</span></label>
-                <input className="aup-input" value={addAdminForm.name}
-                  onChange={e => setAddAdminForm({ ...addAdminForm, name: e.target.value })}
-                  placeholder="Enter admin name" />
-              </div>
-              <div>
-                <label className="aup-label">Email Address <span style={{ color: TOKEN.redText }}>*</span></label>
-                <input className="aup-input" type="email" value={addAdminForm.email}
-                  onChange={e => setAddAdminForm({ ...addAdminForm, email: e.target.value })}
-                  placeholder="Enter admin email" />
-              </div>
-              <div>
-                <label className="aup-label">Password <span style={{ color: TOKEN.redText }}>*</span></label>
-                <input className="aup-input" type="password" value={addAdminForm.password}
-                  onChange={e => setAddAdminForm({ ...addAdminForm, password: e.target.value })}
-                  placeholder="Min 6 characters" />
-              </div>
+          ) : (
+            <p style={{ color: TOKEN.ink3, textAlign: 'center', padding: '32px 0' }}>Failed to load user details</p>
+          )}
+        </div>
+        <div className="aup-modal-footer">
+          <button className="aup-btn-secondary" onClick={() => { setViewModal(null); setViewData(null); }}>Close</button>
+          {viewData && (
+            <button className="aup-btn-primary"
+              onClick={() => { openEdit(viewData); setViewModal(null); setViewData(null); }}>
+              Edit User
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+{/* Add Admin */ }
+{
+  addAdminModal && (
+    <div className="aup-overlay" onClick={() => setAddAdminModal(false)}>
+      <div className="aup-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+        <div className="aup-modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 10,
+              background: TOKEN.amberBg, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              border: `1.5px solid ${TOKEN.amberBorder}`,
+            }}>
+              <Shield size={17} style={{ color: TOKEN.accentDark }} />
             </div>
-            <div className="aup-modal-footer">
-              <button className="aup-btn-secondary" onClick={() => setAddAdminModal(false)}>Cancel</button>
-              <button className="aup-btn-primary" onClick={handleAddAdmin} disabled={addAdminLoading}>
-                {addAdminLoading ? 'Creating…' : 'Create Admin'}
-              </button>
-            </div>
+            <h3 className="aup-modal-title">Add New Admin</h3>
+          </div>
+          <button className="aup-modal-close" onClick={() => setAddAdminModal(false)}>
+            <X size={16} />
+          </button>
+        </div>
+        <div className="aup-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <p style={{
+            fontSize: 13, color: TOKEN.ink2, margin: 0, lineHeight: 1.6,
+            background: '#f5f3ef', borderRadius: 10, padding: '10px 14px',
+            border: '1.5px solid #ede9e0',
+          }}>
+            Create a new administrator account with full system access.
+          </p>
+          <div>
+            <label className="aup-label">Full Name <span style={{ color: TOKEN.redText }}>*</span></label>
+            <input className="aup-input" value={addAdminForm.name}
+              onChange={e => setAddAdminForm({ ...addAdminForm, name: e.target.value })}
+              placeholder="Enter admin name" />
+          </div>
+          <div>
+            <label className="aup-label">Email Address <span style={{ color: TOKEN.redText }}>*</span></label>
+            <input className="aup-input" type="email" value={addAdminForm.email}
+              onChange={e => setAddAdminForm({ ...addAdminForm, email: e.target.value })}
+              placeholder="Enter admin email" />
+          </div>
+          <div>
+            <label className="aup-label">Password <span style={{ color: TOKEN.redText }}>*</span></label>
+            <input className="aup-input" type="password" value={addAdminForm.password}
+              onChange={e => setAddAdminForm({ ...addAdminForm, password: e.target.value })}
+              placeholder="Min 6 characters" />
           </div>
         </div>
-      )}
+        <div className="aup-modal-footer">
+          <button className="aup-btn-secondary" onClick={() => setAddAdminModal(false)}>Cancel</button>
+          <button className="aup-btn-primary" onClick={handleAddAdmin} disabled={addAdminLoading}>
+            {addAdminLoading ? 'Creating…' : 'Create Admin'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-    </AdminLayout>
+    </AdminLayout >
   );
 }
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import RatingStars from '../../components/RatingStars';
+import { formatLKR } from '../../utils/currency';
 
 
 const LANGUAGES = ['Sinhala', 'Tamil', 'English', 'French', 'German', 'Chinese', 'Japanese', 'Korean'];
@@ -99,7 +100,7 @@ const GuideCard = ({ guide, index }) => {
           borderTop: '1px solid #f3f4f6',
         }}>
           <div>
-            <span style={{ fontSize: 18, fontWeight: 700, color: '#d97706' }}>LKR {guide.pricePerDay?.toLocaleString()}</span>
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#d97706' }}>{formatLKR(guide.pricePerDay)}</span>
             <span style={{ fontSize: 12, color: '#9ca3af', marginLeft: 2 }}>/day</span>
           </div>
           <button

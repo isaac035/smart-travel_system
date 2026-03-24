@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { formatLKR } from '../../utils/currency';
 
 
 /* ── fallback cover (reliable Unsplash Sri Lanka photo) ── */
@@ -150,7 +151,7 @@ export default function ProfilePage() {
     if (!window.confirm(`Cancel this guide booking?\n\n${refundMsg}`)) return;
     try {
       const { data } = await api.put(`/guides/bookings/${bookingId}/cancel`);
-      toast.success(`Cancelled. ${data.refundEligibility === 'none' ? 'No refund.' : `Refund: LKR ${data.refundAmount?.toLocaleString()}`}`);
+      toast.success(`Cancelled. ${data.refundEligibility === 'none' ? 'No refund.' : `Refund: ${formatLKR(data.refundAmount)}`}`);
       const { data: updated } = await api.get('/guides/bookings/my');
       setGuideBookings(updated);
     } catch (err) {
@@ -370,7 +371,7 @@ export default function ProfilePage() {
                         <CardBody>
                           <CardTitle name={b.hotelId?.name || 'Hotel'} status={b.status} />
                           <CardMeta>{new Date(b.checkIn).toLocaleDateString()} → {new Date(b.checkOut).toLocaleDateString()} · {b.rooms} room{b.rooms !== 1 ? 's' : ''}</CardMeta>
-                          <CardPrice>${b.totalPrice?.toFixed(2)}</CardPrice>
+                          <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
                         </CardBody>
                         <CardLink to={`/hotels/${b.hotelId?._id}`} />
                       </BookingCard>
@@ -399,7 +400,7 @@ export default function ProfilePage() {
                         <CardBody>
                           <CardTitle name={b.guideId?.name || 'Guide'} status={b.status} />
                           <CardMeta>{new Date(b.startDate).toLocaleDateString()} · {b.days} day{b.days !== 1 ? 's' : ''}</CardMeta>
-                          <CardPrice>${b.totalPrice?.toFixed(2)}</CardPrice>
+                          <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
                         </CardBody>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                           {GUIDE_CANCELLABLE.includes(b.status) && (
@@ -433,7 +434,7 @@ export default function ProfilePage() {
                         <CardBody>
                           <CardTitle name={b.packageId?.name || 'Tour Package'} status={b.status} />
                           <CardMeta>{new Date(b.startDate).toLocaleDateString()} · {b.travelers} traveler{b.travelers !== 1 ? 's' : ''} · <span style={{ textTransform: 'capitalize' }}>{b.vehicle}</span></CardMeta>
-                          <CardPrice>${b.totalPrice?.toFixed(2)}</CardPrice>
+                          <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
                         </CardBody>
                         <CardLink to="/my-tours" />
                       </BookingCard>
@@ -466,7 +467,7 @@ export default function ProfilePage() {
                               <StatusBadge status={statusKey} />
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                              <p style={{ fontSize: 15, fontWeight: 700, color: '#d97706', margin: 0 }}>LKR {Math.round(order.amount).toLocaleString()}</p>
+                              <p style={{ fontSize: 15, fontWeight: 700, color: '#d97706', margin: 0 }}>{formatLKR(Math.round(order.amount))}</p>
                               <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{new Date(order.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                             </div>
                           </div>
@@ -486,7 +487,7 @@ export default function ProfilePage() {
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#6b7280' }}>
                                   <span>x{item.qty}</span>
-                                  <span style={{ color: '#374151', fontWeight: 500 }}>LKR {Math.round((item.price || 0) * item.qty).toLocaleString()}</span>
+                                  <span style={{ color: '#374151', fontWeight: 500 }}>{formatLKR(Math.round((item.price || 0) * item.qty))}</span>
                                 </div>
                               </div>
                             ))}

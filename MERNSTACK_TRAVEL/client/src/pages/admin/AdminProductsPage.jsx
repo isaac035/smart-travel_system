@@ -5,6 +5,7 @@ import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
 import { Plus, Pencil, Trash2, ShoppingBag, Upload, Search, Eye, CheckCircle, XCircle, Ban, Package, CreditCard, X, Layers, Landmark } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
+import { formatLKR } from '../../utils/currency';
 import {
   validateTravelProductField,
   validateTravelProductForm,
@@ -23,7 +24,7 @@ const EMPTY = { name:'', description:'', price:'', stock:'', category:'Clothing'
 const EMPTY_BUNDLE = { name: '', description: '', totalPrice: '', discount: 0, products: [], location: ['All Locations'] };
 
 const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-const formatCurrency = (n) => `LKR ${Number(n).toLocaleString()}`;
+const formatCurrency = (n) => formatLKR(n);
 
 export default function AdminProductsPage() {
   /* ───── shared ───── */
@@ -389,7 +390,7 @@ export default function AdminProductsPage() {
               </div>
               <div className="field"><label>Weather</label><select value={form.weatherType} onChange={f('weatherType')} className="adm-select"><option value="DRY">DRY</option><option value="RAINY">RAINY</option><option value="BOTH">BOTH</option></select></div>
               <div className="field">
-                <label>Price ($)</label>
+                <label>Price (LKR)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -507,7 +508,7 @@ export default function AdminProductsPage() {
                         <tr key={p._id}>
                           <td><div className="flex items-center gap-3">{p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="adm-thumb" /> : <div className="adm-thumb-placeholder bg-indigo-50"><ShoppingBag size={18} className="text-indigo-600" /></div>}<span className="text-sm font-semibold text-gray-900">{p.name}</span></div></td>
                           <td><span className="adm-badge adm-badge-neutral">{p.category}</span></td>
-                          <td className="text-sm font-bold text-gray-900">${p.price}</td>
+                          <td className="text-sm font-bold text-gray-900">{formatLKR(p.price)}</td>
                           <td>
                             <span className={`text-sm font-bold ${p.stock <= 5 ? 'text-red-600' : 'text-gray-600'}`}>{p.stock}</span>
                             {p.stock <= 5 && <span className="adm-badge adm-badge-inactive ml-1.5" style={{ color: '#dc2626', background: '#fef2f2', borderColor: '#fecaca', fontSize: '10px', padding: '1px 6px' }}>Low</span>}
@@ -674,7 +675,7 @@ export default function AdminProductsPage() {
                       {paginatedBundles.map((b) => (
                         <tr key={b._id}>
                           <td><div className="flex items-center gap-3">{b.images?.[0] ? <img src={b.images[0]} alt={b.name} className="adm-thumb" /> : <div className="adm-thumb-placeholder bg-orange-50"><Layers size={18} className="text-orange-600" /></div>}<span className="text-sm font-semibold text-gray-900">{b.name}</span></div></td>
-                          <td className="text-sm font-bold text-gray-900">${b.totalPrice} {b.discount > 0 && <span className="text-xs font-normal text-red-500 ml-1">(-{b.discount}%)</span>}</td>
+                          <td className="text-sm font-bold text-gray-900">{formatLKR(b.totalPrice)} {b.discount > 0 && <span className="text-xs font-normal text-red-500 ml-1">(-{b.discount}%)</span>}</td>
                           <td><span className="text-sm font-medium text-gray-600">{b.products?.length || 0} items</span></td>
                           <td><span className="text-sm text-gray-600">{Array.isArray(b.location) ? (b.location.length > 2 ? b.location.slice(0,2).join(', ') + '...' : b.location.join(', ')) : b.location}</span></td>
                           <td><div className="flex items-center justify-end gap-2"><button onClick={() => openBundleEdit(b)} className="adm-btn-edit"><Pencil size={14} /> Edit</button><button onClick={() => handleBundleDelete(b._id)} className="adm-btn-delete"><Trash2 size={14} /> Delete</button></div></td>
