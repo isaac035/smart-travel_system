@@ -131,11 +131,45 @@ const rejectBooking = async (req, res) => {
   }
 };
 
+const deleteHotel = async (req, res) => {
+  try {
+    const hotel = await Hotel.findOne({ _id: req.params.id, hotelOwnerId: req.user._id });
+    if (!hotel) return res.status(404).json({ message: 'Hotel not found' });
+    
+    // Delete all associated bookings
+    await HotelBooking.deleteMany({ hotelId: req.params.id });
+    
+    // Delete the hotel
+    await hotel.deleteOne();
+    res.json({ message: 'Hotel deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// POST /hotel-owner-dashboard/hotels/:id/publish
+const publishHotel = async (req, res) => {
+  try {
+    const hotel = await Hotel.findOne({ _id: req.params.id, hotelOwnerId: req.user._id });
+    if (!hotel) return res.status(404).json({ message: 'Hotel not found or access denied' });
+
+    hotel.approvalStatus = 'pending_approval';
+    hotel.publishedAt = new Date();
+    await hotel.save();
+
+    res.json({ message: 'Hotel submitted for approval', hotel });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getOwnerHotels,
   getOwnerStats,
   getOwnerBookings,
   acceptBooking,
   rejectBooking,
+  deleteHotel,
+  publishHotel,
 };
 

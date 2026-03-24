@@ -6,7 +6,7 @@ const HotelBooking = require('../models/HotelBooking');
 // @route GET /api/hotels
 const getHotels = async (req, res) => {
   try {
-    const filter = { isActive: true };
+    const filter = { isActive: true, $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }, { hotelOwnerId: { $exists: false } }] };
 
     if (req.query.location) filter.location = { $regex: req.query.location, $options: 'i' };
     if (req.query.rating) filter.starRating = { $gte: Number(req.query.rating) };

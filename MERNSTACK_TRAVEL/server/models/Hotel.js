@@ -68,6 +68,14 @@ const hotelSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
 
     hotelOwnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
+    // Approval workflow (for hotels submitted by hotel owners)
+    approvalStatus: {
+      type: String,
+      enum: ['pending_approval', 'approved', 'hold'],
+      default: 'pending_approval',
+    },
+    publishedAt: { type: Date },
   },
   { timestamps: true }
 );

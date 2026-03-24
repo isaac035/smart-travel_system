@@ -394,3 +394,78 @@ exports.updatePaymentStatus = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+// GET /api/admin/owner-hotels — all hotels submitted by hotel owners
+exports.getOwnerSubmittedHotels = async (req, res) => {
+  try {
+    const { search, district, approvalStatus } = req.query;
+
+    const filter = {
+      hotelOwnerId: { $exists: true, $ne: null },
+    };
+
+    if (approvalStatus && approvalStatus !== 'all') {
+      filter.approvalStatus = approvalStatus;
+    }
+
+    if (district && district.trim()) {
+      filter.location = { $regex: district.trim(), $options: 'i' };
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      filter.$or = [
+        { name: { $regex: q, $options: 'i' } },
+        { location: { $regex: q, $options: 'i' } },
+        { address: { $regex: q, $options: 'i' } },
+      ];
+    }
+
+    const hotels = await Hotel.find(filter)
+      .populate('hotelOwnerId', 'name email')
+      .sort({ publishedAt: -1, createdAt: -1 })
+      .lean();
+
+    res.json(hotels);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PUT /api/admin/owner-hotels/:id/approval
+exports.updateOwnerHotelApproval = async (req, res) => {
+  try {
+    const { approvalStatus } = req.body;
+    const valid = ['pending_approval', 'approved', 'hold'];
+    if (!valid.includes(approvalStatus)) {
+      return res.status(400).json({ message: 'Invalid approval status' });
+    }
+    const hotel = await Hotel.findByIdAndUpdate(
+      req.params.id,
+      { approvalStatus },
+      { new: true }
+    ).populate('hotelOwnerId', 'name email');
+    if (!hotel) return res.status(404).json({ message: 'Hotel not found' });
+    res.json(hotel);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// PUT /api/admin/owner-hotels/:id — full hotel update (details + rooms)
+exports.updateOwnerHotelDetails = async (req, res) => {
+  try {
+    const updates = req.body;
+    if (typeof updates.coordinates === 'string') updates.coordinates = JSON.parse(updates.coordinates);
+    if (typeof updates.rooms === 'string') updates.rooms = JSON.parse(updates.rooms);
+    if (typeof updates.amenities === 'string') updates.amenities = JSON.parse(updates.amenities);
+
+    const hotel = await Hotel.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true })
+      .populate('hotelOwnerId', 'name email');
+    if (!hotel) return res.status(404).json({ message: 'Hotel not found' });
+    res.json(hotel);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
