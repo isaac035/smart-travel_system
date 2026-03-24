@@ -1,0 +1,6 @@
+# Dependencies
+node_modules/
+
+# Environment variables - do not commit
+.env
+.env.local

@@ -265,6 +265,7 @@ export default function HotelDetailsPage() {
                 )}
                 {!hotel.discount && <div style={{ marginBottom: '16px' }} />}
 
+
                 {hotel.reviewCount > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #f3f4f6' }}>
                     <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: '16px' }}>★ {hotel.averageRating}</span>

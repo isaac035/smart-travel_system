@@ -8,6 +8,7 @@ const guideReviewSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+
 const guideBookingSchema = new mongoose.Schema(
   {
     guideId: { type: mongoose.Schema.Types.ObjectId, ref: 'Guide', required: true },

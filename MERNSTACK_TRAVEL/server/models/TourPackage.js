@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const tourPackageSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
+    destination: { type: String, trim: true },
     description: { type: String, required: true },
     images: [{ type: String }],
     locations: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Location' }],
@@ -13,6 +14,11 @@ const tourPackageSchema = new mongoose.Schema(
       car: { type: Number, default: 1.0 },
       van: { type: Number, default: 1.3 },
       bus: { type: Number, default: 1.6 },
+    },
+    maxTravelersByVehicle: {
+      car: { type: Number, default: 4 },
+      van: { type: Number, default: 8 },
+      bus: { type: Number, default: 50 },
     },
     guideIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Guide' }],
     includes: [{ type: String }],

@@ -4,6 +4,7 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
+
 const STATUS_LABELS = {
   deposit_submitted: 'Deposit Submitted',
   pending_guide_review: 'Awaiting Your Review',
@@ -106,8 +107,8 @@ export default function GuideDashboardPage() {
 
   const filteredBookings = filter === 'all' ? bookings
     : filter === 'pending' ? bookings.filter(b => b.status === 'pending_guide_review')
-    : filter === 'active' ? bookings.filter(b => ['guide_accepted', 'under_admin_review', 'admin_confirmed', 'remaining_payment_pending', 'remaining_payment_submitted', 'fully_paid'].includes(b.status))
-    : bookings.filter(b => ['completed', 'cancelled_by_user', 'cancelled_by_admin', 'guide_rejected', 'refunded', 'partially_refunded', 'no_refund'].includes(b.status));
+      : filter === 'active' ? bookings.filter(b => ['guide_accepted', 'under_admin_review', 'admin_confirmed', 'remaining_payment_pending', 'remaining_payment_submitted', 'fully_paid'].includes(b.status))
+        : bookings.filter(b => ['completed', 'cancelled_by_user', 'cancelled_by_admin', 'guide_rejected', 'refunded', 'partially_refunded', 'no_refund'].includes(b.status));
 
   if (loading) {
     return (

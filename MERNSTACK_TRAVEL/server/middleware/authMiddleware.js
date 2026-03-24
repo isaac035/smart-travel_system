@@ -43,4 +43,9 @@ const guideOrAdmin = (req, res, next) => {
   return res.status(403).json({ message: 'Access denied: Guide or Admin only' });
 };
 
-module.exports = { protect, adminOnly, guideOnly, guideOrAdmin };
+const hotelOwnerOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'hotelOwner') return next();
+  return res.status(403).json({ message: 'Access denied: Hotel owners only' });
+};
+
+module.exports = { protect, adminOnly, guideOnly, guideOrAdmin, hotelOwnerOnly };
