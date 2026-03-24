@@ -5,6 +5,12 @@ import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
 import { Plus, Pencil, Trash2, ShoppingBag, Upload, Search, Eye, CheckCircle, XCircle, Ban, Package, CreditCard, X, Layers, Landmark } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
+import {
+  validateTravelProductField,
+  validateTravelProductForm,
+  validateTravelBundleField,
+  validateTravelBundleForm,
+} from '../../utils/validators';
 
 const CATEGORIES = ['Clothing','Gear','Accessories','Food','Souvenirs','Other'];
 const AVAILABILITY_OPTIONS = [
@@ -29,6 +35,8 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY);
+  const [productErrors, setProductErrors] = useState({});
+  const [productTouched, setProductTouched] = useState({});
   const [editId, setEditId] = useState(null);
   const [images, setImages] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
@@ -44,6 +52,8 @@ export default function AdminProductsPage() {
   const [bundlesLoading, setBundlesLoading] = useState(true);
   const [showBundleForm, setShowBundleForm] = useState(false);
   const [bundleForm, setBundleForm] = useState(EMPTY_BUNDLE);
+  const [bundleErrors, setBundleErrors] = useState({});
+  const [bundleTouched, setBundleTouched] = useState({});
   const [bundleEditId, setBundleEditId] = useState(null);
   const [bundleImages, setBundleImages] = useState([]);
   const [bundleExistingImages, setBundleExistingImages] = useState([]);
@@ -109,19 +119,79 @@ export default function AdminProductsPage() {
   };
 
   /* ───── products logic (unchanged) ───── */
-  const openCreate = () => { setForm(EMPTY); setImages([]); setExistingImages([]); setEditId(null); setShowForm(true); };
+  const openCreate = () => {
+    setForm(EMPTY);
+    setProductErrors({});
+    setProductTouched({});
+    setImages([]);
+    setExistingImages([]);
+    setEditId(null);
+    setShowForm(true);
+  };
   const openEdit = (p) => {
     const locArray = Array.isArray(p.location) ? p.location : (p.location ? [p.location] : ['All Locations']);
     setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, category: p.category, weatherType: p.weatherType || 'BOTH', availability: p.availability || 'in_stock', location: locArray });
-    setExistingImages(p.images || []); setImages([]); setEditId(p._id); setShowForm(true);
+    setProductErrors({});
+    setProductTouched({});
+    setExistingImages(p.images || []);
+    setImages([]);
+    setEditId(p._id);
+    setShowForm(true);
   };
-  const closeForm = () => { setShowForm(false); setEditId(null); };
+  const closeForm = () => {
+    setShowForm(false);
+    setEditId(null);
+    setProductErrors({});
+    setProductTouched({});
+  };
+
+  const updateProductError = (field, message) => {
+    setProductErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[field] = message;
+      else delete next[field];
+      return next;
+    });
+  };
+
+  const onProductFieldChange = (key) => (e) => {
+    const value = e.target.value;
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (productTouched[key]) {
+        updateProductError(key, validateTravelProductField(key, next));
+      }
+      return next;
+    });
+  };
+
+  const onProductFieldBlur = (key) => () => {
+    setProductTouched((prev) => ({ ...prev, [key]: true }));
+    updateProductError(key, validateTravelProductField(key, form));
+  };
 
   const handleSave = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    const result = validateTravelProductForm(form);
+    if (!result.isValid) {
+      setProductErrors(result.errors);
+      setProductTouched({ name: true, category: true, description: true, price: true, stock: true });
+      toast.error('Please fix the highlighted product fields');
+      return;
+    }
+    setSaving(true);
     try {
       const fd = new FormData();
-      const payload = { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), category: form.category, weatherType: form.weatherType, availability: form.availability || 'in_stock', location: form.location && form.location.length > 0 ? form.location : ['All Locations'] };
+      const payload = {
+        name: result.sanitized.name,
+        description: result.sanitized.description,
+        price: result.sanitized.price,
+        stock: result.sanitized.stock,
+        category: result.sanitized.category,
+        weatherType: form.weatherType,
+        availability: form.availability || 'in_stock',
+        location: form.location && form.location.length > 0 ? form.location : ['All Locations'],
+      };
       if (editId) payload.existingImages = existingImages;
       fd.append('data', JSON.stringify(payload));
       images.forEach((f) => fd.append('images', f));
@@ -138,7 +208,7 @@ export default function AdminProductsPage() {
     try { await api.delete(`/products/${id}`); setProducts((p) => p.filter((prod) => prod._id !== id)); toast.success('Deleted'); } catch { toast.error('Failed'); }
   };
 
-  const f = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const f = (k) => onProductFieldChange(k);
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     return (categoryFilter === 'all' || p.category === categoryFilter) && (weatherFilter === 'all' || p.weatherType === weatherFilter) && matchSearch;
@@ -147,7 +217,15 @@ export default function AdminProductsPage() {
   const totalPages = Math.ceil(filtered.length / perPage);
 
   /* ───── bundles logic ───── */
-  const openBundleCreate = () => { setBundleForm(EMPTY_BUNDLE); setBundleImages([]); setBundleExistingImages([]); setBundleEditId(null); setShowBundleForm(true); };
+  const openBundleCreate = () => {
+    setBundleForm(EMPTY_BUNDLE);
+    setBundleErrors({});
+    setBundleTouched({});
+    setBundleImages([]);
+    setBundleExistingImages([]);
+    setBundleEditId(null);
+    setShowBundleForm(true);
+  };
   const openBundleEdit = (b) => {
     const locArray = Array.isArray(b.location) ? b.location : (b.location ? [b.location] : ['All Locations']);
     setBundleForm({
@@ -156,15 +234,64 @@ export default function AdminProductsPage() {
       products: b.products ? b.products.map(p => p._id || p) : [],
       location: locArray
     });
-    setBundleExistingImages(b.images || []); setBundleImages([]); setBundleEditId(b._id); setShowBundleForm(true);
+    setBundleErrors({});
+    setBundleTouched({});
+    setBundleExistingImages(b.images || []);
+    setBundleImages([]);
+    setBundleEditId(b._id);
+    setShowBundleForm(true);
   };
-  const closeBundleForm = () => { setShowBundleForm(false); setBundleEditId(null); };
+  const closeBundleForm = () => {
+    setShowBundleForm(false);
+    setBundleEditId(null);
+    setBundleErrors({});
+    setBundleTouched({});
+  };
+
+  const updateBundleError = (field, message) => {
+    setBundleErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[field] = message;
+      else delete next[field];
+      return next;
+    });
+  };
+
+  const onBundleFieldChange = (key) => (e) => {
+    const value = e.target.value;
+    setBundleForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (bundleTouched[key]) {
+        updateBundleError(key, validateTravelBundleField(key, next));
+      }
+      return next;
+    });
+  };
+
+  const onBundleFieldBlur = (key) => () => {
+    setBundleTouched((prev) => ({ ...prev, [key]: true }));
+    updateBundleError(key, validateTravelBundleField(key, bundleForm));
+  };
 
   const handleBundleSave = async (e) => {
-    e.preventDefault(); setSavingBundle(true);
+    e.preventDefault();
+    const result = validateTravelBundleForm(bundleForm);
+    if (!result.isValid) {
+      setBundleErrors(result.errors);
+      setBundleTouched({ name: true, description: true, totalPrice: true, discount: true, products: true });
+      toast.error('Please fix the highlighted bundle fields');
+      return;
+    }
+    setSavingBundle(true);
     try {
       const fd = new FormData();
-      const payload = { ...bundleForm, totalPrice: Number(bundleForm.totalPrice), discount: Number(bundleForm.discount) };
+      const payload = {
+        ...bundleForm,
+        name: result.sanitized.name,
+        description: result.sanitized.description,
+        totalPrice: result.sanitized.totalPrice,
+        discount: result.sanitized.discount,
+      };
       payload.location = payload.location && payload.location.length > 0 ? payload.location : ['All Locations'];
       if (bundleEditId) payload.existingImages = bundleExistingImages;
       fd.append('data', JSON.stringify(payload));
@@ -191,7 +318,7 @@ export default function AdminProductsPage() {
     try { await api.delete(`/bundles/${id}`); setBundles((b) => b.filter((bun) => bun._id !== id)); toast.success('Deleted'); } catch { toast.error('Failed'); }
   };
 
-  const bf = (k) => (e) => setBundleForm((p) => ({ ...p, [k]: e.target.value }));
+  const bf = (k) => onBundleFieldChange(k);
   const filteredBundles = bundles.filter(b => b.name.toLowerCase().includes(bundleSearch.toLowerCase()));
   const paginatedBundles = filteredBundles.slice((bundlePage - 1) * perPage, bundlePage * perPage);
   const bundleTotalPages = Math.ceil(filteredBundles.length / perPage);
@@ -232,13 +359,63 @@ export default function AdminProductsPage() {
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-8" style={{ minWidth: 0, overflow: 'hidden' }}>
         <AdminDrawer open={showForm} onClose={closeForm} title={editId ? 'Edit Product' : 'Add New Product'} saving={saving} onSubmit={handleSave} submitLabel={editId ? 'Update Product' : 'Create Product'}>
-          <div className="field" style={{ marginBottom: 16 }}><label>Product Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter product name" className="adm-input" /></div>
+          <div className="field" style={{ marginBottom: 16 }}>
+            <label>Product Name *</label>
+            <input
+              required
+              value={form.name}
+              onChange={f('name')}
+              onBlur={onProductFieldBlur('name')}
+              placeholder="Enter product name"
+              className="adm-input"
+              style={productErrors.name ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+            />
+            {productErrors.name && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.name}</p>}
+          </div>
           <div className="field-row cols-2">
             <div className="field-row cols-2" style={{ marginBottom: 0 }}>
-              <div className="field"><label>Category</label><select value={form.category} onChange={f('category')} className="adm-select">{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
+              <div className="field">
+                <label>Category</label>
+                <select
+                  value={form.category}
+                  onChange={f('category')}
+                  onBlur={onProductFieldBlur('category')}
+                  className="adm-select"
+                  style={productErrors.category ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                >
+                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                </select>
+                {productErrors.category && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.category}</p>}
+              </div>
               <div className="field"><label>Weather</label><select value={form.weatherType} onChange={f('weatherType')} className="adm-select"><option value="DRY">DRY</option><option value="RAINY">RAINY</option><option value="BOTH">BOTH</option></select></div>
-              <div className="field"><label>Price ($)</label><input type="number" step="0.01" value={form.price} onChange={f('price')} placeholder="29.99" className="adm-input" /></div>
-              <div className="field"><label>Stock</label><input type="number" min={0} value={form.stock} onChange={f('stock')} placeholder="100" className="adm-input" /></div>
+              <div className="field">
+                <label>Price ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.price}
+                  onChange={f('price')}
+                  onBlur={onProductFieldBlur('price')}
+                  placeholder="29.99"
+                  className="adm-input"
+                  style={productErrors.price ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                />
+                {productErrors.price && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.price}</p>}
+              </div>
+              <div className="field">
+                <label>Stock</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.stock}
+                  onChange={f('stock')}
+                  onBlur={onProductFieldBlur('stock')}
+                  placeholder="100"
+                  className="adm-input"
+                  style={productErrors.stock ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                />
+                {productErrors.stock && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.stock}</p>}
+              </div>
               <div className="field"><label>Availability</label><select value={form.availability || 'in_stock'} onChange={f('availability')} className="adm-select">{AVAILABILITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
             </div>
             <div className="field">
@@ -256,7 +433,19 @@ export default function AdminProductsPage() {
             </div>
           </div>
           <div className="field-row cols-2">
-            <div className="field"><label>Description</label><textarea value={form.description} onChange={f('description')} rows={3} placeholder="Describe this product..." className="adm-textarea" style={{ height: '100%' }} /></div>
+            <div className="field">
+              <label>Description</label>
+              <textarea
+                value={form.description}
+                onChange={f('description')}
+                onBlur={onProductFieldBlur('description')}
+                rows={3}
+                placeholder="Describe this product..."
+                className="adm-textarea"
+                style={productErrors.description ? { height: '100%', borderColor: '#ef4444', background: '#fef2f2' } : { height: '100%' }}
+              />
+              {productErrors.description && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.description}</p>}
+            </div>
             <div className="field-row cols-1" style={{ marginBottom: 0, alignSelf: 'start' }}>
               <div className="field">
                 <label>Images</label>
@@ -347,25 +536,70 @@ export default function AdminProductsPage() {
         {activeTab === 1 && (
           <>
             <AdminDrawer open={showBundleForm} onClose={closeBundleForm} title={bundleEditId ? 'Edit Travel Bundle' : 'Create Travel Bundle'} saving={savingBundle} onSubmit={handleBundleSave} submitLabel={bundleEditId ? 'Update Bundle' : 'Create Bundle'}>
-              <div className="field" style={{ marginBottom: 16 }}><label>Bundle Name *</label><input required value={bundleForm.name} onChange={bf('name')} placeholder="Enter bundle name" className="adm-input" /></div>
+              <div className="field" style={{ marginBottom: 16 }}>
+                <label>Bundle Name *</label>
+                <input
+                  required
+                  value={bundleForm.name}
+                  onChange={bf('name')}
+                  onBlur={onBundleFieldBlur('name')}
+                  placeholder="Enter bundle name"
+                  className="adm-input"
+                  style={bundleErrors.name ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                />
+                {bundleErrors.name && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.name}</p>}
+              </div>
               <div className="field-row cols-2">
                 <div className="field-row cols-2" style={{ marginBottom: 0 }}>
-                  <div className="field"><label>Total Price (LKR) *</label><input required type="number" step="0.01" value={bundleForm.totalPrice} onChange={bf('totalPrice')} placeholder="150.00" className="adm-input" /></div>
-                  <div className="field"><label>Discount (%)</label><input type="number" min={0} max={100} value={bundleForm.discount} onChange={bf('discount')} placeholder="10" className="adm-input" /></div>
+                  <div className="field">
+                    <label>Total Price (LKR) *</label>
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      value={bundleForm.totalPrice}
+                      onChange={bf('totalPrice')}
+                      onBlur={onBundleFieldBlur('totalPrice')}
+                      placeholder="150.00"
+                      className="adm-input"
+                      style={bundleErrors.totalPrice ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                    />
+                    {bundleErrors.totalPrice && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.totalPrice}</p>}
+                  </div>
+                  <div className="field">
+                    <label>Discount (%)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={bundleForm.discount}
+                      onChange={bf('discount')}
+                      onBlur={onBundleFieldBlur('discount')}
+                      placeholder="10"
+                      className="adm-input"
+                      style={bundleErrors.discount ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                    />
+                    {bundleErrors.discount && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.discount}</p>}
+                  </div>
                   
                   <div className="field" style={{ gridColumn: 'span 2' }}>
                     <label>Included Products</label>
-                    <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, background: '#f9fafb' }}>
+                    <div style={{ maxHeight: 180, overflowY: 'auto', border: `1px solid ${bundleErrors.products ? '#ef4444' : '#e5e7eb'}`, borderRadius: 8, padding: 8, background: bundleErrors.products ? '#fef2f2' : '#f9fafb' }}>
                       {products.map((p) => (
                         <label key={p._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6, '&:hover': { background: '#f3f4f6' } }}>
                           <input type="checkbox" checked={bundleForm.products?.includes(p._id)} onChange={(e) => {
                             const arr = bundleForm.products || [];
-                            setBundleForm(prev => ({...prev, products: e.target.checked ? [...arr, p._id] : arr.filter(x => x !== p._id)}));
+                            const nextProducts = e.target.checked ? [...arr, p._id] : arr.filter(x => x !== p._id);
+                            const nextForm = { ...bundleForm, products: nextProducts };
+                            setBundleForm((prev) => ({ ...prev, products: nextProducts }));
+                            setBundleTouched((prev) => ({ ...prev, products: true }));
+                            updateBundleError('products', validateTravelBundleField('products', nextForm));
                           }} style={{ accentColor: '#f59e0b' }} /> 
                           {p.name}
                         </label>
                       ))}
                     </div>
+                    {bundleErrors.products && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.products}</p>}
                   </div>
                 </div>
                 <div className="field" style={{ marginBottom: 0 }}>
@@ -383,7 +617,19 @@ export default function AdminProductsPage() {
                 </div>
               </div>
               <div className="field-row cols-2">
-                <div className="field"><label>Description</label><textarea value={bundleForm.description} onChange={bf('description')} rows={4} placeholder="Describe this bundle..." className="adm-textarea" style={{ height: '100%' }} /></div>
+                <div className="field">
+                  <label>Description</label>
+                  <textarea
+                    value={bundleForm.description}
+                    onChange={bf('description')}
+                    onBlur={onBundleFieldBlur('description')}
+                    rows={4}
+                    placeholder="Describe this bundle..."
+                    className="adm-textarea"
+                    style={bundleErrors.description ? { height: '100%', borderColor: '#ef4444', background: '#fef2f2' } : { height: '100%' }}
+                  />
+                  {bundleErrors.description && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.description}</p>}
+                </div>
                 <div className="field-row cols-1" style={{ marginBottom: 0, alignSelf: 'start' }}>
                   <div className="field">
                     <label>Main Picture (Images)</label>
