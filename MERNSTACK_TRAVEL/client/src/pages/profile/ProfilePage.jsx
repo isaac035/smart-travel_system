@@ -460,7 +460,7 @@ export default function ProfilePage() {
                         <CardBody>
                           <CardTitle name={b.packageId?.name || 'Tour Package'} status={b.status} />
                           <CardMeta>{new Date(b.startDate).toLocaleDateString()} · {b.travelers} traveler{b.travelers !== 1 ? 's' : ''} · <span style={{ textTransform: 'capitalize' }}>{b.vehicle}</span></CardMeta>
-                          <CardPrice>${b.totalPrice?.toFixed(2)}</CardPrice>
+                          <CardPrice>LKR {Math.round(b.totalPrice)?.toLocaleString()}</CardPrice>
                         </CardBody>
                         <CardLink to="/my-tours" />
                       </BookingCard>
