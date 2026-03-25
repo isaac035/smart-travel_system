@@ -135,6 +135,10 @@ body {
   0%, 100% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3); }
   50% { box-shadow: 0 0 0 12px rgba(59, 130, 246, 0); }
 }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
 /* ═══════════════════════════════════════════════════════
    ADMIN PANEL — Real CSS (not Tailwind utilities)
@@ -680,6 +684,69 @@ body {
 @media (max-width: 360px) {
   .adm-modal-body .field-row.cols-2,
   .adm-modal-body .field-row.cols-3 { grid-template-columns: 1fr; }
+}
+
+/* Location admin form - Rich text editor */
+.loc-quill-wrap .ql-toolbar.ql-snow {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px 10px 0 0;
+  background: #f9fafb;
+  padding: 6px 8px;
+}
+.loc-quill-wrap .ql-container.ql-snow {
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  font-size: 13px;
+  min-height: 120px;
+  background: #fff;
+}
+.loc-quill-wrap .ql-editor {
+  min-height: 120px;
+  padding: 10px 14px;
+  color: #111827;
+}
+.loc-quill-wrap .ql-editor.ql-blank::before {
+  color: #9ca3af;
+  font-style: normal;
+  font-size: 13px;
+}
+.loc-quill-wrap .ql-toolbar button:hover,
+.loc-quill-wrap .ql-toolbar button.ql-active {
+  color: #d97706;
+}
+.loc-quill-wrap .ql-toolbar button.ql-active .ql-stroke {
+  stroke: #d97706;
+}
+.loc-quill-wrap .ql-toolbar button.ql-active .ql-fill {
+  fill: #d97706;
+}
+.loc-quill-wrap .ql-toolbar button:hover .ql-stroke {
+  stroke: #d97706;
+}
+
+/* Location detail page — rendered rich text description */
+.location-description {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 720px;
+}
+.location-description h1, .location-description h2, .location-description h3 {
+  color: #222; margin: 16px 0 8px; font-weight: 700;
+}
+.location-description h1 { font-size: 22px; }
+.location-description h2 { font-size: 18px; }
+.location-description h3 { font-size: 16px; }
+.location-description p { margin: 0 0 10px; }
+.location-description ul, .location-description ol {
+  margin: 8px 0 12px 20px; padding: 0;
+}
+.location-description li { margin-bottom: 6px; }
+.location-description a { color: #d97706; text-decoration: underline; }
+.location-description strong { color: #333; font-weight: 600; }
+.location-description img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
+.loc-quill-wrap .ql-toolbar button:hover .ql-fill {
+  fill: #d97706;
 }
 
 @layer base {
