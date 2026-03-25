@@ -285,7 +285,7 @@ export default function TourDetailsPage() {
               }}>
                 <p style={{ fontSize: '12px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Starting from</p>
                 <div style={{ marginBottom: '24px' }}>
-                  <span style={{ fontSize: '40px', fontWeight: 800, color: '#d97706' }}>${pkg.basePrice}</span>
+                  <span style={{ fontSize: '40px', fontWeight: 800, color: '#d97706' }}>LKR{pkg.basePrice}</span>
                   <span style={{ color: '#9ca3af', fontSize: '14px', marginLeft: '6px' }}>/ person</span>
                 </div>
 
