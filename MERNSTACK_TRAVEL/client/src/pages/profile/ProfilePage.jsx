@@ -12,9 +12,9 @@ const DEFAULT_COVER = 'https://images.unsplash.com/photo-1588598198321-9735fd510
 
 /* ── status badge styles (light mode) ── */
 const STATUS = {
-  pending:   { badge: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200', dot: 'bg-amber-400', msg: 'text-amber-600', text: 'Payment slip under review — we\'ll confirm shortly.' },
+  pending: { badge: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200', dot: 'bg-amber-400', msg: 'text-amber-600', text: 'Payment slip under review — we\'ll confirm shortly.' },
   confirmed: { badge: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', dot: 'bg-emerald-400', msg: 'text-emerald-600', text: 'Confirmed! Your items will be prepared for delivery.' },
-  rejected:  { badge: 'bg-red-50 text-red-700 ring-1 ring-red-200', dot: 'bg-red-400', msg: 'text-red-600', text: 'Rejected — please contact support or place a new order.' },
+  rejected: { badge: 'bg-red-50 text-red-700 ring-1 ring-red-200', dot: 'bg-red-400', msg: 'text-red-600', text: 'Rejected — please contact support or place a new order.' },
   cancelled: { badge: 'bg-gray-50 text-gray-500 ring-1 ring-gray-200', dot: 'bg-gray-400', msg: 'text-gray-500', text: 'This order has been cancelled.' },
 };
 
@@ -34,6 +34,7 @@ const QUICK_LINKS = [
   { to: '/services/travel-products', label: 'Shop Products', icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z' },
   { to: '/explore', label: 'Explore', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
   { to: '/explore?tab=tripplan', label: 'Trip Plans', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
+  { to: '/emergency', label: 'Emergency Support', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', emergency: true },
 ];
 
 /* ── Inline SVG icon helper ── */
@@ -94,7 +95,7 @@ export default function ProfilePage() {
       setTourBookings(t.data);
       setProductOrders(p.data);
       setTripPlans(tr.data);
-    }).catch(() => {}).finally(() => setLoadingBookings(false));
+    }).catch(() => { }).finally(() => setLoadingBookings(false));
   }, []);
 
   const handleSaveProfile = async (e) => {
@@ -305,6 +306,33 @@ export default function ProfilePage() {
                 ))}
               </div>
 
+              {/* ── Emergency Support Banner ── */}
+              <Link
+                to="/emergency"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  background: 'linear-gradient(135deg, #1e3a5f 0%, #dc2626 100%)',
+                  borderRadius: 16, padding: '18px 24px', textDecoration: 'none',
+                  transition: 'all 0.2s', boxShadow: '0 4px 16px rgba(220,38,38,0.2)',
+                  marginBottom: 4,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(220,38,38,0.3)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(220,38,38,0.2)'; }}
+              >
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                  background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+                }}>🚨</div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.3 }}>Emergency Support</p>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: '3px 0 0' }}>Nearby police stations &amp; hospitals on a live map</p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.7)" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+
             </div>
           </div>
 
@@ -364,93 +392,154 @@ export default function ProfilePage() {
                 {/* Hotel Bookings */}
                 {tab === 0 && (
                   hotelBookings.length === 0 ? <EmptyState label="hotel bookings" to="/hotels" /> :
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {hotelBookings.map((b) => (
-                      <BookingCard key={b._id}>
-                        {b.hotelId?.images?.[0] && <CardImage src={b.hotelId.images[0]} />}
-                        <CardBody>
-                          <CardTitle name={b.hotelId?.name || 'Hotel'} status={b.status} />
-                          <CardMeta>{new Date(b.checkIn).toLocaleDateString()} → {new Date(b.checkOut).toLocaleDateString()} · {b.rooms} room{b.rooms !== 1 ? 's' : ''}</CardMeta>
-                          <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
-                        </CardBody>
-                        <CardLink to={`/hotels/${b.hotelId?._id}`} />
-                      </BookingCard>
-                    ))}
-                  </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {hotelBookings.map((b) => (
+                        <BookingCard key={b._id}>
+                          {b.hotelId?.images?.[0] && <CardImage src={b.hotelId.images[0]} />}
+                          <CardBody>
+                            <CardTitle name={b.hotelId?.name || 'Hotel'} status={b.status} />
+                            <CardMeta>{new Date(b.checkIn).toLocaleDateString()} → {new Date(b.checkOut).toLocaleDateString()} · {b.rooms} room{b.rooms !== 1 ? 's' : ''}</CardMeta>
+                            <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
+                          </CardBody>
+                          <CardLink to={`/hotels/${b.hotelId?._id}`} />
+                        </BookingCard>
+                      ))}
+                    </div>
                 )}
 
                 {/* Guide Bookings */}
                 {tab === 1 && (
                   guideBookings.length === 0 ? <EmptyState label="guide bookings" to="/services/guides" /> :
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {guideBookings.map((b) => (
-                      <BookingCard key={b._id}>
-                        {b.guideId?.avatar ? (
-                          <CardImage src={b.guideId.avatar} round />
-                        ) : (
-                          <div style={{
-                            width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
-                            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#fff', fontWeight: 700, fontSize: 20,
-                          }}>
-                            {b.guideId?.name?.[0]}
-                          </div>
-                        )}
-                        <CardBody>
-                          <CardTitle name={b.guideId?.name || 'Guide'} status={b.status} />
-                          <CardMeta>{new Date(b.startDate).toLocaleDateString()} · {b.days} day{b.days !== 1 ? 's' : ''}</CardMeta>
-                          <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
-                        </CardBody>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                          {GUIDE_CANCELLABLE.includes(b.status) && (
-                            <button
-                              onClick={() => handleCancelGuide(b._id, b.startDate || b.travelDate)}
-                              style={{
-                                padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                                background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca',
-                                cursor: 'pointer', transition: 'background 0.15s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }}
-                              onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; }}
-                            >
-                              Cancel
-                            </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {guideBookings.map((b) => (
+                        <BookingCard key={b._id}>
+                          {b.guideId?.avatar ? (
+                            <CardImage src={b.guideId.avatar} round />
+                          ) : (
+                            <div style={{
+                              width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
+                              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: '#fff', fontWeight: 700, fontSize: 20,
+                            }}>
+                              {b.guideId?.name?.[0]}
+                            </div>
                           )}
-                          <CardLink to="/my-guides" />
-                        </div>
-                      </BookingCard>
-                    ))}
-                  </div>
+                          <CardBody>
+                            <CardTitle name={b.guideId?.name || 'Guide'} status={b.status} />
+                            <CardMeta>{new Date(b.startDate).toLocaleDateString()} · {b.days} day{b.days !== 1 ? 's' : ''}</CardMeta>
+                            <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
+                          </CardBody>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                            {GUIDE_CANCELLABLE.includes(b.status) && (
+                              <button
+                                onClick={() => handleCancelGuide(b._id, b.startDate || b.travelDate)}
+                                style={{
+                                  padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                                  background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca',
+                                  cursor: 'pointer', transition: 'background 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; }}
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            <CardLink to="/my-guides" />
+                          </div>
+                        </BookingCard>
+                      ))}
+                    </div>
                 )}
 
                 {/* Tour Bookings */}
                 {tab === 2 && (
                   tourBookings.length === 0 ? <EmptyState label="tour bookings" to="/tours" /> :
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {tourBookings.map((b) => (
-                      <BookingCard key={b._id}>
-                        {b.packageId?.images?.[0] && <CardImage src={b.packageId.images[0]} />}
-                        <CardBody>
-                          <CardTitle name={b.packageId?.name || 'Tour Package'} status={b.status} />
-                          <CardMeta>{new Date(b.startDate).toLocaleDateString()} · {b.travelers} traveler{b.travelers !== 1 ? 's' : ''} · <span style={{ textTransform: 'capitalize' }}>{b.vehicle}</span></CardMeta>
-                          <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
-                        </CardBody>
-                        <CardLink to="/my-tours" />
-                      </BookingCard>
-                    ))}
-                  </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {tourBookings.map((b) => (
+                        <BookingCard key={b._id}>
+                          {b.packageId?.images?.[0] && <CardImage src={b.packageId.images[0]} />}
+                          <CardBody>
+                            <CardTitle name={b.packageId?.name || 'Tour Package'} status={b.status} />
+                            <CardMeta>{new Date(b.startDate).toLocaleDateString()} · {b.travelers} traveler{b.travelers !== 1 ? 's' : ''} · <span style={{ textTransform: 'capitalize' }}>{b.vehicle}</span></CardMeta>
+
+                            <CardPrice>LKR {Math.round(b.totalPrice)?.toLocaleString()}</CardPrice>
+
+                            <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
+
+                          </CardBody>
+                          <CardLink to="/my-tours" />
+                        </BookingCard>
+                      ))}
+                    </div>
                 )}
 
                 {/* Product Orders */}
                 {tab === 3 && (
                   productOrders.length === 0 ? <EmptyState label="product orders" to="/services/travel-products" /> :
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {productOrders.map((order) => {
-                      const statusKey = order.status || 'pending';
-                      const s = STATUS[statusKey] || STATUS.pending;
-                      return (
-                        <div key={order._id} style={{
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {productOrders.map((order) => {
+                        const statusKey = order.status || 'pending';
+                        const s = STATUS[statusKey] || STATUS.pending;
+                        return (
+                          <div key={order._id} style={{
+                            background: '#fff', border: '1px solid #e8eaed', borderRadius: 16,
+                            padding: '18px 20px',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                            transition: 'all 0.2s',
+                          }}
+                            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span style={{ fontSize: 12, color: '#9ca3af', fontFamily: 'monospace', background: '#f9fafb', padding: '3px 8px', borderRadius: 6 }}>
+                                  #{order._id.slice(-8).toUpperCase()}
+                                </span>
+                                <StatusBadge status={statusKey} />
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <p style={{ fontSize: 15, fontWeight: 700, color: '#d97706', margin: 0 }}>{formatLKR(Math.round(order.amount))}</p>
+                                <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{new Date(order.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {(order.items || []).map((item, idx) => (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{
+                                      fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
+                                      background: item.type === 'bundle' ? '#f3e8ff' : '#fef3c7',
+                                      color: item.type === 'bundle' ? '#7c3aed' : '#92400e',
+                                    }}>
+                                      {item.type === 'bundle' ? 'Bundle' : 'Product'}
+                                    </span>
+                                    <span style={{ color: '#374151' }}>{item.name}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#6b7280' }}>
+                                    <span>x{item.qty}</span>
+                                    <span style={{ color: '#374151', fontWeight: 500 }}>{formatLKR(Math.round((item.price || 0) * item.qty))}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
+                              <p style={{ fontSize: 12, margin: 0 }} className={s.msg}>{s.text}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                )}
+
+                {/* Trip Plans */}
+                {tab === 4 && (
+                  tripPlans.length === 0 ? <EmptyState label="trip plans" to="/explore?tab=tripplan" /> :
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {tripPlans.map((trip) => (
+                        <div key={trip._id} style={{
                           background: '#fff', border: '1px solid #e8eaed', borderRadius: 16,
                           padding: '18px 20px',
                           boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
@@ -459,129 +548,72 @@ export default function ProfilePage() {
                           onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                           onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <span style={{ fontSize: 12, color: '#9ca3af', fontFamily: 'monospace', background: '#f9fafb', padding: '3px 8px', borderRadius: 6 }}>
-                                #{order._id.slice(-8).toUpperCase()}
-                              </span>
-                              <StatusBadge status={statusKey} />
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <p style={{ fontSize: 15, fontWeight: 700, color: '#d97706', margin: 0 }}>{formatLKR(Math.round(order.amount))}</p>
-                              <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{new Date(order.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {(order.items || []).map((item, idx) => (
-                              <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{
-                                    fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
-                                    background: item.type === 'bundle' ? '#f3e8ff' : '#fef3c7',
-                                    color: item.type === 'bundle' ? '#7c3aed' : '#92400e',
-                                  }}>
-                                    {item.type === 'bundle' ? 'Bundle' : 'Product'}
-                                  </span>
-                                  <span style={{ color: '#374151' }}>{item.name}</span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#6b7280' }}>
-                                  <span>x{item.qty}</span>
-                                  <span style={{ color: '#374151', fontWeight: 500 }}>{formatLKR(Math.round((item.price || 0) * item.qty))}</span>
-                                </div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                              <div style={{
+                                width: 44, height: 44, borderRadius: 12,
+                                background: '#fffbeb', border: '1px solid #fde68a',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 20,
+                              }}>
+                                🗺️
                               </div>
-                            ))}
-                          </div>
-
-                          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
-                            <p style={{ fontSize: 12, margin: 0 }} className={s.msg}>{s.text}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Trip Plans */}
-                {tab === 4 && (
-                  tripPlans.length === 0 ? <EmptyState label="trip plans" to="/explore?tab=tripplan" /> :
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {tripPlans.map((trip) => (
-                      <div key={trip._id} style={{
-                        background: '#fff', border: '1px solid #e8eaed', borderRadius: 16,
-                        padding: '18px 20px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                        transition: 'all 0.2s',
-                      }}
-                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                            <div style={{
-                              width: 44, height: 44, borderRadius: 12,
-                              background: '#fffbeb', border: '1px solid #fde68a',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 20,
-                            }}>
-                              🗺️
+                              <div>
+                                <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', margin: 0 }}>{trip.name}</h3>
+                                <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 0' }}>
+                                  {trip.days?.length || 0} days · {trip.days?.reduce((s, d) => s + (d.locations?.length || 0), 0) || 0} stops
+                                  {trip.totalDistance > 0 && ` · ${(trip.totalDistance / 1000).toFixed(0)} km`}
+                                  {trip.pace && ` · ${trip.pace}`}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', margin: 0 }}>{trip.name}</h3>
-                              <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 0' }}>
-                                {trip.days?.length || 0} days · {trip.days?.reduce((s, d) => s + (d.locations?.length || 0), 0) || 0} stops
-                                {trip.totalDistance > 0 && ` · ${(trip.totalDistance / 1000).toFixed(0)} km`}
-                                {trip.pace && ` · ${trip.pace}`}
-                              </p>
+                            <p style={{ fontSize: 11, color: '#9ca3af' }}>{new Date(trip.updatedAt || trip.createdAt).toLocaleDateString()}</p>
+                          </div>
+
+                          {trip.days?.some((d) => d.locations?.some((l) => l.locationId?.images?.[0])) && (
+                            <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflow: 'hidden' }}>
+                              {trip.days.flatMap((d) => d.locations).filter((l) => l.locationId?.images?.[0]).slice(0, 4).map((l, i) => (
+                                <img key={i} src={l.locationId.images[0]} alt={l.locationId.name} style={{ width: 64, height: 48, objectFit: 'cover', borderRadius: 8 }} />
+                              ))}
                             </div>
-                          </div>
-                          <p style={{ fontSize: 11, color: '#9ca3af' }}>{new Date(trip.updatedAt || trip.createdAt).toLocaleDateString()}</p>
-                        </div>
+                          )}
 
-                        {trip.days?.some((d) => d.locations?.some((l) => l.locationId?.images?.[0])) && (
-                          <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflow: 'hidden' }}>
-                            {trip.days.flatMap((d) => d.locations).filter((l) => l.locationId?.images?.[0]).slice(0, 4).map((l, i) => (
-                              <img key={i} src={l.locationId.images[0]} alt={l.locationId.name} style={{ width: 64, height: 48, objectFit: 'cover', borderRadius: 8 }} />
-                            ))}
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Link
+                              to="/explore?tab=tripplan"
+                              style={{
+                                fontSize: 12, fontWeight: 600, color: '#d97706',
+                                background: '#fffbeb', border: '1px solid #fde68a',
+                                borderRadius: 8, padding: '7px 16px',
+                                textDecoration: 'none', transition: 'all 0.2s',
+                              }}
+                            >
+                              Edit Plan
+                            </Link>
+                            <button
+                              onClick={async () => {
+                                if (!window.confirm('Delete this trip?')) return;
+                                try {
+                                  await api.delete(`/trips/${trip._id}`);
+                                  setTripPlans((prev) => prev.filter((t) => t._id !== trip._id));
+                                  toast.success('Trip deleted');
+                                } catch { toast.error('Failed to delete'); }
+                              }}
+                              style={{
+                                fontSize: 12, fontWeight: 500, color: '#9ca3af',
+                                background: 'none', border: '1px solid #e5e7eb',
+                                borderRadius: 8, padding: '7px 16px', cursor: 'pointer',
+                                transition: 'all 0.2s',
+                              }}
+                              onMouseEnter={(e) => { e.target.style.color = '#ef4444'; e.target.style.borderColor = '#fca5a5'; }}
+                              onMouseLeave={(e) => { e.target.style.color = '#9ca3af'; e.target.style.borderColor = '#e5e7eb'; }}
+                            >
+                              Delete
+                            </button>
                           </div>
-                        )}
-
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <Link
-                            to="/explore?tab=tripplan"
-                            style={{
-                              fontSize: 12, fontWeight: 600, color: '#d97706',
-                              background: '#fffbeb', border: '1px solid #fde68a',
-                              borderRadius: 8, padding: '7px 16px',
-                              textDecoration: 'none', transition: 'all 0.2s',
-                            }}
-                          >
-                            Edit Plan
-                          </Link>
-                          <button
-                            onClick={async () => {
-                              if (!window.confirm('Delete this trip?')) return;
-                              try {
-                                await api.delete(`/trips/${trip._id}`);
-                                setTripPlans((prev) => prev.filter((t) => t._id !== trip._id));
-                                toast.success('Trip deleted');
-                              } catch { toast.error('Failed to delete'); }
-                            }}
-                            style={{
-                              fontSize: 12, fontWeight: 500, color: '#9ca3af',
-                              background: 'none', border: '1px solid #e5e7eb',
-                              borderRadius: 8, padding: '7px 16px', cursor: 'pointer',
-                              transition: 'all 0.2s',
-                            }}
-                            onMouseEnter={(e) => { e.target.style.color = '#ef4444'; e.target.style.borderColor = '#fca5a5'; }}
-                            onMouseLeave={(e) => { e.target.style.color = '#9ca3af'; e.target.style.borderColor = '#e5e7eb'; }}
-                          >
-                            Delete
-                          </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
                 )}
               </>
             )}

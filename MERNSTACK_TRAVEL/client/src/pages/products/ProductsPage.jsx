@@ -15,7 +15,7 @@ const getAvailabilityConfig = (availability, stock) => {
     return { text: 'Out of Stock', bg: 'rgba(239,68,68,0.12)', color: '#dc2626', border: 'rgba(239,68,68,0.25)', isUnavailable: true };
   }
   if (availability === 'coming_soon') {
-    return { text: 'Coming Soon', bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6', border: 'rgba(139,92,246,0.25)', isUnavailable: false };
+    return { text: 'Coming Soon', bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6', border: 'rgba(139,92,246,0.25)', isUnavailable: true };
   }
   if (availability === 'pre_order') {
     return { text: 'Pre Order', bg: 'rgba(56,189,248,0.12)', color: '#0284c7', border: 'rgba(56,189,248,0.25)', isUnavailable: false };
@@ -147,7 +147,10 @@ const ProductCard = ({ item, type, onAddToCart, index, onCardClick }) => {
             </span>
           </div>
           <button
-            onClick={() => onAddToCart(item._id, type)}
+            onClick={() => {
+              if (isUnavailable) return;
+              onAddToCart(item._id, type);
+            }}
             disabled={isUnavailable}
             style={{
               padding: '8px 18px', fontSize: 12, fontWeight: 600,

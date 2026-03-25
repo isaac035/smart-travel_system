@@ -4,6 +4,12 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import {
+  validateRequired,
+  validateEmail,
+  validatePassword,
+  validateConfirmPassword,
+} from '../../utils/authValidators';
 
 
 export default function RegisterPage() {
@@ -12,15 +18,60 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [submitted, setSubmitted] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const validateField = (name, value, currentForm = form) => {
+    if (name === 'name') return validateRequired(value, 'Name');
+    if (name === 'email') return validateEmail(value);
+    if (name === 'password') return validatePassword(value);
+    if (name === 'confirm') return validateConfirmPassword(currentForm.password, value);
+    return '';
+  };
+
+  const validateForm = (currentForm = form) => {
+    return {
+      name: validateField('name', currentForm.name, currentForm),
+      email: validateField('email', currentForm.email, currentForm),
+      password: validateField('password', currentForm.password, currentForm),
+      confirm: validateField('confirm', currentForm.confirm, currentForm),
+    };
+  };
+
+  const hasErrors = (nextErrors) => Object.values(nextErrors).some(Boolean);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    const nextForm = { ...form, [name]: value };
+    setForm(nextForm);
+
+    if (touched[name] || submitted || (name === 'password' && (touched.confirm || submitted))) {
+      setErrors((prev) => {
+        const next = { ...prev, [name]: validateField(name, value, nextForm) };
+        if (name === 'password') {
+          next.confirm = validateField('confirm', nextForm.confirm, nextForm);
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.password.length < 6) return toast.error('Password must be at least 6 characters');
-    if (form.password !== form.confirm) return toast.error('Passwords do not match');
+    setSubmitted(true);
+    const nextErrors = validateForm();
+    setErrors(nextErrors);
+    setTouched({ name: true, email: true, password: true, confirm: true });
+    if (hasErrors(nextErrors)) return;
 
     setLoading(true);
     try {
@@ -38,7 +89,11 @@ export default function RegisterPage() {
     position: 'relative',
     borderRadius: 10,
     background: focusedField === field ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)',
-    border: focusedField === field ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(255,255,255,0.08)',
+    border: errors[field]
+      ? '1px solid #ef4444'
+      : focusedField === field
+        ? '1px solid rgba(245,158,11,0.4)'
+        : '1px solid rgba(255,255,255,0.08)',
     boxShadow: focusedField === field
       ? 'inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 3px rgba(245,158,11,0.06)'
       : 'inset 0 2px 4px rgba(0,0,0,0.15)',
@@ -61,6 +116,7 @@ export default function RegisterPage() {
     color: focusedField === field ? '#d97706' : '#4b5563',
     transition: 'color 0.2s',
   });
+  const isFormValid = !hasErrors(validateForm());
 
   return (
     <div style={{
@@ -139,12 +195,13 @@ export default function RegisterPage() {
                   </div>
                   <input
                     type="text" name="name" value={form.name} onChange={handleChange}
-                    placeholder="Enter your full name" required
+                    placeholder="Enter your full name"
                     onFocus={() => setFocusedField('name')}
-                    onBlur={() => setFocusedField(null)}
+                    onBlur={(e) => { setFocusedField(null); handleBlur(e); }}
                     style={inputStyle}
                   />
                 </div>
+                {errors.name && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.name}</p>}
               </div>
 
               {/* Email */}
@@ -158,12 +215,13 @@ export default function RegisterPage() {
                   </div>
                   <input
                     type="email" name="email" value={form.email} onChange={handleChange}
-                    placeholder="Enter your email" required
+                    placeholder="Enter your email"
                     onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
+                    onBlur={(e) => { setFocusedField(null); handleBlur(e); }}
                     style={inputStyle}
                   />
                 </div>
+                {errors.email && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.email}</p>}
               </div>
 
               {/* Password */}
@@ -179,9 +237,9 @@ export default function RegisterPage() {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     name="password" value={form.password} onChange={handleChange}
-                    placeholder="Min. 6 characters" required
+                    placeholder="Min. 6 characters"
                     onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
+                    onBlur={(e) => { setFocusedField(null); handleBlur(e); }}
                     style={{ ...inputStyle, paddingRight: 40 }}
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
@@ -205,6 +263,7 @@ export default function RegisterPage() {
                     )}
                   </button>
                 </div>
+                {errors.password && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.password}</p>}
               </div>
 
               {/* Confirm Password */}
@@ -220,9 +279,9 @@ export default function RegisterPage() {
                   <input
                     type={showConfirm ? 'text' : 'password'}
                     name="confirm" value={form.confirm} onChange={handleChange}
-                    placeholder="Re-enter password" required
+                    placeholder="Re-enter password"
                     onFocus={() => setFocusedField('confirm')}
-                    onBlur={() => setFocusedField(null)}
+                    onBlur={(e) => { setFocusedField(null); handleBlur(e); }}
                     style={{ ...inputStyle, paddingRight: 40 }}
                   />
                   <button type="button" onClick={() => setShowConfirm(!showConfirm)} style={{
@@ -246,11 +305,12 @@ export default function RegisterPage() {
                     )}
                   </button>
                 </div>
+                {errors.confirm && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.confirm}</p>}
               </div>
 
               {/* Submit Button */}
               <button
-                type="submit" disabled={loading}
+                type="submit" disabled={loading || !isFormValid}
                 style={{
                   position: 'relative', overflow: 'hidden',
                   width: '100%', padding: '12px 0',

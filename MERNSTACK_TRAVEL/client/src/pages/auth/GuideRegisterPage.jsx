@@ -1,14 +1,23 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import {
+  validateName,
+  validateEmail,
+  validatePhone,
+  validatePassword,
+  validateNumber,
+  validateConfirmPassword,
+  normalizeValue,
+  isAllowedNumericKey,
+} from '../../utils/guideValidation';
 
 
 const LANGUAGES = ['English', 'Sinhala', 'Tamil', 'Hindi', 'French', 'German', 'Japanese', 'Chinese'];
 const LOCATIONS = ['Colombo', 'Kandy', 'Galle', 'Ella', 'Sigiriya', 'Nuwara Eliya', 'Jaffna', 'Trincomalee', 'Anuradhapura'];
 
 export default function GuideRegisterPage() {
-  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirm: '',
     phone: '', location: '', experience: 1, bio: '',
@@ -16,25 +25,106 @@ export default function GuideRegisterPage() {
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'experience' && !/^\d*$/.test(value)) return;
+    const nextForm = { ...form, [name]: value };
+    setForm(nextForm);
+
+    if (touched[name]) {
+      setErrors((prev) => ({ ...prev, [name]: validateField(name, value, nextForm) }));
+    }
+
+    if (name === 'password' && touched.confirm) {
+      setErrors((prev) => ({ ...prev, confirm: validateField('confirm', nextForm.confirm, nextForm) }));
+    }
   };
 
   const toggleLanguage = (lang) => {
-    setForm(prev => ({
-      ...prev,
-      languages: prev.languages.includes(lang)
-        ? prev.languages.filter(l => l !== lang)
-        : [...prev.languages, lang]
-    }));
+    const nextForm = {
+      ...form,
+      languages: form.languages.includes(lang)
+        ? form.languages.filter(l => l !== lang)
+        : [...form.languages, lang]
+    };
+    setForm(nextForm);
+    if (touched.languages) {
+      setErrors((prevErrors) => ({ ...prevErrors, languages: validateField('languages', nextForm.languages, nextForm) }));
+    }
+  };
+
+  const validateField = (name, value, currentForm = form) => {
+    if (name === 'name') return validateName(value);
+    if (name === 'email') return validateEmail(value);
+    if (name === 'password') return validatePassword(value);
+    if (name === 'confirm') return validateConfirmPassword(currentForm.password, value);
+    if (name === 'phone') return validatePhone(value);
+    if (name === 'location') return normalizeValue(value) ? '' : 'Please select a location';
+    if (name === 'experience') {
+      return validateNumber(value, {
+        min: 0,
+        max: 50,
+        requiredMessage: 'Enter a valid number',
+        invalidMessage: 'Enter a valid number',
+        rangeMessage: 'Experience must be between 0 and 50',
+      });
+    }
+    if (name === 'languages') return Array.isArray(value) && value.length > 0 ? '' : 'Please select at least one language';
+    if (name === 'bio') return normalizeValue(value).length >= 10 ? '' : 'Bio must be at least 10 characters';
+    if (name === 'services') return normalizeValue(value) ? '' : 'Please enter at least one service';
+    if (name === 'certifications') return !normalizeValue(value) || normalizeValue(value).length >= 3 ? '' : 'Certifications must be at least 3 characters';
+    return '';
+  };
+
+  const validateForm = (currentForm = form) => {
+    return {
+      name: validateField('name', currentForm.name, currentForm),
+      email: validateField('email', currentForm.email, currentForm),
+      password: validateField('password', currentForm.password, currentForm),
+      confirm: validateField('confirm', currentForm.confirm, currentForm),
+      phone: validateField('phone', currentForm.phone, currentForm),
+      location: validateField('location', currentForm.location, currentForm),
+      experience: validateField('experience', currentForm.experience, currentForm),
+      languages: validateField('languages', currentForm.languages, currentForm),
+      bio: validateField('bio', currentForm.bio, currentForm),
+      services: validateField('services', currentForm.services, currentForm),
+      certifications: validateField('certifications', currentForm.certifications, currentForm),
+    };
+  };
+
+  const hasErrors = (formErrors) => Object.values(formErrors).some(Boolean);
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.password.length < 6) return toast.error('Password must be at least 6 characters');
-    if (form.password !== form.confirm) return toast.error('Passwords do not match');
-    if (!form.location) return toast.error('Please select a location');
+
+    const formErrors = validateForm();
+    setErrors(formErrors);
+    setTouched({
+      name: true,
+      email: true,
+      password: true,
+      confirm: true,
+      phone: true,
+      location: true,
+      experience: true,
+      languages: true,
+      bio: true,
+      services: true,
+      certifications: true,
+    });
+    if (hasErrors(formErrors)) {
+      toast.error('Please fix the errors before submitting');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -60,6 +150,8 @@ export default function GuideRegisterPage() {
       setLoading(false);
     }
   };
+  const getFieldStyle = (field) => ({ ...inputStyle, border: errors[field] ? '1.5px solid #ef4444' : inputStyle.border });
+  const canSubmit = !hasErrors(validateForm()) && !loading;
 
   const inputStyle = {
     width: '100%', padding: '10px 14px', borderRadius: 8,
@@ -120,27 +212,32 @@ export default function GuideRegisterPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Full Name *</label>
-                  <input name="name" value={form.name} onChange={handleChange} required style={inputStyle} placeholder="Your full name" />
+                  <input name="name" value={form.name} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('name')} placeholder="Your full name" />
+                  {errors.name && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.name}</p>}
                 </div>
                 <div>
-                  <label style={labelStyle}>Phone</label>
-                  <input name="phone" value={form.phone} onChange={handleChange} style={inputStyle} placeholder="+94 7X XXX XXXX" />
+                  <label style={labelStyle}>Phone *</label>
+                  <input name="phone" value={form.phone} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('phone')} placeholder="07XXXXXXXX" />
+                  {errors.phone && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.phone}</p>}
                 </div>
               </div>
 
               <div>
                 <label style={labelStyle}>Email *</label>
-                <input name="email" type="email" value={form.email} onChange={handleChange} required style={inputStyle} placeholder="guide@email.com" />
+                <input name="email" type="email" value={form.email} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('email')} placeholder="guide@email.com" />
+                {errors.email && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.email}</p>}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Password *</label>
-                  <input name="password" type="password" value={form.password} onChange={handleChange} required style={inputStyle} placeholder="Min 6 characters" />
+                  <input name="password" type="password" value={form.password} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('password')} placeholder="Min 6 characters" />
+                  {errors.password && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.password}</p>}
                 </div>
                 <div>
                   <label style={labelStyle}>Confirm Password *</label>
-                  <input name="confirm" type="password" value={form.confirm} onChange={handleChange} required style={inputStyle} placeholder="Confirm password" />
+                  <input name="confirm" type="password" value={form.confirm} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('confirm')} placeholder="Confirm password" />
+                  {errors.confirm && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.confirm}</p>}
                 </div>
               </div>
 
@@ -151,19 +248,21 @@ export default function GuideRegisterPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Location *</label>
-                  <select name="location" value={form.location} onChange={handleChange} required style={{ ...inputStyle, cursor: 'pointer' }}>
+                  <select name="location" value={form.location} onChange={handleChange} onBlur={handleBlur} style={{ ...getFieldStyle('location'), cursor: 'pointer' }}>
                     <option value="">Select location</option>
                     {LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                   </select>
+                  {errors.location && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.location}</p>}
                 </div>
                 <div>
-                  <label style={labelStyle}>Experience (years)</label>
-                  <input name="experience" type="number" min="1" value={form.experience} onChange={handleChange} style={inputStyle} />
+                  <label style={labelStyle}>Experience (years) *</label>
+                  <input name="experience" type="number" min="0" max="50" value={form.experience} onChange={handleChange} onBlur={handleBlur} onKeyDown={(e) => { if (!isAllowedNumericKey(e)) e.preventDefault(); }} style={getFieldStyle('experience')} />
+                  {errors.experience && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.experience}</p>}
                 </div>
               </div>
 
               <div>
-                <label style={labelStyle}>Languages</label>
+                <label style={labelStyle}>Languages *</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {LANGUAGES.map(lang => (
                     <button type="button" key={lang} onClick={() => toggleLanguage(lang)} style={{
@@ -177,29 +276,33 @@ export default function GuideRegisterPage() {
                     </button>
                   ))}
                 </div>
+                {errors.languages && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.languages}</p>}
               </div>
 
               <div>
-                <label style={labelStyle}>Bio</label>
-                <textarea name="bio" value={form.bio} onChange={handleChange} rows={3} style={{ ...inputStyle, resize: 'vertical' }}
+                <label style={labelStyle}>Bio *</label>
+                <textarea name="bio" value={form.bio} onChange={handleChange} onBlur={handleBlur} rows={3} style={{ ...getFieldStyle('bio'), resize: 'vertical' }}
                   placeholder="Tell travelers about yourself and your expertise..." />
+                {errors.bio && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.bio}</p>}
               </div>
 
               <div>
-                <label style={labelStyle}>Services (comma separated)</label>
-                <input name="services" value={form.services} onChange={handleChange} style={inputStyle}
+                <label style={labelStyle}>Services (comma separated) *</label>
+                <input name="services" value={form.services} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('services')}
                   placeholder="City Tours, Wildlife Safaris, Trekking" />
+                {errors.services && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.services}</p>}
               </div>
 
               <div>
                 <label style={labelStyle}>Certifications (comma separated)</label>
-                <input name="certifications" value={form.certifications} onChange={handleChange} style={inputStyle}
+                <input name="certifications" value={form.certifications} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('certifications')}
                   placeholder="Licensed Tour Guide, First Aid Certified" />
+                {errors.certifications && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.certifications}</p>}
               </div>
 
-              <button type="submit" disabled={loading} style={{
+              <button type="submit" disabled={!canSubmit} style={{
                 width: '100%', padding: '12px', borderRadius: 10, border: 'none',
-                background: loading ? '#92400e' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                background: !canSubmit ? '#92400e' : 'linear-gradient(135deg, #f59e0b, #d97706)',
                 color: '#fff', fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
                 marginTop: 8, transition: 'opacity 0.2s'
               }}>

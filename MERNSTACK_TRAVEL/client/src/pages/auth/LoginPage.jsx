@@ -5,6 +5,7 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { validateEmail, validatePassword } from '../../utils/authValidators';
 
 
 export default function LoginPage() {
@@ -16,10 +17,42 @@ export default function LoginPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [accountStatus, setAccountStatus] = useState(null);
   const [focusedField, setFocusedField] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [submitted, setSubmitted] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const validateField = (name, value) => {
+    if (name === 'email') return validateEmail(value);
+    if (name === 'password') return validatePassword(value);
+    return '';
+  };
+
+  const validateForm = (currentForm = form) => {
+    return {
+      email: validateField('email', currentForm.email),
+      password: validateField('password', currentForm.password),
+    };
+  };
+
+  const hasErrors = (nextErrors) => Object.values(nextErrors).some(Boolean);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    const nextForm = { ...form, [name]: value };
+    setForm(nextForm);
+
+    if (touched[name] || submitted) {
+      setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
+  };
 
   const switchRole = (newRole) => {
     setRole(newRole);
@@ -27,10 +60,19 @@ export default function LoginPage() {
     setApprovalStatus(null);
     setRejectionReason('');
     setAccountStatus(null);
+    setErrors({});
+    setTouched({});
+    setSubmitted(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitted(true);
+    const nextErrors = validateForm();
+    setErrors(nextErrors);
+    setTouched({ email: true, password: true });
+    if (hasErrors(nextErrors)) return;
+
     setLoading(true);
     setApprovalStatus(null);
     setAccountStatus(null);
@@ -136,12 +178,17 @@ export default function LoginPage() {
   };
 
   const meta = ROLE_META[role];
+  const isFormValid = !hasErrors(validateForm());
 
   /* ─── Shared input wrapper style ─── */
   const inputWrap = (field) => ({
     position: 'relative', borderRadius: 10,
     background: focusedField === field ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)',
-    border: focusedField === field ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(255,255,255,0.08)',
+    border: errors[field]
+      ? '1px solid #ef4444'
+      : focusedField === field
+        ? '1px solid rgba(245,158,11,0.4)'
+        : '1px solid rgba(255,255,255,0.08)',
     boxShadow: focusedField === field
       ? 'inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 3px rgba(245,158,11,0.06)'
       : 'inset 0 2px 4px rgba(0,0,0,0.15)',
@@ -320,12 +367,13 @@ export default function LoginPage() {
                   </div>
                   <input
                     type="email" name="email" value={form.email} onChange={handleChange}
-                    placeholder={`Enter your email`} required
+                    placeholder={`Enter your email`}
                     onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
+                    onBlur={(e) => { setFocusedField(null); handleBlur(e); }}
                     style={{ ...baseInput, padding: '10px 16px 10px 38px' }}
                   />
                 </div>
+                {errors.email && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.email}</p>}
               </div>
 
               {/* Password */}
@@ -346,9 +394,9 @@ export default function LoginPage() {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     name="password" value={form.password} onChange={handleChange}
-                    placeholder="Enter your password" required
+                    placeholder="Enter your password"
                     onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
+                    onBlur={(e) => { setFocusedField(null); handleBlur(e); }}
                     style={{ ...baseInput, padding: '10px 40px 10px 38px' }}
                   />
                   <button
@@ -374,6 +422,7 @@ export default function LoginPage() {
                     )}
                   </button>
                 </div>
+                {errors.password && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.password}</p>}
               </div>
 
               {/* Forgot */}
@@ -390,7 +439,7 @@ export default function LoginPage() {
 
               {/* Submit */}
               <button
-                type="submit" disabled={loading}
+                type="submit" disabled={loading || !isFormValid}
                 style={{
                   position: 'relative', overflow: 'hidden',
                   width: '100%', padding: '12px 0',
