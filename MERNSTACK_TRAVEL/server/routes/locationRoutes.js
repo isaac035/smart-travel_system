@@ -11,6 +11,7 @@ const {
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const { upload } = require('../config/cloudinary');
 
+
 // Public routes
 router.get('/categories', getCategories);
 router.get('/', getLocations);
