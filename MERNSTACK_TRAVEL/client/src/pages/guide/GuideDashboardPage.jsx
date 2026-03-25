@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { formatLKR } from '../../utils/currency';
+
 
 const STATUS_LABELS = {
   deposit_submitted: 'Deposit Submitted',
@@ -106,8 +108,8 @@ export default function GuideDashboardPage() {
 
   const filteredBookings = filter === 'all' ? bookings
     : filter === 'pending' ? bookings.filter(b => b.status === 'pending_guide_review')
-    : filter === 'active' ? bookings.filter(b => ['guide_accepted', 'under_admin_review', 'admin_confirmed', 'remaining_payment_pending', 'remaining_payment_submitted', 'fully_paid'].includes(b.status))
-    : bookings.filter(b => ['completed', 'cancelled_by_user', 'cancelled_by_admin', 'guide_rejected', 'refunded', 'partially_refunded', 'no_refund'].includes(b.status));
+      : filter === 'active' ? bookings.filter(b => ['guide_accepted', 'under_admin_review', 'admin_confirmed', 'remaining_payment_pending', 'remaining_payment_submitted', 'fully_paid'].includes(b.status))
+        : bookings.filter(b => ['completed', 'cancelled_by_user', 'cancelled_by_admin', 'guide_rejected', 'refunded', 'partially_refunded', 'no_refund'].includes(b.status));
 
   if (loading) {
     return (
@@ -234,10 +236,10 @@ export default function GuideDashboardPage() {
 
                     <div style={{ textAlign: 'right', minWidth: 140 }}>
                       <div style={{ fontSize: 18, fontWeight: 700, color: '#d97706' }}>
-                        LKR {booking.totalPrice?.toLocaleString()}
+                        {formatLKR(booking.totalPrice)}
                       </div>
                       <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
-                        Deposit: LKR {booking.depositAmount?.toLocaleString()}
+                        Deposit: {formatLKR(booking.depositAmount)}
                       </div>
                     </div>
                   </div>

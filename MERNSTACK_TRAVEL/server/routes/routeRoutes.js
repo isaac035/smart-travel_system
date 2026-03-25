@@ -6,3 +6,4 @@ router.post('/matrix', getMatrix);
 router.post('/directions', getDirections);
 
 module.exports = router;
+

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { formatLKR } from '../utils/currency';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
 
@@ -64,10 +65,10 @@ export default function HotelCard({ hotel, highlight, onHover, variant = 'horizo
           <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
             <div>
               {hotel.discount > 0 && (
-                <span className="text-xs text-gray-400 line-through block">LKR {hotel.pricePerNight?.toLocaleString()}</span>
+                <span className="text-xs text-gray-400 line-through block">{formatLKR(hotel.pricePerNight)}</span>
               )}
               <span className="font-bold text-lg text-amber-600">
-                LKR {Math.round(discountedPrice).toLocaleString()}
+                {formatLKR(Math.round(discountedPrice))}
               </span>
               <span className="text-xs text-gray-400 ml-1">/night</span>
             </div>
@@ -151,10 +152,10 @@ export default function HotelCard({ hotel, highlight, onHover, variant = 'horizo
         <div className="mt-auto pt-3 flex items-end justify-between">
           <div className={`${highlight === 'price' ? 'bg-amber-50 ring-2 ring-amber-200 rounded-lg px-3 py-1.5' : ''}`}>
             {hotel.discount > 0 && (
-              <span className="text-xs text-gray-400 line-through block">LKR {hotel.pricePerNight?.toLocaleString()}</span>
+              <span className="text-xs text-gray-400 line-through block">{formatLKR(hotel.pricePerNight)}</span>
             )}
             <span className={`font-bold text-lg ${highlight === 'price' ? 'text-amber-600' : 'text-gray-900'}`}>
-              LKR {Math.round(discountedPrice).toLocaleString()}
+              {formatLKR(Math.round(discountedPrice))}
             </span>
             <span className="text-xs text-gray-400 ml-1">/night</span>
           </div>

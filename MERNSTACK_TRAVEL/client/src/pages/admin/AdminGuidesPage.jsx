@@ -3,10 +3,19 @@ import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
 import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
+import {
+  validateName,
+  validateEmail,
+  validatePhone,
+  validateNumber,
+  normalizeValue,
+  isAllowedNumericKey,
+} from '../../utils/guideValidation';
 import { Plus, Pencil, Trash2, Compass, Upload, Search, ClipboardList, CheckCircle, XCircle, Calendar, MapPin, Users, DollarSign, Clock, Eye, ShieldCheck, RefreshCw, ArrowRight, AlertTriangle, Ban, FileText, X, UserCheck, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
+import { formatLKR } from '../../utils/currency';
 
-const EMPTY = { name:'', bio:'', email:'', phone:'', languages:'', pricePerDay:'', services:'', location:'', isAvailable:true };
+const EMPTY = { name: '', bio: '', email: '', phone: '', languages: '', pricePerDay: '', services: '', location: '', isAvailable: true };
 
 const STATUS_LABELS = {
   deposit_submitted: 'Deposit Submitted',
@@ -81,10 +90,13 @@ export default function AdminGuidesPage() {
   const [avatar, setAvatar] = useState(null);
   const [existingAvatar, setExistingAvatar] = useState('');
   const [saving, setSaving] = useState(false);
+  const [guideFormErrors, setGuideFormErrors] = useState({});
+  const [guideFormTouched, setGuideFormTouched] = useState({});
   const [search, setSearch] = useState('');
   const [availFilter, setAvailFilter] = useState('all');
   const [page, setPage] = useState(1);
   const perPage = 10;
+
 
   // === Booking Management State ===
   const [bookings, setBookings] = useState([]);
@@ -118,19 +130,89 @@ export default function AdminGuidesPage() {
   };
 
   // === Guide CRUD ===
-  const openCreate = () => { setForm(EMPTY); setAvatar(null); setExistingAvatar(''); setEditId(null); setShowForm(true); };
+  const openCreate = () => {
+    setForm(EMPTY);
+    setAvatar(null);
+    setExistingAvatar('');
+    setEditId(null);
+    setGuideFormErrors({});
+    setGuideFormTouched({});
+    setShowForm(true);
+  };
   const openEdit = (g) => {
     setForm({ name: g.name, bio: g.bio || '', email: g.email || '', phone: g.phone || '', languages: (g.languages || []).join(', '), pricePerDay: g.pricePerDay || '', services: (g.services || []).join(', '), location: g.location || '', isAvailable: g.isAvailable ?? true });
-    setExistingAvatar(g.image || ''); setAvatar(null); setEditId(g._id); setShowForm(true);
+    setExistingAvatar(g.image || '');
+    setAvatar(null);
+    setEditId(g._id);
+    setGuideFormErrors({});
+    setGuideFormTouched({});
+    setShowForm(true);
   };
-  const closeForm = () => { setShowForm(false); setEditId(null); };
+  const closeForm = () => {
+    setShowForm(false);
+    setEditId(null);
+    setGuideFormErrors({});
+    setGuideFormTouched({});
+  };
+
+  const validateGuideField = (name, value, currentForm = form) => {
+    if (name === 'name') return validateName(value);
+    if (name === 'email') return validateEmail(value);
+    if (name === 'phone') return validatePhone(value);
+    if (name === 'location') return normalizeValue(value) ? '' : 'Please select a location';
+    if (name === 'languages') return currentForm.languages.split(',').map((s) => s.trim()).filter(Boolean).length > 0 ? '' : 'Please select at least one language';
+    if (name === 'bio') return normalizeValue(value).length >= 10 ? '' : 'Bio must be at least 10 characters';
+    if (name === 'services') return normalizeValue(value) ? '' : 'Please enter at least one service';
+    if (name === 'pricePerDay') {
+      return validateNumber(value, {
+        min: 1000,
+        max: 100000,
+        requiredMessage: 'Price must be a valid number',
+        invalidMessage: 'Price must be a valid number',
+        rangeMessage: 'Price must be between 1000 and 100000',
+      });
+    }
+    return '';
+  };
+
+  const validateGuideForm = (currentForm = form) => ({
+    name: validateGuideField('name', currentForm.name, currentForm),
+    email: validateGuideField('email', currentForm.email, currentForm),
+    phone: validateGuideField('phone', currentForm.phone, currentForm),
+    location: validateGuideField('location', currentForm.location, currentForm),
+    languages: validateGuideField('languages', currentForm.languages, currentForm),
+    bio: validateGuideField('bio', currentForm.bio, currentForm),
+    services: validateGuideField('services', currentForm.services, currentForm),
+    pricePerDay: validateGuideField('pricePerDay', currentForm.pricePerDay, currentForm),
+  });
+
+  const hasGuideFormErrors = (formErrors) => Object.values(formErrors).some(Boolean);
+  const getGuideInputStyle = (field) => (guideFormErrors[field] ? { borderColor: '#ef4444' } : {});
 
   const handleSave = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    const formErrors = validateGuideForm();
+    setGuideFormErrors(formErrors);
+    setGuideFormTouched({
+      name: true,
+      email: true,
+      phone: true,
+      location: true,
+      languages: true,
+      bio: true,
+      services: true,
+      pricePerDay: true,
+    });
+    if (hasGuideFormErrors(formErrors)) {
+      toast.error('Please fix the errors before submitting');
+      return;
+    }
+
+    setSaving(true);
     try {
       const fd = new FormData();
-      fd.append('name', form.name); fd.append('bio', form.bio); fd.append('email', form.email);
-      fd.append('phone', form.phone); fd.append('location', form.location);
+      fd.append('name', normalizeValue(form.name)); fd.append('bio', normalizeValue(form.bio)); fd.append('email', normalizeValue(form.email));
+      fd.append('phone', normalizeValue(form.phone)); fd.append('location', normalizeValue(form.location));
       fd.append('pricePerDay', Number(form.pricePerDay)); fd.append('isAvailable', form.isAvailable);
       fd.append('languages', JSON.stringify(form.languages.split(',').map((s) => s.trim()).filter(Boolean)));
       fd.append('services', JSON.stringify(form.services.split(',').map((s) => s.trim()).filter(Boolean)));
@@ -229,7 +311,20 @@ export default function AdminGuidesPage() {
     } catch (err) { toast.error(err.response?.data?.message || 'Reassignment failed'); }
   };
 
-  const f = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const f = (k) => (e) => {
+    const value = e.target.value;
+    if (k === 'pricePerDay' && !/^\d*$/.test(value)) return;
+    const nextForm = { ...form, [k]: value };
+    setForm(nextForm);
+    if (guideFormTouched[k]) {
+      setGuideFormErrors((prev) => ({ ...prev, [k]: validateGuideField(k, value, nextForm) }));
+    }
+  };
+  const handleGuideBlur = (field) => (e) => {
+    const value = e.target.value;
+    setGuideFormTouched((prev) => ({ ...prev, [field]: true }));
+    setGuideFormErrors((prev) => ({ ...prev, [field]: validateGuideField(field, value, { ...form, [field]: value }) }));
+  };
   const pendingCount = guides.filter(g => g.approvalStatus === 'pending').length;
   const filtered = guides.filter(g => {
     const matchSearch = g.name.toLowerCase().includes(search.toLowerCase()) || (g.location || '').toLowerCase().includes(search.toLowerCase());
@@ -251,8 +346,8 @@ export default function AdminGuidesPage() {
 
   const filteredBookings = bookingFilter === 'all' ? searchedBookings
     : bookingFilter === 'action' ? searchedBookings.filter(b => ['deposit_submitted', 'guide_accepted', 'remaining_payment_submitted'].includes(b.status))
-    : bookingFilter === 'active' ? searchedBookings.filter(b => ['pending_guide_review', 'under_admin_review', 'remaining_payment_pending', 'fully_paid'].includes(b.status))
-    : searchedBookings.filter(b => ['completed', 'cancelled_by_user', 'cancelled_by_admin', 'guide_rejected', 'refunded', 'partially_refunded', 'no_refund'].includes(b.status));
+      : bookingFilter === 'active' ? searchedBookings.filter(b => ['pending_guide_review', 'under_admin_review', 'remaining_payment_pending', 'fully_paid'].includes(b.status))
+        : searchedBookings.filter(b => ['completed', 'cancelled_by_user', 'cancelled_by_admin', 'guide_rejected', 'refunded', 'partially_refunded', 'no_refund'].includes(b.status));
 
   const actionCount = bookings.filter(b => ['deposit_submitted', 'guide_accepted', 'remaining_payment_submitted'].includes(b.status)).length;
   const activeCount = bookings.filter(b => ['pending_guide_review', 'under_admin_review', 'remaining_payment_pending', 'fully_paid'].includes(b.status)).length;
@@ -276,19 +371,19 @@ export default function AdminGuidesPage() {
           <>
             <AdminDrawer open={showForm} onClose={closeForm} title={editId ? 'Edit Guide' : 'Add New Guide'} saving={saving} onSubmit={handleSave} submitLabel={editId ? 'Update Guide' : 'Create Guide'}>
               <div className="field-row cols-4">
-                <div className="field"><label>Guide Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter guide name" className="adm-input" /></div>
-                <div className="field"><label>Email</label><input type="email" value={form.email} onChange={f('email')} placeholder="email@example.com" className="adm-input" /></div>
-                <div className="field"><label>Phone</label><input value={form.phone} onChange={f('phone')} placeholder="+94 77 123 4567" className="adm-input" /></div>
-                <div className="field"><label>Price/Day (LKR)</label><input type="number" value={form.pricePerDay} onChange={f('pricePerDay')} placeholder="5000" className="adm-input" /></div>
+                <div className="field"><label>Guide Name *</label><input required value={form.name} onChange={f('name')} onBlur={handleGuideBlur('name')} placeholder="Enter guide name" className="adm-input" style={getGuideInputStyle('name')} />{guideFormErrors.name && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.name}</p>}</div>
+                <div className="field"><label>Email</label><input type="email" value={form.email} onChange={f('email')} onBlur={handleGuideBlur('email')} placeholder="email@example.com" className="adm-input" style={getGuideInputStyle('email')} />{guideFormErrors.email && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.email}</p>}</div>
+                <div className="field"><label>Phone</label><input value={form.phone} onChange={f('phone')} onBlur={handleGuideBlur('phone')} placeholder="07XXXXXXXX" className="adm-input" style={getGuideInputStyle('phone')} />{guideFormErrors.phone && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.phone}</p>}</div>
+                <div className="field"><label>Price/Day (LKR)</label><input type="number" value={form.pricePerDay} onChange={f('pricePerDay')} onBlur={handleGuideBlur('pricePerDay')} onKeyDown={(e) => { if (!isAllowedNumericKey(e)) e.preventDefault(); }} placeholder="5000" className="adm-input" style={getGuideInputStyle('pricePerDay')} />{guideFormErrors.pricePerDay && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.pricePerDay}</p>}</div>
               </div>
               <div className="field-row cols-2">
-                <div className="field"><label>Location *</label><input required value={form.location} onChange={f('location')} placeholder="e.g. Colombo" className="adm-input" /></div>
-                <div className="field"><label>Languages (comma-separated)</label><input value={form.languages} onChange={f('languages')} placeholder="English, Sinhala, Tamil..." className="adm-input" /></div>
+                <div className="field"><label>Location *</label><input required value={form.location} onChange={f('location')} onBlur={handleGuideBlur('location')} placeholder="e.g. Colombo" className="adm-input" style={getGuideInputStyle('location')} />{guideFormErrors.location && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.location}</p>}</div>
+                <div className="field"><label>Languages (comma-separated)</label><input value={form.languages} onChange={f('languages')} onBlur={handleGuideBlur('languages')} placeholder="English, Sinhala, Tamil..." className="adm-input" style={getGuideInputStyle('languages')} />{guideFormErrors.languages && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.languages}</p>}</div>
               </div>
-              <div className="field"><label>Services (comma-separated)</label><input value={form.services} onChange={f('services')} placeholder="City Tours, Wildlife Safaris, Cultural Tours..." className="adm-input" /></div>
+              <div className="field"><label>Services (comma-separated)</label><input value={form.services} onChange={f('services')} onBlur={handleGuideBlur('services')} placeholder="City Tours, Wildlife Safaris, Cultural Tours..." className="adm-input" style={getGuideInputStyle('services')} />{guideFormErrors.services && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.services}</p>}</div>
               <div style={{ height: 16 }} />
               <div className="field-row cols-2">
-                <div className="field"><label>Bio</label><textarea value={form.bio} onChange={f('bio')} rows={4} placeholder="Tell us about this guide..." className="adm-textarea" /></div>
+                <div className="field"><label>Bio</label><textarea value={form.bio} onChange={f('bio')} onBlur={handleGuideBlur('bio')} rows={4} placeholder="Tell us about this guide..." className="adm-textarea" style={getGuideInputStyle('bio')} />{guideFormErrors.bio && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.bio}</p>}</div>
                 <div>
                   <div className="field" style={{ marginBottom: 14 }}>
                     <label>Avatar Photo</label>
@@ -339,7 +434,7 @@ export default function AdminGuidesPage() {
                         <tr key={g._id}>
                           <td><div className="flex items-center gap-3">{g.image ? <img src={g.image} alt={g.name} className="adm-thumb" style={{ borderRadius: '50%' }} /> : <div className="adm-thumb-placeholder bg-amber-50" style={{ borderRadius: '50%' }}><Compass size={18} className="text-amber-600" /></div>}<span className="text-sm font-semibold text-gray-900">{g.name}</span></div></td>
                           <td><div className="flex flex-wrap gap-1">{(g.languages || []).map((lang) => <span key={lang} className="adm-badge adm-badge-neutral" style={{ fontSize: '11px', padding: '2px 8px' }}>{lang}</span>)}</div></td>
-                          <td className="text-sm font-bold text-gray-900">LKR {g.pricePerDay?.toLocaleString()}</td>
+                          <td className="text-sm font-bold text-gray-900">{formatLKR(g.pricePerDay)}</td>
                           <td className="text-sm font-bold text-amber-500">{g.rating?.toFixed(1) || '--'}</td>
                           <td>
                             {g.approvalStatus === 'pending' ? (
@@ -371,8 +466,8 @@ export default function AdminGuidesPage() {
                 </div>
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between px-6 py-3" style={{ borderTop: '1px solid #f3f4f6' }}>
-                    <span className="text-sm text-gray-500">Showing {(page-1)*perPage+1}&ndash;{Math.min(page*perPage, filtered.length)} of {filtered.length}</span>
-                    <div className="flex gap-1.5">{Array.from({ length: totalPages }, (_, i) => <button key={i+1} onClick={() => setPage(i+1)} className={`adm-page-btn ${page === i+1 ? 'active' : ''}`}>{i+1}</button>)}</div>
+                    <span className="text-sm text-gray-500">Showing {(page - 1) * perPage + 1}&ndash;{Math.min(page * perPage, filtered.length)} of {filtered.length}</span>
+                    <div className="flex gap-1.5">{Array.from({ length: totalPages }, (_, i) => <button key={i + 1} onClick={() => setPage(i + 1)} className={`adm-page-btn ${page === i + 1 ? 'active' : ''}`}>{i + 1}</button>)}</div>
                   </div>
                 )}
               </div>
@@ -407,7 +502,7 @@ export default function AdminGuidesPage() {
                 { label: 'Total', value: bookings.length, icon: ClipboardList, gradient: 'linear-gradient(135deg, #6366f1, #4f46e5)' },
                 { label: 'Needs Action', value: actionCount, icon: AlertTriangle, gradient: 'linear-gradient(135deg, #f59e0b, #d97706)', pulse: actionCount > 0 },
                 { label: 'Active', value: activeCount, icon: Clock, gradient: 'linear-gradient(135deg, #3b82f6, #2563eb)' },
-                { label: 'Revenue', value: `LKR ${totalRevenue.toLocaleString()}`, icon: DollarSign, gradient: 'linear-gradient(135deg, #10b981, #059669)' },
+                { label: 'Revenue', value: formatLKR(totalRevenue), icon: DollarSign, gradient: 'linear-gradient(135deg, #10b981, #059669)' },
               ].map((s, i) => (
                 <div key={i} style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e5e7eb', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: s.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -543,7 +638,7 @@ export default function AdminGuidesPage() {
                   </div>
 
                   {/* Booking Rows */}
-                  {filteredBookings.map((b, idx) => {
+                  {filteredBookings.map((b) => {
                     const statusStyle = STATUS_COLORS[b.status] || { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' };
                     const StatusIcon = STATUS_ICONS[b.status] || Clock;
                     const hasActions = ['deposit_submitted', 'guide_accepted', 'remaining_payment_submitted', 'guide_rejected'].includes(b.status)
@@ -622,10 +717,10 @@ export default function AdminGuidesPage() {
 
                           {/* Amount */}
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>LKR {b.totalPrice?.toLocaleString()}</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>{formatLKR(b.totalPrice)}</div>
                             {b.depositAmount > 0 && (
                               <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>
-                                Dep: {b.depositAmount?.toLocaleString()} | Rem: {b.remainingAmount?.toLocaleString()}
+                                Dep: {formatLKR(b.depositAmount)} | Rem: {formatLKR(b.remainingAmount)}
                               </div>
                             )}
                           </div>
@@ -678,7 +773,7 @@ export default function AdminGuidesPage() {
                                     <Ban size={13} color="#ef4444" />
                                     <span style={{ color: '#dc2626', fontWeight: 600 }}>Cancelled by {b.cancellation.cancelledBy}</span>
                                     <span style={{ color: '#94a3b8' }}>|</span>
-                                    <span style={{ color: '#64748b' }}>Refund: LKR {b.cancellation.refundAmount?.toLocaleString()}</span>
+                                    <span style={{ color: '#64748b' }}>Refund: {formatLKR(b.cancellation.refundAmount)}</span>
                                     <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: b.cancellation.refundStatus === 'pending' ? '#fef3c7' : '#d1fae5', color: b.cancellation.refundStatus === 'pending' ? '#92400e' : '#065f46' }}>
                                       {b.cancellation.refundStatus}
                                     </span>
@@ -690,15 +785,15 @@ export default function AdminGuidesPage() {
                                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
                                     <div style={{ padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
                                       <div style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px' }}>Total</div>
-                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>LKR {b.totalPrice?.toLocaleString()}</div>
+                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>{formatLKR(b.totalPrice)}</div>
                                     </div>
                                     <div style={{ padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
                                       <div style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px' }}>Deposit</div>
-                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669' }}>LKR {b.depositAmount?.toLocaleString()}</div>
+                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669' }}>{formatLKR(b.depositAmount)}</div>
                                     </div>
                                     <div style={{ padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
                                       <div style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px' }}>Remaining</div>
-                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#d97706' }}>LKR {b.remainingAmount?.toLocaleString()}</div>
+                                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#d97706' }}>{formatLKR(b.remainingAmount)}</div>
                                     </div>
                                   </div>
                                 )}
@@ -774,7 +869,7 @@ export default function AdminGuidesPage() {
                                     <>
                                       <button onClick={() => processRefund(b._id, 'processed')}
                                         style={{ fontSize: '12px', fontWeight: 700, padding: '10px 18px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', boxShadow: '0 2px 8px rgba(16,185,129,0.25)' }}>
-                                        <RefreshCw size={14} /> Refund LKR {b.cancellation?.refundAmount?.toLocaleString()}
+                                        <RefreshCw size={14} /> Refund {formatLKR(b.cancellation?.refundAmount)}
                                       </button>
                                       <button onClick={() => processRefund(b._id, 'none')}
                                         style={{ fontSize: '12px', fontWeight: 600, padding: '9px 18px', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff', color: '#64748b', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>

@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 
+
 export default function AdminModal({ title, onClose, children, maxWidth = 'max-w-xl' }) {
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>

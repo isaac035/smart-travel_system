@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import RatingStars from '../../components/RatingStars';
+import { formatLKR } from '../../utils/currency';
+
 
 export default function GuideDetailsPage() {
   const { id } = useParams();
@@ -14,7 +16,7 @@ export default function GuideDetailsPage() {
   useEffect(() => {
     Promise.all([api.get(`/guides/${id}`), api.get(`/guides/${id}/reviews`)])
       .then(([g, r]) => { setGuide(g.data); setReviews(r.data); })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -98,7 +100,7 @@ export default function GuideDetailsPage() {
                   borderTop: '1px solid #f3f4f6',
                 }}>
                   <p style={{ fontSize: 32, fontWeight: 800, color: '#d97706', margin: 0, lineHeight: 1 }}>
-                    LKR {guide.pricePerDay?.toLocaleString()}
+                    {formatLKR(guide.pricePerDay)}
                   </p>
                   <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>per day</p>
                 </div>

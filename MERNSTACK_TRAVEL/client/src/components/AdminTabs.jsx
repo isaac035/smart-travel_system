@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 
+
 export default function AdminTabs({ tabs, activeTab, onChange }) {
   const [indicatorStyle, setIndicatorStyle] = useState({});
   const tabRefs = useRef([]);

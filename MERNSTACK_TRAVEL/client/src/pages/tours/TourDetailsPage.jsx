@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import api from '../../utils/api';
+import { formatLKR } from '../../utils/currency';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80';
 const LOC_PLACEHOLDER = 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?w=400&q=80';
@@ -111,12 +112,7 @@ export default function TourDetailsPage() {
 
               {/* Title & Badges */}
               <div>
-                <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#111827', marginBottom: '8px', lineHeight: 1.2 }}>{pkg.name}</h1>
-                {pkg.destination && (
-                  <p style={{ fontSize: '14px', color: '#f59e0b', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    📌 {pkg.destination}
-                  </p>
-                )}
+                <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#111827', marginBottom: '14px', lineHeight: 1.2 }}>{pkg.name}</h1>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
                   <span style={{
                     background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a',
@@ -285,7 +281,11 @@ export default function TourDetailsPage() {
               }}>
                 <p style={{ fontSize: '12px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Starting from</p>
                 <div style={{ marginBottom: '24px' }}>
+
                   <span style={{ fontSize: '40px', fontWeight: 800, color: '#d97706' }}>LKR{pkg.basePrice}</span>
+
+                  <span style={{ fontSize: '40px', fontWeight: 800, color: '#d97706' }}>{formatLKR(pkg.basePrice)}</span>
+
                   <span style={{ color: '#9ca3af', fontSize: '14px', marginLeft: '6px' }}>/ person</span>
                 </div>
 
@@ -306,24 +306,16 @@ export default function TourDetailsPage() {
                   <div style={{ marginBottom: '24px' }}>
                     <p style={{ fontSize: '12px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Pricing by Vehicle</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {pkg.vehicleOptions.map((v) => {
-                        const cap = pkg.maxTravelersByVehicle?.[v] ?? (v === 'car' ? 4 : v === 'van' ? 8 : 50);
-                        return (
-                          <div key={v} style={{
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            background: '#f9fafb', borderRadius: '12px', padding: '12px 14px',
-                          }}>
-                            <div>
-                              <span style={{ fontSize: '14px', color: '#374151', fontWeight: 600, textTransform: 'capitalize' }}>{vehicleIcons[v]} {v}</span>
-                              <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '6px' }}>up to {cap} people</span>
-                            </div>
-                            <span style={{ fontSize: '14px', fontWeight: 800, color: '#111827' }}>
-                              ${(pkg.basePrice * (pkg.vehicleMultipliers?.[v] || 1)).toFixed(0)}
-                              <span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 400 }}>/person</span>
-                            </span>
-                          </div>
-                        );
-                      })}
+                      {pkg.vehicleOptions.map((v) => (
+                        <div key={v} style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          background: '#f9fafb', borderRadius: '12px', padding: '12px 14px',
+                        }}>
+                          <span style={{ fontSize: '14px', color: '#374151', fontWeight: 600, textTransform: 'capitalize' }}>{vehicleIcons[v]} {v}</span>
+                          <span style={{ fontSize: '14px', fontWeight: 800, color: '#111827' }}>{formatLKR((pkg.basePrice * (pkg.vehicleMultipliers?.[v] || 1)).toFixed(0))}<span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 400 }}>/person</span>
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

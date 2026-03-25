@@ -5,6 +5,7 @@ import L from 'leaflet';
 import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import HotelCard from '../../components/HotelCard';
+import { formatLKR } from '../../utils/currency';
 
 const defaultIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -211,7 +212,7 @@ export default function HotelSearchPage() {
                             {h.images?.[0] && <img src={h.images[0]} alt={h.name} style={{ width: '100%', height: '90px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px' }} />}
                             <p style={{ fontWeight: 600 }}>{h.name}</p>
                             <p style={{ color: '#6b7280', fontSize: '12px' }}>{h.location}</p>
-                            <p style={{ color: '#d97706', fontWeight: 700, fontSize: '12px', marginTop: '4px' }}>LKR {h.pricePerNight?.toLocaleString()}/night</p>
+                            <p style={{ color: '#d97706', fontWeight: 700, fontSize: '12px', marginTop: '4px' }}>{formatLKR(h.pricePerNight)}/night</p>
                           </div>
                         </Popup>
                       </Marker>

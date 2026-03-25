@@ -12,3 +12,6 @@ router.put('/:id', updateTrip);
 router.delete('/:id', deleteTrip);
 
 module.exports = router;
+
+
+

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import { formatLKR } from '../../utils/currency';
 import {
   Users,
   MapPin,
@@ -32,6 +33,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
+
 
 const PIE_COLORS = ['#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899'];
 
@@ -82,8 +84,7 @@ function fmtShortDate(d) {
 }
 
 function fmtLKR(amount) {
-  if (!amount && amount !== 0) return 'LKR 0';
-  return `LKR ${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  return formatLKR(amount);
 }
 
 function timeAgo(dateStr) {
@@ -111,6 +112,7 @@ const CARD = {
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [recentPayments, setRecentPayments] = useState([]);
+  const [productCount, setProductCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [slipModal, setSlipModal] = useState(null);
   const { user } = useAuth();
@@ -119,9 +121,11 @@ export default function AdminDashboard() {
     Promise.all([
       api.get('/admin/stats'),
       api.get('/admin/payments'),
-    ]).then(([statsRes, paymentsRes]) => {
+      api.get('/products'),
+    ]).then(([statsRes, paymentsRes, productsRes]) => {
       setStats(statsRes.data);
       setRecentPayments(paymentsRes.data.slice(0, 8));
+      setProductCount(productsRes.data.length);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -138,6 +142,7 @@ export default function AdminDashboard() {
     { key: 'locations', label: 'Locations', icon: MapPin, to: '/admin/locations', iconBg: '#fce7f3', iconColor: '#db2777' },
     { key: 'hotels', label: 'Hotels', icon: Hotel, to: '/admin/hotels', iconBg: '#ede9fe', iconColor: '#7c3aed' },
     { key: 'guides', label: 'Guides', icon: Compass, to: '/admin/guides', iconBg: '#cffafe', iconColor: '#0891b2' },
+    { key: 'products', label: 'Travel Products', icon: Package, to: '/admin/products', iconBg: '#fef9c3', iconColor: '#ca8a04' },
   ];
 
   const pieData = [
@@ -154,6 +159,7 @@ export default function AdminDashboard() {
   function getKpiValue(card) {
     if (card.key === '_totalBookings') return totalBookings;
     if (card.key === '_revenue') return stats?.totalRevenue ?? 0;
+    if (card.key === 'products') return productCount;
     return stats?.[card.key] ?? 0;
   }
 
@@ -192,9 +198,9 @@ export default function AdminDashboard() {
         </div>
 
         {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 20, marginBottom: 28 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 20, marginBottom: 28 }}>
           {loading ? (
-            [...Array(6)].map((_, i) => (
+            [...Array(7)].map((_, i) => (
               <div key={i} style={{ ...CARD, padding: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                   <Skeleton w={48} h={48} r={14} />

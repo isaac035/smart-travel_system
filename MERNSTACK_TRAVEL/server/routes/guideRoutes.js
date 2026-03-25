@@ -28,6 +28,7 @@ router.put('/bookings/:id/verify-remaining', protect, adminOnly, verifyRemaining
 router.put('/bookings/:id/reassign', protect, adminOnly, reassignGuide);
 router.put('/bookings/:id/process-refund', protect, adminOnly, processRefund);
 
+
 // ─── Schedule (must come before /:id) ───────────────────────
 router.get('/schedule/:guideId', protect, guideOrAdmin, getGuideScheduleAdmin);
 

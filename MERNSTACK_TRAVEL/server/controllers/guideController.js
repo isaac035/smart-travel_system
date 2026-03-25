@@ -13,6 +13,7 @@ const getGuides = async (req, res) => {
     if (req.query.minPrice) filter.pricePerDay = { $gte: Number(req.query.minPrice) };
     if (req.query.maxPrice) filter.pricePerDay = { ...filter.pricePerDay, $lte: Number(req.query.maxPrice) };
     if (req.query.available === 'true') filter.isAvailable = true;
+    
 
     const guides = await Guide.find(filter).sort({ rating: -1 });
     res.json(guides);

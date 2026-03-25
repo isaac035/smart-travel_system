@@ -6,23 +6,24 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import { optimizeDayRoutes, getRouteDirections, calculateTripStats } from './autoGroup';
 
-const DAY_COLORS = ['#f59e0b','#3b82f6','#10b981','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#f43f5e'];
+const DAY_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#f43f5e'];
 const makeIcon = (color, label) => L.divIcon({ className: '', html: `<div style="width:28px;height:28px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700">${label}</div>`, iconAnchor: [14, 14] });
 const startMarkerIcon = L.divIcon({ className: '', html: `<div style="width:18px;height:18px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(59,130,246,0.25),0 2px 8px rgba(0,0,0,0.25)"></div>`, iconAnchor: [9, 9] });
 
 function MapFitter({ coords }) { const map = useMap(); useEffect(() => { if (coords.length > 1) map.fitBounds(L.latLngBounds(coords), { padding: [50, 50] }); }, [coords, map]); return null; }
-function fmtDist(m) { return m >= 1000 ? `${(m/1000).toFixed(1)} km` : `${Math.round(m)} m`; }
-function fmtTime(s) { const h = Math.floor(s/3600), m = Math.round((s%3600)/60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
-function fmtDate(d) { if (!d) return ''; const ms = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()}`; }
+function fmtDist(m) { return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`; }
+function fmtTime(s) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
+function fmtDate(d) { if (!d) return ''; const ms = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()}`; }
 
 /* ── Sortable Item ── */
+
 function SortableItem({ item, dayColor, stopNum, onRemove, onNoteChange }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.uid });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
   return (
     <div ref={setNodeRef} style={style} className="flex items-start gap-3 p-3 rounded bg-white border border-gray-100 hover:border-gray-200 transition-colors group">
       <button {...attributes} {...listeners} className="mt-2 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing shrink-0">
-        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-8a2 2 0 10-.001-4.001A2 2 0 0013 6zm0 2a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z"/></svg>
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-8a2 2 0 10-.001-4.001A2 2 0 0013 6zm0 2a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z" /></svg>
       </button>
       <span className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 mt-0.5" style={{ backgroundColor: dayColor }}>{stopNum}</span>
       <div className="w-12 h-12 rounded overflow-hidden shrink-0 bg-gray-100">
@@ -35,7 +36,7 @@ function SortableItem({ item, dayColor, stopNum, onRemove, onNoteChange }) {
           className="mt-2 w-full h-8 bg-gray-50 border border-gray-200 text-[12px] text-gray-700 rounded px-3 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent transition-shadow" />
       </div>
       <button onClick={() => onRemove(item.uid)} className="text-gray-300 hover:text-red-500 p-1 mt-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
     </div>
   );
@@ -105,7 +106,7 @@ export default function ItineraryStep({ config, locationsByDay, onBack, onSave }
     else { const item = s.items.find(i => i.uid === active.id); setDays(p => p.map(dd => { if (dd.dayNumber === s.dayNumber) return { ...dd, items: dd.items.filter(i => i.uid !== active.id) }; if (dd.dayNumber === d.dayNumber) return { ...dd, items: [...dd.items, item] }; return dd; })); }
   };
 
-  const markers = days.flatMap((d, di) => d.items.filter(it => it.location?.coordinates?.lat).map((it, i) => ({ lat: it.location.coordinates.lat, lng: it.location.coordinates.lng, name: it.location.name, label: `${i+1}`, color: DAY_COLORS[di % DAY_COLORS.length] })));
+  const markers = days.flatMap((d, di) => d.items.filter(it => it.location?.coordinates?.lat).map((it, i) => ({ lat: it.location.coordinates.lat, lng: it.location.coordinates.lng, name: it.location.name, label: `${i + 1}`, color: DAY_COLORS[di % DAY_COLORS.length] })));
   const coords = markers.map(m => [m.lat, m.lng]);
   if (config.startPoint) coords.unshift([config.startPoint.lat, config.startPoint.lng]);
   const totalStops = days.reduce((s, d) => s + d.items.length, 0);
@@ -121,7 +122,7 @@ export default function ItineraryStep({ config, locationsByDay, onBack, onSave }
         <div className="flex items-center gap-2">
           <button onClick={() => { setIsAlt(p => !p); generate(!isAlt); }}
             className="h-10 px-4 text-[13px] font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center gap-1.5">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             Alt route
           </button>
           <button onClick={onBack} className="h-10 px-4 text-[13px] font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">Back</button>
@@ -223,7 +224,7 @@ export default function ItineraryStep({ config, locationsByDay, onBack, onSave }
                     return pos.length > 1 ? <Polyline key={`f-${di}`} positions={pos} color={DAY_COLORS[di % DAY_COLORS.length]} weight={3} opacity={0.6} dashArray="8 6" /> : null;
                   });
                 })()}
-                {markers.map((m, i) => <Marker key={i} position={[m.lat, m.lng]} icon={makeIcon(m.color, m.label)}><Popup><strong>{m.name}</strong><br/><span style={{ color: '#6b7280', fontSize: 12 }}>Stop {m.label}</span></Popup></Marker>)}
+                {markers.map((m, i) => <Marker key={i} position={[m.lat, m.lng]} icon={makeIcon(m.color, m.label)}><Popup><strong>{m.name}</strong><br /><span style={{ color: '#6b7280', fontSize: 12 }}>Stop {m.label}</span></Popup></Marker>)}
               </MapContainer>
             </div>
           </div>

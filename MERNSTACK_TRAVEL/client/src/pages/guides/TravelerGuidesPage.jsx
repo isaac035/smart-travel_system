@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
+import { formatLKR } from '../../utils/currency';
+
 
 const STATUS_LABELS = {
   deposit_submitted: 'Deposit Submitted',
@@ -27,25 +29,25 @@ const STATUS_LABELS = {
 };
 
 const STATUS_STYLES = {
-  deposit_submitted:          { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  pending_guide_review:       { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  guide_accepted:             { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
-  guide_rejected:             { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' },
-  under_admin_review:         { bg: '#dbeafe', color: '#1e40af', border: '#bfdbfe' },
-  admin_confirmed:            { bg: '#dbeafe', color: '#1e40af', border: '#bfdbfe' },
-  remaining_payment_pending:  { bg: '#ffedd5', color: '#9a3412', border: '#fed7aa' },
-  remaining_payment_submitted:{ bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  fully_paid:                 { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
-  completed:                  { bg: '#e0e7ff', color: '#3730a3', border: '#c7d2fe' },
-  cancelled_by_user:          { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
-  cancelled_by_admin:         { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' },
-  refund_pending:             { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  partially_refunded:         { bg: '#ffedd5', color: '#9a3412', border: '#fed7aa' },
-  refunded:                   { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
-  no_refund:                  { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
-  pending:                    { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
-  confirmed:                  { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
-  cancelled:                  { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
+  deposit_submitted: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  pending_guide_review: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  guide_accepted: { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
+  guide_rejected: { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' },
+  under_admin_review: { bg: '#dbeafe', color: '#1e40af', border: '#bfdbfe' },
+  admin_confirmed: { bg: '#dbeafe', color: '#1e40af', border: '#bfdbfe' },
+  remaining_payment_pending: { bg: '#ffedd5', color: '#9a3412', border: '#fed7aa' },
+  remaining_payment_submitted: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  fully_paid: { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
+  completed: { bg: '#e0e7ff', color: '#3730a3', border: '#c7d2fe' },
+  cancelled_by_user: { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
+  cancelled_by_admin: { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' },
+  refund_pending: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  partially_refunded: { bg: '#ffedd5', color: '#9a3412', border: '#fed7aa' },
+  refunded: { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
+  no_refund: { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
+  pending: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  confirmed: { bg: '#d1fae5', color: '#065f46', border: '#a7f3d0' },
+  cancelled: { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' },
 };
 
 const STATUS_MESSAGES = {
@@ -90,7 +92,7 @@ export default function TravelerGuidesPage() {
 
   const fetchBookings = async () => {
     try { const { data } = await api.get('/guides/bookings/my'); setBookings(data); }
-    catch {} finally { setLoading(false); }
+    catch { } finally { setLoading(false); }
   };
 
   const handleCancel = async (bookingId, startDate) => {
@@ -99,7 +101,7 @@ export default function TravelerGuidesPage() {
     if (!window.confirm(`Cancel this booking?\n\n${refundMsg}`)) return;
     try {
       const { data } = await api.put(`/guides/bookings/${bookingId}/cancel`);
-      toast.success(`Cancelled. ${data.refundEligibility === 'none' ? 'No refund.' : `Refund: LKR ${data.refundAmount?.toLocaleString()}`}`);
+      toast.success(`Cancelled. ${data.refundEligibility === 'none' ? 'No refund.' : `Refund: ${formatLKR(data.refundAmount)}`}`);
       fetchBookings();
     } catch (err) { toast.error(err.response?.data?.message || 'Cancel failed'); }
   };
@@ -175,7 +177,7 @@ export default function TravelerGuidesPage() {
               ))}
             </div>
 
-          /* Empty */
+            /* Empty */
           ) : bookings.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
               <div style={{ width: 80, height: 80, background: '#f3f4f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 36 }}>
@@ -192,7 +194,7 @@ export default function TravelerGuidesPage() {
               </Link>
             </div>
 
-          /* Booking Cards */
+            /* Booking Cards */
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {bookings.map((b) => {
@@ -230,7 +232,7 @@ export default function TravelerGuidesPage() {
                           <div>
                             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>{guide?.name || 'Guide'}</h3>
                             <p style={{ fontSize: 13, color: '#6b7280', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
                               {b.location}
                             </p>
                           </div>
@@ -242,7 +244,7 @@ export default function TravelerGuidesPage() {
                           <DetailItem label="Dates" value={b.startDate ? `${new Date(b.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${new Date(b.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : new Date(b.travelDate).toLocaleDateString()} />
                           <DetailItem label="Duration" value={`${b.days} day${b.days !== 1 ? 's' : ''}`} />
                           <DetailItem label="Travelers" value={b.travelers} />
-                          <DetailItem label="Total" value={`LKR ${b.totalPrice?.toLocaleString()}`} highlight />
+                          <DetailItem label="Total" value={`${formatLKR(b.totalPrice)}`} highlight />
                         </div>
                       </div>
                     </div>
@@ -252,12 +254,12 @@ export default function TravelerGuidesPage() {
                       <div style={{ display: 'flex', gap: 0, margin: '0 24px', borderRadius: 10, overflow: 'hidden', border: '1px solid #f3f4f6' }}>
                         <div style={{ flex: 1, padding: '10px 16px', background: '#fffbeb' }}>
                           <span style={{ fontSize: 11, color: '#92400e', fontWeight: 500 }}>Deposit ({b.depositPercentage || 30}%)</span>
-                          <p style={{ fontSize: 14, fontWeight: 700, color: '#d97706', margin: '2px 0 0' }}>LKR {b.depositAmount?.toLocaleString()}</p>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#d97706', margin: '2px 0 0' }}>{formatLKR(b.depositAmount)}</p>
                         </div>
                         <div style={{ width: 1, background: '#f3f4f6' }} />
                         <div style={{ flex: 1, padding: '10px 16px', background: '#f9fafb' }}>
                           <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>Remaining</span>
-                          <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '2px 0 0' }}>LKR {b.remainingAmount?.toLocaleString()}</p>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '2px 0 0' }}>{formatLKR(b.remainingAmount)}</p>
                         </div>
                       </div>
                     )}
@@ -317,7 +319,7 @@ export default function TravelerGuidesPage() {
                         background: '#fff7ed', border: '1px solid #fed7aa',
                       }}>
                         <p style={{ fontSize: 14, fontWeight: 700, color: '#9a3412', marginBottom: 10 }}>
-                          Upload Remaining Payment — LKR {b.remainingAmount?.toLocaleString()}
+                          Upload Remaining Payment — {formatLKR(b.remainingAmount)}
                         </p>
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                           <label style={{
@@ -326,7 +328,7 @@ export default function TravelerGuidesPage() {
                             cursor: 'pointer', fontSize: 13, color: '#9a3412',
                             display: 'flex', alignItems: 'center', gap: 8, transition: 'border-color 0.2s',
                           }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                             {remainingSlipFile ? (
                               <span style={{ fontWeight: 600, color: '#ea580c' }}>{remainingSlipFile.name}</span>
                             ) : (
@@ -353,7 +355,7 @@ export default function TravelerGuidesPage() {
                       <div style={{ margin: '10px 24px 0', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                         <span style={{ color: '#6b7280' }}>Refund:</span>
                         <span style={{ fontWeight: 600, color: b.cancellation.refundStatus === 'processed' ? '#059669' : '#d97706' }}>
-                          LKR {b.cancellation.refundAmount?.toLocaleString()}
+                          {formatLKR(b.cancellation.refundAmount)}
                         </span>
                         <span style={badgeStyle(b.cancellation.refundStatus === 'processed' ? 'refunded' : 'refund_pending')}>
                           {b.cancellation.refundStatus === 'processed' ? 'Processed' : 'Pending'}

@@ -12,6 +12,7 @@ const getMyGuideProfile = async (req, res) => {
   }
 };
 
+
 // PUT /api/guide-dashboard/profile
 const updateMyGuideProfile = async (req, res) => {
   try {

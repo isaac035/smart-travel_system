@@ -4,6 +4,7 @@ import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { formatLKR } from '../../utils/currency';
 
 const AMENITY_ICONS = {
   'Free WiFi': '📶', Pool: '🏊', Parking: '🅿️', Gym: '💪',
@@ -254,16 +255,17 @@ export default function HotelDetailsPage() {
             <div style={{ position: 'sticky', top: '96px' }}>
               <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '20px', padding: '28px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '28px', fontWeight: 800, color: '#111827' }}>LKR {Math.round(discountedPrice).toLocaleString()}</span>
+                  <span style={{ fontSize: '28px', fontWeight: 800, color: '#111827' }}>{formatLKR(Math.round(discountedPrice))}</span>
                   <span style={{ color: '#6b7280', fontSize: '14px' }}>/night</span>
                 </div>
                 {hotel.discount > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                    <span style={{ fontSize: '14px', color: '#9ca3af', textDecoration: 'line-through' }}>LKR {hotel.pricePerNight?.toLocaleString()}</span>
+                    <span style={{ fontSize: '14px', color: '#9ca3af', textDecoration: 'line-through' }}>{formatLKR(hotel.pricePerNight)}</span>
                     <span style={{ fontSize: '12px', background: '#ef4444', color: '#fff', padding: '2px 10px', borderRadius: '20px', fontWeight: 600 }}>-{hotel.discount}%</span>
                   </div>
                 )}
                 {!hotel.discount && <div style={{ marginBottom: '16px' }} />}
+
 
                 {hotel.reviewCount > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #f3f4f6' }}>

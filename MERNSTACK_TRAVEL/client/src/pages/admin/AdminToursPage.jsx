@@ -5,8 +5,9 @@ import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
 import { Plus, Pencil, Trash2, Map, Upload, Search, ChevronLeft, ChevronRight, Eye, CheckCircle, XCircle, Ban, CreditCard, X } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
+import { formatLKR } from '../../utils/currency';
 
-const EMPTY = { name:'', destination:'', description:'', duration:'', basePrice:'', vehicleOptions:['car','van','bus'], maxTravelersByVehicle:{ car:4, van:8, bus:50 }, includes:'', excludes:'', isActive:true };
+const EMPTY = { name: '', destination: '', description: '', duration: '', basePrice: '', vehicleOptions: ['car', 'van', 'bus'], maxTravelersByVehicle: { car: 4, van: 8, bus: 50 }, includes: '', excludes: '', isActive: true };
 
 export default function AdminToursPage() {
   /* ── shared state ── */
@@ -61,7 +62,7 @@ export default function AdminToursPage() {
 
   const openCreate = () => { setForm(EMPTY); setSelectedLocations([]); setSelectedGuides([]); setImages([]); setExistingImages([]); setEditId(null); setLocSearch(''); setGuideSearch(''); setShowForm(true); };
   const openEdit = (pkg) => {
-    setForm({ name: pkg.name, destination: pkg.destination || '', description: pkg.description, duration: pkg.duration, basePrice: pkg.basePrice, vehicleOptions: pkg.vehicleOptions || ['car','van','bus'], maxTravelersByVehicle: pkg.maxTravelersByVehicle || { car:4, van:8, bus:50 }, includes: (pkg.includes || []).join('\n'), excludes: (pkg.excludes || []).join('\n'), isActive: pkg.isActive ?? true });
+    setForm({ name: pkg.name, destination: pkg.destination || '', description: pkg.description, duration: pkg.duration, basePrice: pkg.basePrice, vehicleOptions: pkg.vehicleOptions || ['car', 'van', 'bus'], maxTravelersByVehicle: pkg.maxTravelersByVehicle || { car: 4, van: 8, bus: 50 }, includes: (pkg.includes || []).join('\n'), excludes: (pkg.excludes || []).join('\n'), isActive: pkg.isActive ?? true });
     setSelectedLocations((pkg.locations || []).map((l) => l._id || l));
     setSelectedGuides((pkg.guideIds || []).map((g) => g._id || g));
     setExistingImages(pkg.images || []); setImages([]); setEditId(pkg._id); setLocSearch(''); setGuideSearch(''); setShowForm(true);
@@ -113,7 +114,7 @@ export default function AdminToursPage() {
   const bookingTotalPages = Math.ceil(filteredBookings.length / bookingPerPage);
 
   const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const fmtCurrency = (v) => `LKR ${Number(v).toLocaleString()}`;
+  const fmtCurrency = (v) => formatLKR(v);
 
   const statusBadge = (status) => {
     const map = { pending: 'bg-amber-50 text-amber-700', confirmed: 'bg-green-50 text-green-700', rejected: 'bg-red-50 text-red-700', cancelled: 'bg-gray-100 text-gray-500' };
@@ -147,9 +148,7 @@ export default function AdminToursPage() {
             <div className="field"><label>Package Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter package name" className="adm-input" /></div>
             <div className="field"><label>Destination</label><input value={form.destination} onChange={f('destination')} placeholder="e.g. Nuwara Eliya" className="adm-input" /></div>
             <div className="field"><label>Duration (days)</label><input type="number" min={1} value={form.duration} onChange={f('duration')} placeholder="3" className="adm-input" /></div>
-            <div className="field"><label>Base Price ($)</label><input type="number" value={form.basePrice} onChange={f('basePrice')} placeholder="299" className="adm-input" /></div>
-          </div>
-          <div className="field-row cols-4">
+            <div className="field"><label>Base Price (LKR)</label><input type="number" value={form.basePrice} onChange={f('basePrice')} placeholder="299" className="adm-input" /></div>
             <div className="field">
               <label>Vehicles</label>
               <div className="flex gap-2">{['car', 'van', 'bus'].map((v) => (<button key={v} type="button" onClick={() => toggleVehicle(v)} className={`adm-vehicle-btn ${form.vehicleOptions.includes(v) ? 'active' : ''}`}>{v}</button>))}</div>
@@ -163,12 +162,14 @@ export default function AdminToursPage() {
               <label>Locations ({selectedLocations.length})</label>
               {selectedLocations.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-                  {selectedLocations.map(id => { const loc = locations.find(l => l._id === id); return loc ? (
-                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}>
-                      {loc.name}
-                      <button type="button" onClick={() => toggleLoc(id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: '#b45309', fontSize: 13, fontWeight: 700 }}>&times;</button>
-                    </span>
-                  ) : null; })}
+                  {selectedLocations.map(id => {
+                    const loc = locations.find(l => l._id === id); return loc ? (
+                      <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}>
+                        {loc.name}
+                        <button type="button" onClick={() => toggleLoc(id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: '#b45309', fontSize: 13, fontWeight: 700 }}>&times;</button>
+                      </span>
+                    ) : null;
+                  })}
                 </div>
               )}
               <input value={locSearch} onChange={e => setLocSearch(e.target.value)} placeholder="Search locations..." className="adm-input" style={{ marginBottom: 5, fontSize: 12 }} />
@@ -182,12 +183,14 @@ export default function AdminToursPage() {
               <label>Guides ({selectedGuides.length})</label>
               {selectedGuides.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-                  {selectedGuides.map(id => { const g = guides.find(g => g._id === id); return g ? (
-                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: '#ecfdf5', color: '#065f46', border: '1px solid #6ee7b7' }}>
-                      {g.name}
-                      <button type="button" onClick={() => toggleGuide(id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: '#047857', fontSize: 13, fontWeight: 700 }}>&times;</button>
-                    </span>
-                  ) : null; })}
+                  {selectedGuides.map(id => {
+                    const g = guides.find(g => g._id === id); return g ? (
+                      <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: '#ecfdf5', color: '#065f46', border: '1px solid #6ee7b7' }}>
+                        {g.name}
+                        <button type="button" onClick={() => toggleGuide(id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: '#047857', fontSize: 13, fontWeight: 700 }}>&times;</button>
+                      </span>
+                    ) : null;
+                  })}
                 </div>
               )}
               <input value={guideSearch} onChange={e => setGuideSearch(e.target.value)} placeholder="Search guides..." className="adm-input" style={{ marginBottom: 5, fontSize: 12 }} />
@@ -265,7 +268,7 @@ export default function AdminToursPage() {
                           <tr key={pkg._id}>
                             <td><div className="flex items-center gap-3">{pkg.images?.[0] ? <img src={pkg.images[0]} alt={pkg.name} className="adm-thumb" /> : <div className="adm-thumb-placeholder bg-amber-50"><Map size={18} className="text-amber-400" /></div>}<span className="text-sm font-semibold text-gray-900">{pkg.name}</span></div></td>
                             <td className="text-sm text-gray-500">{pkg.duration} days</td>
-                            <td className="text-sm font-bold text-gray-900">${pkg.basePrice}</td>
+                            <td className="text-sm font-bold text-gray-900">{formatLKR(pkg.basePrice)}</td>
                             <td className="text-sm text-gray-500">{(pkg.locations || []).length}</td>
                             <td><span className={`adm-badge ${pkg.isActive ? 'adm-badge-active' : 'adm-badge-inactive'}`}>{pkg.isActive ? 'Active' : 'Inactive'}</span></td>
                             <td><div className="flex items-center justify-end gap-2"><button onClick={() => openEdit(pkg)} className="adm-btn-edit"><Pencil size={14} /> Edit</button><button onClick={() => handleDelete(pkg._id)} className="adm-btn-delete"><Trash2 size={14} /> Delete</button></div></td>
@@ -277,11 +280,11 @@ export default function AdminToursPage() {
                 </div>
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between mt-4">
-                    <p className="text-sm text-gray-500">Showing {(page-1)*perPage+1}&ndash;{Math.min(page*perPage, filtered.length)} of {filtered.length}</p>
+                    <p className="text-sm text-gray-500">Showing {(page - 1) * perPage + 1}&ndash;{Math.min(page * perPage, filtered.length)} of {filtered.length}</p>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => setPage((p) => Math.max(1, p-1))} disabled={page===1} className="adm-btn-edit" style={{ opacity: page===1 ? 0.4 : 1 }}><ChevronLeft size={16} /> Prev</button>
-                      {[...Array(totalPages)].map((_, i) => <button key={i} onClick={() => setPage(i+1)} className={`adm-page-btn ${page===i+1?'active':''}`}>{i+1}</button>)}
-                      <button onClick={() => setPage((p) => Math.min(totalPages, p+1))} disabled={page===totalPages} className="adm-btn-edit" style={{ opacity: page===totalPages ? 0.4 : 1 }}>Next <ChevronRight size={16} /></button>
+                      <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="adm-btn-edit" style={{ opacity: page === 1 ? 0.4 : 1 }}><ChevronLeft size={16} /> Prev</button>
+                      {[...Array(totalPages)].map((_, i) => <button key={i} onClick={() => setPage(i + 1)} className={`adm-page-btn ${page === i + 1 ? 'active' : ''}`}>{i + 1}</button>)}
+                      <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="adm-btn-edit" style={{ opacity: page === totalPages ? 0.4 : 1 }}>Next <ChevronRight size={16} /></button>
                     </div>
                   </div>
                 )}
@@ -293,7 +296,6 @@ export default function AdminToursPage() {
         {/* ══════════════ BOOKINGS & PAYMENTS TAB ══════════════ */}
         {activeTab === 1 && (
           <>
-            {/* Summary Stat Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
               {[
                 { label: 'Total Bookings', value: bookings.length, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
@@ -313,7 +315,6 @@ export default function AdminToursPage() {
               ))}
             </div>
 
-            {/* Status Filter Tabs */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
               {statusTabs.map(tab => (
                 <button key={tab.key} onClick={() => { setBookingStatusFilter(tab.key); setBookingPage(1); }}
@@ -327,12 +328,10 @@ export default function AdminToursPage() {
               ))}
             </div>
 
-            {/* Search */}
             <div className="adm-toolbar mb-6">
               <div className="adm-search-box"><Search className="w-4 h-4 text-gray-400 flex-shrink-0" /><input value={bookingSearch} onChange={(e) => { setBookingSearch(e.target.value); setBookingPage(1); }} placeholder="Search by traveler or package name..." /></div>
             </div>
 
-            {/* Table */}
             {bookingsLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{[...Array(5)].map((_, i) => <div key={i} style={{ height: 56, background: '#fff', borderRadius: 16, border: '1px solid #e5e7eb' }} className="animate-pulse" />)}</div>
             ) : filteredBookings.length === 0 ? (
@@ -396,18 +395,17 @@ export default function AdminToursPage() {
                 </div>
                 {bookingTotalPages > 1 && (
                   <div className="flex items-center justify-between mt-4">
-                    <p className="text-sm text-gray-500">Showing {(bookingPage-1)*bookingPerPage+1}&ndash;{Math.min(bookingPage*bookingPerPage, filteredBookings.length)} of {filteredBookings.length}</p>
+                    <p className="text-sm text-gray-500">Showing {(bookingPage - 1) * bookingPerPage + 1}&ndash;{Math.min(bookingPage * bookingPerPage, filteredBookings.length)} of {filteredBookings.length}</p>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => setBookingPage((p) => Math.max(1, p-1))} disabled={bookingPage===1} className="adm-btn-edit" style={{ opacity: bookingPage===1 ? 0.4 : 1 }}><ChevronLeft size={16} /> Prev</button>
-                      {[...Array(bookingTotalPages)].map((_, i) => <button key={i} onClick={() => setBookingPage(i+1)} className={`adm-page-btn ${bookingPage===i+1?'active':''}`}>{i+1}</button>)}
-                      <button onClick={() => setBookingPage((p) => Math.min(bookingTotalPages, p+1))} disabled={bookingPage===bookingTotalPages} className="adm-btn-edit" style={{ opacity: bookingPage===bookingTotalPages ? 0.4 : 1 }}>Next <ChevronRight size={16} /></button>
+                      <button onClick={() => setBookingPage((p) => Math.max(1, p - 1))} disabled={bookingPage === 1} className="adm-btn-edit" style={{ opacity: bookingPage === 1 ? 0.4 : 1 }}><ChevronLeft size={16} /> Prev</button>
+                      {[...Array(bookingTotalPages)].map((_, i) => <button key={i} onClick={() => setBookingPage(i + 1)} className={`adm-page-btn ${bookingPage === i + 1 ? 'active' : ''}`}>{i + 1}</button>)}
+                      <button onClick={() => setBookingPage((p) => Math.min(bookingTotalPages, p + 1))} disabled={bookingPage === bookingTotalPages} className="adm-btn-edit" style={{ opacity: bookingPage === bookingTotalPages ? 0.4 : 1 }}>Next <ChevronRight size={16} /></button>
                     </div>
                   </div>
                 )}
               </>
             )}
 
-            {/* Slip Preview Modal */}
             {slipModal && (
               <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setSlipModal(null)}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 8, maxWidth: '90vw', maxHeight: '90vh', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
