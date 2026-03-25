@@ -1,6 +1,7 @@
 const Location = require('../models/Location');
 
 // @desc  Get all locations (with optional filters)
+
 // @route GET /api/locations
 const getLocations = async (req, res) => {
   try {

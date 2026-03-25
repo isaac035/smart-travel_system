@@ -4,6 +4,7 @@ import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+
 import {
   validateName,
   validateEmail,
@@ -13,6 +14,9 @@ import {
   isAllowedNumericKey,
   validatePaymentSlip,
 } from '../../utils/guideValidation';
+
+import { formatLKR } from '../../utils/currency';
+
 
 const inputStyle = {
   width: '100%', background: '#f9fafb', color: '#111827', fontSize: 14,
@@ -206,6 +210,7 @@ export default function GuideBookingPage() {
     </Layout>
   );
 
+
   if (!guide) return (
     <Layout>
       <div style={{ textAlign: 'center', padding: '80px 20px', color: '#9ca3af' }}>
@@ -379,7 +384,7 @@ export default function GuideBookingPage() {
                     <div style={{ fontSize: 14, color: '#374151' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                         <span>Price Per Day</span>
-                        <span>LKR {guide.pricePerDay?.toLocaleString()}</span>
+                        <span>{formatLKR(guide.pricePerDay)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                         <span>Duration</span>
@@ -396,18 +401,18 @@ export default function GuideBookingPage() {
                     <div style={{ borderTop: '1px solid #f3f4f6', marginTop: 12, paddingTop: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
                         <span style={{ color: '#374151' }}>Total Trip Amount</span>
-                        <span style={{ fontWeight: 600, color: '#111827' }}>LKR {totalPrice.toLocaleString()}</span>
+                        <span style={{ fontWeight: 600, color: '#111827' }}>{formatLKR(totalPrice)}</span>
                       </div>
                       <div style={{
                         display: 'flex', justifyContent: 'space-between', marginBottom: 8,
                         padding: '10px 12px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a'
                       }}>
                         <span style={{ fontWeight: 600, color: '#92400e', fontSize: 14 }}>Advance Deposit ({DEPOSIT_PERCENTAGE}%)</span>
-                        <span style={{ fontWeight: 700, fontSize: 16, color: '#d97706' }}>LKR {depositAmount.toLocaleString()}</span>
+                        <span style={{ fontWeight: 700, fontSize: 16, color: '#d97706' }}>{formatLKR(depositAmount)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6b7280' }}>
                         <span>Remaining Balance (pay later)</span>
-                        <span>LKR {remainingAmount.toLocaleString()}</span>
+                        <span>{formatLKR(remainingAmount)}</span>
                       </div>
                     </div>
                   </div>
@@ -433,23 +438,26 @@ export default function GuideBookingPage() {
                       boxShadow: !canSubmit ? 'none' : '0 4px 14px rgba(245,158,11,0.3)',
                     }}
                   >
+
                     {submitting ? 'Submitting...' : `Submit Request & Pay Deposit - LKR ${depositAmount.toLocaleString()}`}
-                  </button>
+                    {submitting ? 'Submitting...' : `Submit Request & Pay Deposit — ${formatLKR(depositAmount)}`}
+
+                  </button >
                   <p style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 8, lineHeight: 1.4 }}>
                     Your request will be reviewed by the guide and our team before confirmation
                   </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                </div >
+              </div >
+            </div >
+          </div >
+        </div >
+      </div >
 
       <style>{`
         @media (max-width: 768px) {
           .booking-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
-    </Layout>
+    </Layout >
   );
 }

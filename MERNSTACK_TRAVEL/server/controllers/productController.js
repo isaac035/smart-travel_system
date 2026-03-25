@@ -2,20 +2,33 @@ const Product = require('../models/Product');
 const Bundle = require('../models/Bundle');
 const Cart = require('../models/Cart');
 
+
 // ─── PRODUCTS ─────────────────────────────────────────────────
 
 const getProducts = async (req, res) => {
   try {
     const filter = { isActive: true };
     if (req.query.search) filter.name = { $regex: req.query.search, $options: 'i' };
-    if (req.query.location) filter.location = { $regex: req.query.location, $options: 'i' };
+    if (req.query.location) {
+      filter.$or = [
+        { location: { $regex: req.query.location, $options: 'i' } },
+        { location: 'All Locations' }
+      ];
+    }
     if (req.query.weatherType && req.query.weatherType !== 'ALL') {
       filter.weatherType = { $in: [req.query.weatherType, 'BOTH'] };
     }
     if (req.query.minPrice) filter.price = { $gte: Number(req.query.minPrice) };
     if (req.query.maxPrice) filter.price = { ...filter.price, $lte: Number(req.query.maxPrice) };
-    if (req.query.inStock === 'true') filter.stock = { $gt: 0 };
-    if (req.query.inStock === 'false') filter.stock = 0;
+    // Availability filter (comma-separated: in_stock,out_of_stock,coming_soon,pre_order)
+    if (req.query.availability) {
+      const vals = req.query.availability.split(',').filter(Boolean);
+      if (vals.length > 0) filter.availability = { $in: vals };
+    } else {
+      // legacy inStock param kept for backwards compat
+      if (req.query.inStock === 'true') filter.stock = { $gt: 0 };
+      if (req.query.inStock === 'false') filter.stock = 0;
+    }
 
     const products = await Product.find(filter).sort({ createdAt: -1 });
     res.json(products);
@@ -38,6 +51,10 @@ const createProduct = async (req, res) => {
   try {
     const images = req.files ? req.files.map((f) => f.path) : [];
     const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+    // Ensure location is always stored as an array
+    if (body.location !== undefined && !Array.isArray(body.location)) {
+      body.location = [body.location].filter(Boolean);
+    }
     const product = await Product.create({ ...body, images });
     res.status(201).json(product);
   } catch (error) {
@@ -52,6 +69,12 @@ const updateProduct = async (req, res) => {
 
     const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
     const updates = { ...body };
+    // Ensure location is always stored as an array
+    if (updates.location !== undefined) {
+      if (!Array.isArray(updates.location)) {
+        updates.location = [updates.location].filter(Boolean);
+      }
+    }
     const existingImages = updates.existingImages || null;
     delete updates.existingImages;
     if (existingImages !== null || (req.files && req.files.length > 0)) {
@@ -100,9 +123,14 @@ const getBundle = async (req, res) => {
 const createBundle = async (req, res) => {
   try {
     const images = req.files ? req.files.map((f) => f.path) : [];
-    let products = req.body.products;
+    const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+    let products = body.products;
     if (typeof products === 'string') products = JSON.parse(products);
-    const bundle = await Bundle.create({ ...req.body, images, products: products || [] });
+    // Ensure location is always stored as an array
+    if (body.location !== undefined && !Array.isArray(body.location)) {
+      body.location = [body.location].filter(Boolean);
+    }
+    const bundle = await Bundle.create({ ...body, images, products: products || [] });
     res.status(201).json(bundle);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -114,10 +142,15 @@ const updateBundle = async (req, res) => {
     const bundle = await Bundle.findById(req.params.id);
     if (!bundle) return res.status(404).json({ message: 'Bundle not found' });
 
-    const updates = { ...req.body };
+    const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+    const updates = { ...body };
     if (typeof updates.products === 'string') updates.products = JSON.parse(updates.products);
-    if (req.files && req.files.length > 0) {
-      updates.images = [...(bundle.images || []), ...req.files.map((f) => f.path)];
+    const existingImages = updates.existingImages || null;
+    delete updates.existingImages;
+    if (existingImages !== null || (req.files && req.files.length > 0)) {
+      const kept = existingImages !== null ? existingImages : (bundle.images || []);
+      const newImages = req.files ? req.files.map((f) => f.path) : [];
+      updates.images = [...kept, ...newImages];
     }
 
     const updated = await Bundle.findByIdAndUpdate(req.params.id, updates, { new: true });

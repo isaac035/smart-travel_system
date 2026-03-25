@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import api from '../../utils/api';
+import { formatLKR } from '../../utils/currency';
 
 const vehicleIcons = { car: '🚗', van: '🚐', bus: '🚌' };
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80';
@@ -150,7 +151,7 @@ export default function TourBookingPage() {
                       >
                         <div style={{ fontSize: '28px', marginBottom: '6px' }}>{vehicleIcons[v]}</div>
                         <div style={{ fontSize: '14px', fontWeight: 700, textTransform: 'capitalize', color: selected ? '#92400e' : '#374151' }}>{v}</div>
-                        <div style={{ fontSize: '12px', marginTop: '4px', color: selected ? '#d97706' : '#9ca3af', fontWeight: 600 }}>${price}/person</div>
+                        <div style={{ fontSize: '12px', marginTop: '4px', color: selected ? '#d97706' : '#9ca3af', fontWeight: 600 }}>{formatLKR(price)} / person</div>
                       </button>
                     );
                   })}
@@ -326,7 +327,7 @@ export default function TourBookingPage() {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid #f3f4f6', paddingTop: '14px', marginTop: '6px' }}>
                       <span style={{ fontWeight: 800, color: '#111827', fontSize: '16px' }}>Total</span>
-                      <span style={{ fontWeight: 800, color: '#d97706', fontSize: '26px' }}>${totalPrice.toFixed(2)}</span>
+                      <span style={{ fontWeight: 800, color: '#d97706', fontSize: '26px' }}>{formatLKR(totalPrice.toFixed(2))}</span>
                     </div>
                   </div>
 

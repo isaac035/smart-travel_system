@@ -18,6 +18,7 @@ import {
   BarChart3,
   Search,
 } from 'lucide-react';
+import { formatLKR } from '../../utils/currency';
 import {
   ResponsiveContainer,
   BarChart,
@@ -67,7 +68,7 @@ const CustomTooltip = ({ active, payload, label, isCurrency }) => {
     <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-4 py-3">
       <p className="text-sm font-semibold text-slate-900">{label}</p>
       <p className="text-sm text-amber-600 font-medium mt-0.5">
-        {isCurrency ? `$${payload[0].value.toLocaleString()}` : payload[0].value.toLocaleString()}
+        {isCurrency ? formatLKR(payload[0].value) : payload[0].value.toLocaleString()}
       </p>
     </div>
   );
@@ -120,7 +121,7 @@ export default function AdminPaymentsPage() {
 
   const summaryCards = [
     { label: 'Total Bookings', value: payments.length, icon: BarChart3, color: 'bg-blue-50 text-blue-600', iconBg: 'bg-blue-100' },
-    { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'bg-emerald-50 text-emerald-600', iconBg: 'bg-emerald-100' },
+    { label: 'Total Revenue', value: formatLKR(totalRevenue), icon: DollarSign, color: 'bg-emerald-50 text-emerald-600', iconBg: 'bg-emerald-100' },
     { label: 'Pending', value: counts.pending, icon: Clock, color: 'bg-amber-50 text-amber-600', iconBg: 'bg-amber-100' },
     { label: 'Confirmed', value: counts.confirmed, icon: CheckCircle2, color: 'bg-emerald-50 text-emerald-600', iconBg: 'bg-emerald-100' },
   ];
@@ -197,9 +198,7 @@ export default function AdminPaymentsPage() {
                 <h3 className="text-lg font-semibold text-slate-900">Revenue Per Month</h3>
                 <p className="text-sm text-slate-500 mt-0.5">Monthly revenue overview</p>
               </div>
-              <div className="text-lg font-bold text-slate-900">
-                ${monthlyRevenueData.reduce((s, d) => s + d.revenue, 0).toLocaleString()}
-              </div>
+              <div className="text-lg font-bold text-slate-900">{formatLKR(monthlyRevenueData.reduce((s, d) => s + d.revenue, 0))}</div>
             </div>
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={monthlyRevenueData}>
@@ -211,7 +210,7 @@ export default function AdminPaymentsPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatLKR(v)} />
                 <Tooltip content={<CustomTooltip isCurrency />} />
                 <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2.5} fill="url(#revenueGradient)" />
               </AreaChart>
@@ -279,7 +278,7 @@ export default function AdminPaymentsPage() {
                     <div className="flex items-center gap-3 text-sm text-slate-500 flex-wrap">
                       <span>{p.user?.name} ({p.user?.email})</span>
                       <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                      <span className="text-amber-600 font-bold">${p.amount?.toFixed(2)}</span>
+                      <span className="text-amber-600 font-bold">{formatLKR(p.amount?.toFixed(2))}</span>
                       <span className="w-1 h-1 bg-slate-300 rounded-full" />
                       <span>{new Date(p.createdAt).toLocaleDateString()}</span>
                     </div>

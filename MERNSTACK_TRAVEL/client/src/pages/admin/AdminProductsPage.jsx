@@ -1,16 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'; 
 import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
 import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
-import { Plus, Pencil, Trash2, ShoppingBag, Upload, Search, Eye, CheckCircle, XCircle, Ban, Package, CreditCard, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, ShoppingBag, Upload, Search, Eye, CheckCircle, XCircle, Ban, Package, CreditCard, X, Layers, Landmark } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
+import { formatLKR } from '../../utils/currency';
+import {
+  validateTravelProductField,
+  validateTravelProductForm,
+  validateTravelBundleField,
+  validateTravelBundleForm,
+} from '../../utils/validators';
 
 const CATEGORIES = ['Clothing','Gear','Accessories','Food','Souvenirs','Other'];
-const EMPTY = { name:'', description:'', price:'', stock:'', category:'Clothing', weatherType:'BOTH' };
+const AVAILABILITY_OPTIONS = [
+  { value: 'in_stock', label: 'In Stock' },
+  { value: 'out_of_stock', label: 'Out of Stock' },
+  { value: 'coming_soon', label: 'Coming Soon' },
+  { value: 'pre_order', label: 'Pre Order' },
+];
+const EMPTY = { name:'', description:'', price:'', stock:'', category:'Clothing', weatherType:'BOTH', availability:'in_stock', location: ['All Locations'] };
+const EMPTY_BUNDLE = { name: '', description: '', totalPrice: '', discount: 0, products: [], location: ['All Locations'] };
 
 const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-const formatCurrency = (n) => `LKR ${Number(n).toLocaleString()}`;
+const formatCurrency = (n) => formatLKR(n);
 
 export default function AdminProductsPage() {
   /* ───── shared ───── */
@@ -18,9 +32,12 @@ export default function AdminProductsPage() {
 
   /* ───── products state (unchanged) ───── */
   const [products, setProducts] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY);
+  const [productErrors, setProductErrors] = useState({});
+  const [productTouched, setProductTouched] = useState({});
   const [editId, setEditId] = useState(null);
   const [images, setImages] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
@@ -31,6 +48,20 @@ export default function AdminProductsPage() {
   const [page, setPage] = useState(1);
   const perPage = 10;
 
+  /* ───── bundles state ───── */
+  const [bundles, setBundles] = useState([]);
+  const [bundlesLoading, setBundlesLoading] = useState(true);
+  const [showBundleForm, setShowBundleForm] = useState(false);
+  const [bundleForm, setBundleForm] = useState(EMPTY_BUNDLE);
+  const [bundleErrors, setBundleErrors] = useState({});
+  const [bundleTouched, setBundleTouched] = useState({});
+  const [bundleEditId, setBundleEditId] = useState(null);
+  const [bundleImages, setBundleImages] = useState([]);
+  const [bundleExistingImages, setBundleExistingImages] = useState([]);
+  const [savingBundle, setSavingBundle] = useState(false);
+  const [bundleSearch, setBundleSearch] = useState('');
+  const [bundlePage, setBundlePage] = useState(1);
+
   /* ───── orders state ───── */
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -40,25 +71,128 @@ export default function AdminProductsPage() {
   const ordersPerPage = 8;
   const [slipModal, setSlipModal] = useState(null);
 
+  /* ───── bank accounts state ───── */
+  const EMPTY_BANK = { bankName: '', accountNumber: '', branch: '' };
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [bankLoading, setBankLoading] = useState(true);
+  const [bankForm, setBankForm] = useState(EMPTY_BANK);
+  const [bankEditId, setBankEditId] = useState(null);
+  const [savingBank, setSavingBank] = useState(false);
+  const [showBankForm, setShowBankForm] = useState(false);
+
   /* ───── fetch on mount ───── */
   useEffect(() => {
+    api.get('/locations').then((r) => setLocations(r.data)).catch(() => {});
     api.get('/products').then((r) => { setProducts(r.data); setLoading(false); }).catch(() => setLoading(false));
+    api.get('/bundles').then((r) => { setBundles(r.data); setBundlesLoading(false); }).catch(() => setBundlesLoading(false));
     api.get('/admin/product-orders').then((r) => { setOrders(r.data); setOrdersLoading(false); }).catch(() => setOrdersLoading(false));
+    api.get('/bank-accounts').then((r) => { setBankAccounts(r.data); setBankLoading(false); }).catch(() => setBankLoading(false));
   }, []);
 
-  /* ───── products logic (unchanged) ───── */
-  const openCreate = () => { setForm(EMPTY); setImages([]); setExistingImages([]); setEditId(null); setShowForm(true); };
-  const openEdit = (p) => {
-    setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, category: p.category, weatherType: p.weatherType || 'BOTH' });
-    setExistingImages(p.images || []); setImages([]); setEditId(p._id); setShowForm(true);
+  /* ───── bank accounts logic ───── */
+  const openBankCreate = () => { setBankForm(EMPTY_BANK); setBankEditId(null); setShowBankForm(true); };
+  const openBankEdit = (acc) => { setBankForm({ bankName: acc.bankName, accountNumber: acc.accountNumber, branch: acc.branch }); setBankEditId(acc._id); setShowBankForm(true); };
+  const closeBankForm = () => { setShowBankForm(false); setBankEditId(null); setBankForm(EMPTY_BANK); };
+
+  const handleBankSave = async (e) => {
+    e.preventDefault();
+    if (!bankForm.bankName || !bankForm.accountNumber || !bankForm.branch) return toast.error('All fields required');
+    setSavingBank(true);
+    try {
+      if (bankEditId) {
+        const r = await api.put(`/bank-accounts/${bankEditId}`, bankForm);
+        setBankAccounts(prev => prev.map(a => a._id === bankEditId ? r.data : a));
+        toast.success('Bank account updated');
+      } else {
+        const r = await api.post('/bank-accounts', bankForm);
+        setBankAccounts(prev => [r.data, ...prev]);
+        toast.success('Bank account added');
+      }
+      closeBankForm();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+    finally { setSavingBank(false); }
   };
-  const closeForm = () => { setShowForm(false); setEditId(null); };
+
+  const handleBankDelete = async (id) => {
+    if (!window.confirm('Delete this bank account?')) return;
+    try { await api.delete(`/bank-accounts/${id}`); setBankAccounts(prev => prev.filter(a => a._id !== id)); toast.success('Deleted'); }
+    catch { toast.error('Failed'); }
+  };
+
+  /* ───── products logic (unchanged) ───── */
+  const openCreate = () => {
+    setForm(EMPTY);
+    setProductErrors({});
+    setProductTouched({});
+    setImages([]);
+    setExistingImages([]);
+    setEditId(null);
+    setShowForm(true);
+  };
+  const openEdit = (p) => {
+    const locArray = Array.isArray(p.location) ? p.location : (p.location ? [p.location] : ['All Locations']);
+    setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, category: p.category, weatherType: p.weatherType || 'BOTH', availability: p.availability || 'in_stock', location: locArray });
+    setProductErrors({});
+    setProductTouched({});
+    setExistingImages(p.images || []);
+    setImages([]);
+    setEditId(p._id);
+    setShowForm(true);
+  };
+  const closeForm = () => {
+    setShowForm(false);
+    setEditId(null);
+    setProductErrors({});
+    setProductTouched({});
+  };
+
+  const updateProductError = (field, message) => {
+    setProductErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[field] = message;
+      else delete next[field];
+      return next;
+    });
+  };
+
+  const onProductFieldChange = (key) => (e) => {
+    const value = e.target.value;
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (productTouched[key]) {
+        updateProductError(key, validateTravelProductField(key, next));
+      }
+      return next;
+    });
+  };
+
+  const onProductFieldBlur = (key) => () => {
+    setProductTouched((prev) => ({ ...prev, [key]: true }));
+    updateProductError(key, validateTravelProductField(key, form));
+  };
 
   const handleSave = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    const result = validateTravelProductForm(form);
+    if (!result.isValid) {
+      setProductErrors(result.errors);
+      setProductTouched({ name: true, category: true, description: true, price: true, stock: true });
+      toast.error('Please fix the highlighted product fields');
+      return;
+    }
+    setSaving(true);
     try {
       const fd = new FormData();
-      const payload = { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), category: form.category, weatherType: form.weatherType };
+      const payload = {
+        name: result.sanitized.name,
+        description: result.sanitized.description,
+        price: result.sanitized.price,
+        stock: result.sanitized.stock,
+        category: result.sanitized.category,
+        weatherType: form.weatherType,
+        availability: form.availability || 'in_stock',
+        location: form.location && form.location.length > 0 ? form.location : ['All Locations'],
+      };
       if (editId) payload.existingImages = existingImages;
       fd.append('data', JSON.stringify(payload));
       images.forEach((f) => fd.append('images', f));
@@ -75,13 +209,120 @@ export default function AdminProductsPage() {
     try { await api.delete(`/products/${id}`); setProducts((p) => p.filter((prod) => prod._id !== id)); toast.success('Deleted'); } catch { toast.error('Failed'); }
   };
 
-  const f = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const f = (k) => onProductFieldChange(k);
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     return (categoryFilter === 'all' || p.category === categoryFilter) && (weatherFilter === 'all' || p.weatherType === weatherFilter) && matchSearch;
   });
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
+
+  /* ───── bundles logic ───── */
+  const openBundleCreate = () => {
+    setBundleForm(EMPTY_BUNDLE);
+    setBundleErrors({});
+    setBundleTouched({});
+    setBundleImages([]);
+    setBundleExistingImages([]);
+    setBundleEditId(null);
+    setShowBundleForm(true);
+  };
+  const openBundleEdit = (b) => {
+    const locArray = Array.isArray(b.location) ? b.location : (b.location ? [b.location] : ['All Locations']);
+    setBundleForm({
+      name: b.name, description: b.description || '', totalPrice: b.totalPrice,
+      discount: b.discount || 0,
+      products: b.products ? b.products.map(p => p._id || p) : [],
+      location: locArray
+    });
+    setBundleErrors({});
+    setBundleTouched({});
+    setBundleExistingImages(b.images || []);
+    setBundleImages([]);
+    setBundleEditId(b._id);
+    setShowBundleForm(true);
+  };
+  const closeBundleForm = () => {
+    setShowBundleForm(false);
+    setBundleEditId(null);
+    setBundleErrors({});
+    setBundleTouched({});
+  };
+
+  const updateBundleError = (field, message) => {
+    setBundleErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[field] = message;
+      else delete next[field];
+      return next;
+    });
+  };
+
+  const onBundleFieldChange = (key) => (e) => {
+    const value = e.target.value;
+    setBundleForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (bundleTouched[key]) {
+        updateBundleError(key, validateTravelBundleField(key, next));
+      }
+      return next;
+    });
+  };
+
+  const onBundleFieldBlur = (key) => () => {
+    setBundleTouched((prev) => ({ ...prev, [key]: true }));
+    updateBundleError(key, validateTravelBundleField(key, bundleForm));
+  };
+
+  const handleBundleSave = async (e) => {
+    e.preventDefault();
+    const result = validateTravelBundleForm(bundleForm);
+    if (!result.isValid) {
+      setBundleErrors(result.errors);
+      setBundleTouched({ name: true, description: true, totalPrice: true, discount: true, products: true });
+      toast.error('Please fix the highlighted bundle fields');
+      return;
+    }
+    setSavingBundle(true);
+    try {
+      const fd = new FormData();
+      const payload = {
+        ...bundleForm,
+        name: result.sanitized.name,
+        description: result.sanitized.description,
+        totalPrice: result.sanitized.totalPrice,
+        discount: result.sanitized.discount,
+      };
+      payload.location = payload.location && payload.location.length > 0 ? payload.location : ['All Locations'];
+      if (bundleEditId) payload.existingImages = bundleExistingImages;
+      fd.append('data', JSON.stringify(payload));
+      bundleImages.forEach((f) => fd.append('images', f));
+      const headers = { 'Content-Type': 'multipart/form-data' };
+      if (bundleEditId) {
+        const r = await api.put(`/bundles/${bundleEditId}`, fd, { headers });
+        setBundles((b) => b.map((bun) => bun._id === bundleEditId ? r.data : bun));
+        toast.success('Bundle updated');
+      } else {
+        const r = await api.post('/bundles', fd, { headers });
+        setBundles((b) => [r.data, ...b]);
+        toast.success('Bundle created');
+      }
+      closeBundleForm();
+      // Refetch bundles to populate products properly
+      api.get('/bundles').then((r) => setBundles(r.data));
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+    finally { setSavingBundle(false); }
+  };
+
+  const handleBundleDelete = async (id) => {
+    if (!window.confirm('Delete this bundle?')) return;
+    try { await api.delete(`/bundles/${id}`); setBundles((b) => b.filter((bun) => bun._id !== id)); toast.success('Deleted'); } catch { toast.error('Failed'); }
+  };
+
+  const bf = (k) => onBundleFieldChange(k);
+  const filteredBundles = bundles.filter(b => b.name.toLowerCase().includes(bundleSearch.toLowerCase()));
+  const paginatedBundles = filteredBundles.slice((bundlePage - 1) * perPage, bundlePage * perPage);
+  const bundleTotalPages = Math.ceil(filteredBundles.length / perPage);
 
   /* ───── orders logic ───── */
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
@@ -119,16 +360,94 @@ export default function AdminProductsPage() {
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-8" style={{ minWidth: 0, overflow: 'hidden' }}>
         <AdminDrawer open={showForm} onClose={closeForm} title={editId ? 'Edit Product' : 'Add New Product'} saving={saving} onSubmit={handleSave} submitLabel={editId ? 'Update Product' : 'Create Product'}>
-          <div className="field-row cols-4">
-            <div className="field"><label>Product Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter product name" className="adm-input" /></div>
-            <div className="field"><label>Category</label><select value={form.category} onChange={f('category')} className="adm-select">{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
-            <div className="field"><label>Weather</label><select value={form.weatherType} onChange={f('weatherType')} className="adm-select"><option value="DRY">DRY</option><option value="RAINY">RAINY</option><option value="BOTH">BOTH</option></select></div>
-            <div className="field"><label>Price ($)</label><input type="number" step="0.01" value={form.price} onChange={f('price')} placeholder="29.99" className="adm-input" /></div>
+          <div className="field" style={{ marginBottom: 16 }}>
+            <label>Product Name *</label>
+            <input
+              required
+              value={form.name}
+              onChange={f('name')}
+              onBlur={onProductFieldBlur('name')}
+              placeholder="Enter product name"
+              className="adm-input"
+              style={productErrors.name ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+            />
+            {productErrors.name && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.name}</p>}
           </div>
           <div className="field-row cols-2">
-            <div className="field"><label>Description</label><textarea value={form.description} onChange={f('description')} rows={3} placeholder="Describe this product..." className="adm-textarea" /></div>
-            <div className="field-row cols-2" style={{ marginBottom: 0, alignSelf: 'start' }}>
-              <div className="field"><label>Stock</label><input type="number" min={0} value={form.stock} onChange={f('stock')} placeholder="100" className="adm-input" /></div>
+            <div className="field-row cols-2" style={{ marginBottom: 0 }}>
+              <div className="field">
+                <label>Category</label>
+                <select
+                  value={form.category}
+                  onChange={f('category')}
+                  onBlur={onProductFieldBlur('category')}
+                  className="adm-select"
+                  style={productErrors.category ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                >
+                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                </select>
+                {productErrors.category && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.category}</p>}
+              </div>
+              <div className="field"><label>Weather</label><select value={form.weatherType} onChange={f('weatherType')} className="adm-select"><option value="DRY">DRY</option><option value="RAINY">RAINY</option><option value="BOTH">BOTH</option></select></div>
+              <div className="field">
+                <label>Price (LKR)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.price}
+                  onChange={f('price')}
+                  onBlur={onProductFieldBlur('price')}
+                  placeholder="29.99"
+                  className="adm-input"
+                  style={productErrors.price ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                />
+                {productErrors.price && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.price}</p>}
+              </div>
+              <div className="field">
+                <label>Stock</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.stock}
+                  onChange={f('stock')}
+                  onBlur={onProductFieldBlur('stock')}
+                  placeholder="100"
+                  className="adm-input"
+                  style={productErrors.stock ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                />
+                {productErrors.stock && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.stock}</p>}
+              </div>
+              <div className="field"><label>Availability</label><select value={form.availability || 'in_stock'} onChange={f('availability')} className="adm-select">{AVAILABILITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+            </div>
+            <div className="field">
+              <label>Locations</label>
+              <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, background: '#f9fafb' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6, '&:hover': { background: '#f3f4f6' } }}>
+                  <input type="checkbox" checked={form.location?.includes('All Locations')} onChange={(e) => { const arr = form.location || []; setForm(p => ({...p, location: e.target.checked ? [...arr, 'All Locations'] : arr.filter(x => x !== 'All Locations')})); }} style={{ accentColor: '#f59e0b' }} /> All Locations
+                </label>
+                {locations.map((l) => (
+                  <label key={l._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6 }}>
+                    <input type="checkbox" checked={form.location?.includes(l.name)} onChange={(e) => { const arr = form.location || []; setForm(p => ({...p, location: e.target.checked ? [...arr, l.name] : arr.filter(x => x !== l.name)})); }} style={{ accentColor: '#f59e0b' }} /> {l.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="field-row cols-2">
+            <div className="field">
+              <label>Description</label>
+              <textarea
+                value={form.description}
+                onChange={f('description')}
+                onBlur={onProductFieldBlur('description')}
+                rows={3}
+                placeholder="Describe this product..."
+                className="adm-textarea"
+                style={productErrors.description ? { height: '100%', borderColor: '#ef4444', background: '#fef2f2' } : { height: '100%' }}
+              />
+              {productErrors.description && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{productErrors.description}</p>}
+            </div>
+            <div className="field-row cols-1" style={{ marginBottom: 0, alignSelf: 'start' }}>
               <div className="field">
                 <label>Images</label>
                 {(existingImages.length > 0 || images.length > 0) && (
@@ -158,7 +477,9 @@ export default function AdminProductsPage() {
           onChange={setActiveTab}
           tabs={[
             { label: 'Products', icon: ShoppingBag },
+            { label: 'Travel Bundles', icon: Layers },
             { label: 'Orders & Payments', icon: CreditCard, badge: pendingOrdersCount },
+            { label: 'Bank Details', icon: Landmark },
           ]}
         />
 
@@ -187,7 +508,7 @@ export default function AdminProductsPage() {
                         <tr key={p._id}>
                           <td><div className="flex items-center gap-3">{p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="adm-thumb" /> : <div className="adm-thumb-placeholder bg-indigo-50"><ShoppingBag size={18} className="text-indigo-600" /></div>}<span className="text-sm font-semibold text-gray-900">{p.name}</span></div></td>
                           <td><span className="adm-badge adm-badge-neutral">{p.category}</span></td>
-                          <td className="text-sm font-bold text-gray-900">${p.price}</td>
+                          <td className="text-sm font-bold text-gray-900">{formatLKR(p.price)}</td>
                           <td>
                             <span className={`text-sm font-bold ${p.stock <= 5 ? 'text-red-600' : 'text-gray-600'}`}>{p.stock}</span>
                             {p.stock <= 5 && <span className="adm-badge adm-badge-inactive ml-1.5" style={{ color: '#dc2626', background: '#fef2f2', borderColor: '#fecaca', fontSize: '10px', padding: '1px 6px' }}>Low</span>}
@@ -210,8 +531,171 @@ export default function AdminProductsPage() {
           </>
         )}
 
-        {/* ═══════════════ TAB 1 — Orders & Payments ═══════════════ */}
+
+
+        {/* ═══════════════ TAB 1 — Bundles ═══════════════ */}
         {activeTab === 1 && (
+          <>
+            <AdminDrawer open={showBundleForm} onClose={closeBundleForm} title={bundleEditId ? 'Edit Travel Bundle' : 'Create Travel Bundle'} saving={savingBundle} onSubmit={handleBundleSave} submitLabel={bundleEditId ? 'Update Bundle' : 'Create Bundle'}>
+              <div className="field" style={{ marginBottom: 16 }}>
+                <label>Bundle Name *</label>
+                <input
+                  required
+                  value={bundleForm.name}
+                  onChange={bf('name')}
+                  onBlur={onBundleFieldBlur('name')}
+                  placeholder="Enter bundle name"
+                  className="adm-input"
+                  style={bundleErrors.name ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                />
+                {bundleErrors.name && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.name}</p>}
+              </div>
+              <div className="field-row cols-2">
+                <div className="field-row cols-2" style={{ marginBottom: 0 }}>
+                  <div className="field">
+                    <label>Total Price (LKR) *</label>
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      value={bundleForm.totalPrice}
+                      onChange={bf('totalPrice')}
+                      onBlur={onBundleFieldBlur('totalPrice')}
+                      placeholder="150.00"
+                      className="adm-input"
+                      style={bundleErrors.totalPrice ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                    />
+                    {bundleErrors.totalPrice && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.totalPrice}</p>}
+                  </div>
+                  <div className="field">
+                    <label>Discount (%)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={bundleForm.discount}
+                      onChange={bf('discount')}
+                      onBlur={onBundleFieldBlur('discount')}
+                      placeholder="10"
+                      className="adm-input"
+                      style={bundleErrors.discount ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                    />
+                    {bundleErrors.discount && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.discount}</p>}
+                  </div>
+                  
+                  <div className="field" style={{ gridColumn: 'span 2' }}>
+                    <label>Included Products</label>
+                    <div style={{ maxHeight: 180, overflowY: 'auto', border: `1px solid ${bundleErrors.products ? '#ef4444' : '#e5e7eb'}`, borderRadius: 8, padding: 8, background: bundleErrors.products ? '#fef2f2' : '#f9fafb' }}>
+                      {products.map((p) => (
+                        <label key={p._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6, '&:hover': { background: '#f3f4f6' } }}>
+                          <input type="checkbox" checked={bundleForm.products?.includes(p._id)} onChange={(e) => {
+                            const arr = bundleForm.products || [];
+                            const nextProducts = e.target.checked ? [...arr, p._id] : arr.filter(x => x !== p._id);
+                            const nextForm = { ...bundleForm, products: nextProducts };
+                            setBundleForm((prev) => ({ ...prev, products: nextProducts }));
+                            setBundleTouched((prev) => ({ ...prev, products: true }));
+                            updateBundleError('products', validateTravelBundleField('products', nextForm));
+                          }} style={{ accentColor: '#f59e0b' }} /> 
+                          {p.name}
+                        </label>
+                      ))}
+                    </div>
+                    {bundleErrors.products && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.products}</p>}
+                  </div>
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label>Locations</label>
+                  <div style={{ maxHeight: '100%', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, background: '#f9fafb' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6, '&:hover': { background: '#f3f4f6' } }}>
+                      <input type="checkbox" checked={bundleForm.location?.includes('All Locations')} onChange={(e) => { const arr = bundleForm.location || []; setBundleForm(p => ({...p, location: e.target.checked ? [...arr, 'All Locations'] : arr.filter(x => x !== 'All Locations')})); }} style={{ accentColor: '#f59e0b' }} /> All Locations
+                    </label>
+                    {locations.map((l) => (
+                      <label key={l._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6 }}>
+                        <input type="checkbox" checked={bundleForm.location?.includes(l.name)} onChange={(e) => { const arr = bundleForm.location || []; setBundleForm(p => ({...p, location: e.target.checked ? [...arr, l.name] : arr.filter(x => x !== l.name)})); }} style={{ accentColor: '#f59e0b' }} /> {l.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="field-row cols-2">
+                <div className="field">
+                  <label>Description</label>
+                  <textarea
+                    value={bundleForm.description}
+                    onChange={bf('description')}
+                    onBlur={onBundleFieldBlur('description')}
+                    rows={4}
+                    placeholder="Describe this bundle..."
+                    className="adm-textarea"
+                    style={bundleErrors.description ? { height: '100%', borderColor: '#ef4444', background: '#fef2f2' } : { height: '100%' }}
+                  />
+                  {bundleErrors.description && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.description}</p>}
+                </div>
+                <div className="field-row cols-1" style={{ marginBottom: 0, alignSelf: 'start' }}>
+                  <div className="field">
+                    <label>Main Picture (Images)</label>
+                    {(bundleExistingImages.length > 0 || bundleImages.length > 0) && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '4px' }}>
+                        {bundleExistingImages.map((url, i) => (
+                          <div key={`ex-${i}`} style={{ position: 'relative', width: '40px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                            <img src={url} alt={`img-${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <button type="button" onClick={() => setBundleExistingImages((p) => p.filter((_, idx) => idx !== i))} style={{ position: 'absolute', top: '1px', right: '1px', width: '14px', height: '14px', borderRadius: '50%', background: 'rgba(0,0,0,0.6)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#fff' }} /></button>
+                          </div>
+                        ))}
+                        {bundleImages.map((file, i) => (
+                          <div key={`new-${i}`} style={{ position: 'relative', width: '40px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '2px solid #f59e0b' }}>
+                            <img src={URL.createObjectURL(file)} alt={`new-${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <button type="button" onClick={() => setBundleImages((p) => p.filter((_, idx) => idx !== i))} style={{ position: 'absolute', top: '1px', right: '1px', width: '14px', height: '14px', borderRadius: '50%', background: 'rgba(0,0,0,0.6)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#fff' }} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <label className="adm-upload"><Upload size={14} className="text-gray-400" /><p className="text-xs text-gray-500">{bundleExistingImages.length > 0 || bundleImages.length > 0 ? 'Add more' : 'Upload'}</p><input type="file" multiple accept="image/*" onChange={(e) => setBundleImages((prev) => [...prev, ...e.target.files])} className="hidden" /></label>
+                  </div>
+                </div>
+              </div>
+            </AdminDrawer>
+
+            <div className="adm-toolbar mb-6">
+              <div className="adm-search-box"><Search className="w-4 h-4 text-gray-400 flex-shrink-0" /><input value={bundleSearch} onChange={e => { setBundleSearch(e.target.value); setBundlePage(1); }} placeholder="Search bundles..." /></div>
+              <div style={{ flex: 1 }} />
+              {!showBundleForm && <button onClick={openBundleCreate} className="adm-btn-primary" style={{ whiteSpace: 'nowrap' }}><Plus size={18} /> Add Bundle</button>}
+            </div>
+
+            {bundlesLoading ? (
+              <div className="flex flex-col gap-3">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-white rounded-2xl animate-pulse" style={{ border: '1px solid #e5e7eb' }} />)}</div>
+            ) : filteredBundles.length === 0 ? (
+              <div className="adm-table-wrap"><div className="text-center py-16"><Layers className="w-14 h-14 text-gray-200 mx-auto mb-3" /><p className="text-base text-gray-500 font-semibold">No travel bundles found</p></div></div>
+            ) : (
+              <div className="adm-table-wrap">
+                <div className="overflow-x-auto">
+                  <table>
+                    <thead><tr><th>Name</th><th>Price</th><th>Included Products</th><th>Locations</th><th className="text-right">Actions</th></tr></thead>
+                    <tbody>
+                      {paginatedBundles.map((b) => (
+                        <tr key={b._id}>
+                          <td><div className="flex items-center gap-3">{b.images?.[0] ? <img src={b.images[0]} alt={b.name} className="adm-thumb" /> : <div className="adm-thumb-placeholder bg-orange-50"><Layers size={18} className="text-orange-600" /></div>}<span className="text-sm font-semibold text-gray-900">{b.name}</span></div></td>
+                          <td className="text-sm font-bold text-gray-900">{formatLKR(b.totalPrice)} {b.discount > 0 && <span className="text-xs font-normal text-red-500 ml-1">(-{b.discount}%)</span>}</td>
+                          <td><span className="text-sm font-medium text-gray-600">{b.products?.length || 0} items</span></td>
+                          <td><span className="text-sm text-gray-600">{Array.isArray(b.location) ? (b.location.length > 2 ? b.location.slice(0,2).join(', ') + '...' : b.location.join(', ')) : b.location}</span></td>
+                          <td><div className="flex items-center justify-end gap-2"><button onClick={() => openBundleEdit(b)} className="adm-btn-edit"><Pencil size={14} /> Edit</button><button onClick={() => handleBundleDelete(b._id)} className="adm-btn-delete"><Trash2 size={14} /> Delete</button></div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {bundleTotalPages > 1 && (
+                  <div className="flex items-center justify-between px-6 py-3" style={{ borderTop: '1px solid #f3f4f6' }}>
+                    <span className="text-sm text-gray-500">Showing {(bundlePage-1)*perPage+1}&ndash;{Math.min(bundlePage*perPage, filteredBundles.length)} of {filteredBundles.length}</span>
+                    <div className="flex gap-1.5">{Array.from({ length: bundleTotalPages }, (_, i) => <button key={i+1} onClick={() => setBundlePage(i+1)} className={`adm-page-btn ${bundlePage === i+1 ? 'active' : ''}`}>{i+1}</button>)}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+        {/* ═══════════════ TAB 2 — Orders & Payments ═══════════════ */}
+        {activeTab === 2 && (
           <>
             {/* Stat Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
@@ -325,7 +809,116 @@ export default function AdminProductsPage() {
             )}
           </>
         )}
+
+        {/* ═══════════════ TAB 3 — Bank Details ═══════════════ */}
+        {activeTab === 3 && (
+          <>
+            <div className="adm-toolbar mb-6" style={{ alignItems: 'center' }}>
+              <h2 className="text-base font-bold text-gray-800" style={{ margin: 0 }}>Bank Transfer Accounts</h2>
+              <div style={{ flex: 1 }} />
+              {!showBankForm && (
+                <button onClick={openBankCreate} className="adm-btn-primary" style={{ whiteSpace: 'nowrap' }}>
+                  <Plus size={18} /> Add Bank Account
+                </button>
+              )}
+            </div>
+
+            {/* Inline Add / Edit Form */}
+            {showBankForm && (
+              <div style={{
+                background: '#fff', border: '1.5px solid #fcd34d', borderRadius: 16,
+                padding: '24px 28px', marginBottom: 24,
+                boxShadow: '0 4px 16px rgba(245,158,11,0.08)',
+              }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 20 }}>
+                  {bankEditId ? 'Edit Bank Account' : 'Add New Bank Account'}
+                </h3>
+                <form onSubmit={handleBankSave}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label>Bank Name *</label>
+                      <input required className="adm-input" placeholder="e.g. Bank of Ceylon" value={bankForm.bankName}
+                        onChange={e => setBankForm(p => ({ ...p, bankName: e.target.value }))} />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label>Account Number *</label>
+                      <input required className="adm-input" placeholder="e.g. 0001234567890" value={bankForm.accountNumber}
+                        onChange={e => setBankForm(p => ({ ...p, accountNumber: e.target.value }))} />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label>Branch *</label>
+                      <input required className="adm-input" placeholder="e.g. Colombo" value={bankForm.branch}
+                        onChange={e => setBankForm(p => ({ ...p, branch: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button type="submit" className="adm-btn-primary" disabled={savingBank}>
+                      {savingBank ? 'Saving...' : (bankEditId ? 'Update Account' : 'Save Account')}
+                    </button>
+                    <button type="button" onClick={closeBankForm}
+                      style={{ padding: '8px 20px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', fontSize: 13, fontWeight: 600, color: '#6b7280', cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Account List */}
+            {bankLoading ? (
+              <div className="flex flex-col gap-3">
+                {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-white rounded-2xl animate-pulse" style={{ border: '1px solid #e5e7eb' }} />)}
+              </div>
+            ) : bankAccounts.length === 0 ? (
+              <div className="adm-table-wrap">
+                <div className="text-center py-16">
+                  <Landmark className="w-14 h-14 text-gray-200 mx-auto mb-3" />
+                  <p className="text-base text-gray-500 font-semibold">No bank accounts added yet</p>
+                  <p className="text-sm text-gray-400">Add accounts so users know where to transfer payment</p>
+                </div>
+              </div>
+            ) : (
+              <div className="adm-table-wrap">
+                <div className="overflow-x-auto">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Bank Name</th>
+                        <th>Account Number</th>
+                        <th>Branch</th>
+                        <th className="text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bankAccounts.map(acc => (
+                        <tr key={acc._id}>
+                          <td>
+                            <div className="flex items-center gap-3">
+                              <div className="adm-thumb-placeholder" style={{ background: '#eff6ff' }}>
+                                <Landmark size={18} style={{ color: '#3b82f6' }} />
+                              </div>
+                              <span className="text-sm font-semibold text-gray-900">{acc.bankName}</span>
+                            </div>
+                          </td>
+                          <td><span className="text-sm font-mono text-gray-700">{acc.accountNumber}</span></td>
+                          <td><span className="adm-badge adm-badge-neutral">{acc.branch}</span></td>
+                          <td>
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => openBankEdit(acc)} className="adm-btn-edit"><Pencil size={14} /> Edit</button>
+                              <button onClick={() => handleBankDelete(acc._id)} className="adm-btn-delete"><Trash2 size={14} /> Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </AdminLayout>
   );
 }
+

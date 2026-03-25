@@ -82,6 +82,7 @@ export default function ExplorePage() {
           </button>
         </div>
 
+
         {/* ── Tab Content ── */}
         {activeTab === "explore" && (
           <section className="explore-categories">

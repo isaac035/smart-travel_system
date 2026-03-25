@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
+import { formatLKR } from '../../utils/currency';
 
 
 const STATUS_LABELS = {
@@ -100,7 +101,7 @@ export default function TravelerGuidesPage() {
     if (!window.confirm(`Cancel this booking?\n\n${refundMsg}`)) return;
     try {
       const { data } = await api.put(`/guides/bookings/${bookingId}/cancel`);
-      toast.success(`Cancelled. ${data.refundEligibility === 'none' ? 'No refund.' : `Refund: LKR ${data.refundAmount?.toLocaleString()}`}`);
+      toast.success(`Cancelled. ${data.refundEligibility === 'none' ? 'No refund.' : `Refund: ${formatLKR(data.refundAmount)}`}`);
       fetchBookings();
     } catch (err) { toast.error(err.response?.data?.message || 'Cancel failed'); }
   };
@@ -243,7 +244,7 @@ export default function TravelerGuidesPage() {
                           <DetailItem label="Dates" value={b.startDate ? `${new Date(b.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${new Date(b.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : new Date(b.travelDate).toLocaleDateString()} />
                           <DetailItem label="Duration" value={`${b.days} day${b.days !== 1 ? 's' : ''}`} />
                           <DetailItem label="Travelers" value={b.travelers} />
-                          <DetailItem label="Total" value={`LKR ${b.totalPrice?.toLocaleString()}`} highlight />
+                          <DetailItem label="Total" value={`${formatLKR(b.totalPrice)}`} highlight />
                         </div>
                       </div>
                     </div>
@@ -253,12 +254,12 @@ export default function TravelerGuidesPage() {
                       <div style={{ display: 'flex', gap: 0, margin: '0 24px', borderRadius: 10, overflow: 'hidden', border: '1px solid #f3f4f6' }}>
                         <div style={{ flex: 1, padding: '10px 16px', background: '#fffbeb' }}>
                           <span style={{ fontSize: 11, color: '#92400e', fontWeight: 500 }}>Deposit ({b.depositPercentage || 30}%)</span>
-                          <p style={{ fontSize: 14, fontWeight: 700, color: '#d97706', margin: '2px 0 0' }}>LKR {b.depositAmount?.toLocaleString()}</p>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#d97706', margin: '2px 0 0' }}>{formatLKR(b.depositAmount)}</p>
                         </div>
                         <div style={{ width: 1, background: '#f3f4f6' }} />
                         <div style={{ flex: 1, padding: '10px 16px', background: '#f9fafb' }}>
                           <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>Remaining</span>
-                          <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '2px 0 0' }}>LKR {b.remainingAmount?.toLocaleString()}</p>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '2px 0 0' }}>{formatLKR(b.remainingAmount)}</p>
                         </div>
                       </div>
                     )}
@@ -318,7 +319,7 @@ export default function TravelerGuidesPage() {
                         background: '#fff7ed', border: '1px solid #fed7aa',
                       }}>
                         <p style={{ fontSize: 14, fontWeight: 700, color: '#9a3412', marginBottom: 10 }}>
-                          Upload Remaining Payment — LKR {b.remainingAmount?.toLocaleString()}
+                          Upload Remaining Payment — {formatLKR(b.remainingAmount)}
                         </p>
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                           <label style={{
@@ -354,7 +355,7 @@ export default function TravelerGuidesPage() {
                       <div style={{ margin: '10px 24px 0', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                         <span style={{ color: '#6b7280' }}>Refund:</span>
                         <span style={{ fontWeight: 600, color: b.cancellation.refundStatus === 'processed' ? '#059669' : '#d97706' }}>
-                          LKR {b.cancellation.refundAmount?.toLocaleString()}
+                          {formatLKR(b.cancellation.refundAmount)}
                         </span>
                         <span style={badgeStyle(b.cancellation.refundStatus === 'processed' ? 'refunded' : 'refund_pending')}>
                           {b.cancellation.refundStatus === 'processed' ? 'Processed' : 'Pending'}

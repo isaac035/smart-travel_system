@@ -11,14 +11,15 @@
   overflow: hidden;
   height: 400px;
   position: relative;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
+
 
 .loc-detail-map {
   border-radius: 18px;
   overflow: hidden;
   height: 400px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   border: 1px solid #eee;
 }
 

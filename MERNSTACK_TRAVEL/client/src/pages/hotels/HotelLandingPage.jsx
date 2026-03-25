@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import HotelCard from '../../components/HotelCard';
+import { formatLKR } from '../../utils/currency';
 
 const SkeletonCard = () => (
   <div className="bg-white rounded-2xl overflow-hidden animate-pulse" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
@@ -206,7 +207,7 @@ export default function HotelLandingPage() {
                       <div style={{ fontSize: '13px', minWidth: '150px' }}>
                         <p style={{ fontWeight: 600 }}>{h.name}</p>
                         <p style={{ color: '#6b7280', fontSize: '12px' }}>{h.location}</p>
-                        <p style={{ color: '#d97706', fontWeight: 700, fontSize: '12px', marginTop: '4px' }}>LKR {h.pricePerNight?.toLocaleString()}/night</p>
+                        <p style={{ color: '#d97706', fontWeight: 700, fontSize: '12px', marginTop: '4px' }}>{formatLKR(h.pricePerNight)}/night</p>
                       </div>
                     </Popup>
                   </Marker>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import api from '../../utils/api';
+import { formatLKR } from '../../utils/currency';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80';
 const LOC_PLACEHOLDER = 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?w=400&q=80';
@@ -280,7 +281,7 @@ export default function TourDetailsPage() {
               }}>
                 <p style={{ fontSize: '12px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Starting from</p>
                 <div style={{ marginBottom: '24px' }}>
-                  <span style={{ fontSize: '40px', fontWeight: 800, color: '#d97706' }}>${pkg.basePrice}</span>
+                  <span style={{ fontSize: '40px', fontWeight: 800, color: '#d97706' }}>{formatLKR(pkg.basePrice)}</span>
                   <span style={{ color: '#9ca3af', fontSize: '14px', marginLeft: '6px' }}>/ person</span>
                 </div>
 
@@ -307,9 +308,7 @@ export default function TourDetailsPage() {
                           background: '#f9fafb', borderRadius: '12px', padding: '12px 14px',
                         }}>
                           <span style={{ fontSize: '14px', color: '#374151', fontWeight: 600, textTransform: 'capitalize' }}>{vehicleIcons[v]} {v}</span>
-                          <span style={{ fontSize: '14px', fontWeight: 800, color: '#111827' }}>
-                            ${(pkg.basePrice * (pkg.vehicleMultipliers?.[v] || 1)).toFixed(0)}
-                            <span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 400 }}>/person</span>
+                          <span style={{ fontSize: '14px', fontWeight: 800, color: '#111827' }}>{formatLKR((pkg.basePrice * (pkg.vehicleMultipliers?.[v] || 1)).toFixed(0))}<span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 400 }}>/person</span>
                           </span>
                         </div>
                       ))}

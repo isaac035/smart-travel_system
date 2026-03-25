@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import api from '../../utils/api';
+import { formatLKR } from '../../utils/currency';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80';
 const VEHICLE_LABEL = { car: '🚗 Car', van: '🚐 Van', bus: '🚌 Bus' };
@@ -108,9 +109,7 @@ function PackageCard({ pkg }) {
         }}>
           <div>
             <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Starting from</p>
-            <p style={{ fontSize: '22px', fontWeight: 800, color: '#d97706', lineHeight: 1 }}>
-              ${pkg.basePrice}
-              <span style={{ fontSize: '12px', fontWeight: 400, color: '#9ca3af', marginLeft: '4px' }}>/ person</span>
+            <p style={{ fontSize: '22px', fontWeight: 800, color: '#d97706', lineHeight: 1 }}>{formatLKR(pkg.basePrice)}<span style={{ fontSize: '12px', fontWeight: 400, color: '#9ca3af', marginLeft: '4px' }}>/ person</span>
             </p>
           </div>
           <span style={{

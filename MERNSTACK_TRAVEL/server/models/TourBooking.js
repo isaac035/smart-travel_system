@@ -6,6 +6,7 @@ const tourBookingSchema = new mongoose.Schema(
     packageId: { type: mongoose.Schema.Types.ObjectId, ref: 'TourPackage', required: true },
     vehicle: { type: String, enum: ['car', 'van', 'bus'], required: true },
     travelers: { type: Number, required: true, min: 1 },
+    customDuration: { type: Number, min: 1 }, // user-adjusted trip duration in days
     startDate: { type: Date, required: true },
     totalPrice: { type: Number, required: true },
     slipUrl: { type: String },
@@ -20,3 +21,4 @@ const tourBookingSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('TourBooking', tourBookingSchema);
+

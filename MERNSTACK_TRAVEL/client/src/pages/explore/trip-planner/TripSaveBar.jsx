@@ -5,10 +5,10 @@ import toast from 'react-hot-toast';
 import api from '../../../utils/api';
 import { useAuth } from '../../../context/AuthContext';
 
-const DAY_COLORS = ['#f59e0b','#3b82f6','#10b981','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#f43f5e'];
-function fmtDist(m) { return m >= 1000 ? `${(m/1000).toFixed(1)} km` : `${Math.round(m)} m`; }
-function fmtTime(s) { const h = Math.floor(s/3600), m = Math.round((s%3600)/60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
-function fmtDate(d) { if (!d) return ''; const ms = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()}`; }
+const DAY_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#f43f5e'];
+function fmtDist(m) { return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`; }
+function fmtTime(s) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
+function fmtDate(d) { if (!d) return ''; const ms = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()}`; }
 
 export default function TripSaveBar({ config, days, stats, tripId, setTripId, onBack, onReset }) {
   const { user } = useAuth();
@@ -30,26 +30,26 @@ export default function TripSaveBar({ config, days, stats, tripId, setTripId, on
   const exportPDF = () => {
     const doc = new jsPDF();
     const pw = doc.internal.pageSize.getWidth();
-    doc.setFontSize(22); doc.setTextColor(30,30,30); doc.text(config.tripName, 14, 25);
-    doc.setFontSize(10); doc.setTextColor(150,150,150);
+    doc.setFontSize(22); doc.setTextColor(30, 30, 30); doc.text(config.tripName, 14, 25);
+    doc.setFontSize(10); doc.setTextColor(150, 150, 150);
     const ds = config.startDate && config.endDate ? `${fmtDate(config.startDate)} — ${fmtDate(config.endDate)}` : new Date().toLocaleDateString();
     doc.text(`Ceylon Travel · ${ds} · ${config.totalDays} days`, 14, 33);
-    if (stats) { doc.setFontSize(10); doc.setTextColor(180,120,20); doc.text(`Total: ${fmtDist(stats.totalDistance)} · ${fmtTime(stats.totalDuration)} driving`, 14, 40); }
-    doc.setDrawColor(230,230,230); doc.line(14, 44, pw-14, 44);
+    if (stats) { doc.setFontSize(10); doc.setTextColor(180, 120, 20); doc.text(`Total: ${fmtDist(stats.totalDistance)} · ${fmtTime(stats.totalDuration)} driving`, 14, 40); }
+    doc.setDrawColor(230, 230, 230); doc.line(14, 44, pw - 14, 44);
     let y = 52;
     days.forEach(d => {
       if (d.items.length === 0) return;
       if (y > 260) { doc.addPage(); y = 20; }
       const dstat = stats?.dayStats?.find(s => s.dayNumber === d.dayNumber);
-      doc.setFontSize(14); doc.setTextColor(30,30,30); doc.text(`Day ${d.dayNumber}`, 14, y);
-      if (dstat) { doc.setFontSize(9); doc.setTextColor(150,150,150); doc.text(`${dstat.stops} stops · ${fmtDist(dstat.distance)} · ${fmtTime(dstat.duration)}`, 50, y); }
+      doc.setFontSize(14); doc.setTextColor(30, 30, 30); doc.text(`Day ${d.dayNumber}`, 14, y);
+      if (dstat) { doc.setFontSize(9); doc.setTextColor(150, 150, 150); doc.text(`${dstat.stops} stops · ${fmtDist(dstat.distance)} · ${fmtTime(dstat.duration)}`, 50, y); }
       y += 8;
       d.items.forEach((item, i) => {
         if (y > 272) { doc.addPage(); y = 20; }
-        if (i > 0 && item.distFromPrev > 0) { doc.setFontSize(8); doc.setTextColor(180,180,180); doc.text(`    >> ${fmtDist(item.distFromPrev)} · ${fmtTime(item.durationFromPrev)}`, 18, y); y += 5; }
-        doc.setFontSize(11); doc.setTextColor(60,60,60); doc.text(`${i+1}. ${item.location?.name || 'Unknown'}`, 18, y);
-        doc.setFontSize(9); doc.setTextColor(130,130,130); doc.text(`${item.location?.district || ''}`, 18, y + 4.5); y += 5;
-        if (item.notes) { doc.setTextColor(160,160,160); doc.text(`  Note: ${item.notes}`, 22, y + 4); y += 5; }
+        if (i > 0 && item.distFromPrev > 0) { doc.setFontSize(8); doc.setTextColor(180, 180, 180); doc.text(`    >> ${fmtDist(item.distFromPrev)} · ${fmtTime(item.durationFromPrev)}`, 18, y); y += 5; }
+        doc.setFontSize(11); doc.setTextColor(60, 60, 60); doc.text(`${i + 1}. ${item.location?.name || 'Unknown'}`, 18, y);
+        doc.setFontSize(9); doc.setTextColor(130, 130, 130); doc.text(`${item.location?.district || ''}`, 18, y + 4.5); y += 5;
+        if (item.notes) { doc.setTextColor(160, 160, 160); doc.text(`  Note: ${item.notes}`, 22, y + 4); y += 5; }
         y += 5;
       });
       y += 4;
@@ -64,11 +64,12 @@ export default function TripSaveBar({ config, days, stats, tripId, setTripId, on
       <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
         <div className="bg-gray-900 px-8 py-10 text-center">
           <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
           </div>
           <h2 className="text-2xl font-bold text-white">Your trip is ready</h2>
           <p className="text-gray-400 text-sm mt-1">{config.tripName}</p>
         </div>
+
 
         {/* Summary */}
         <div className="p-6 sm:p-8">
@@ -92,7 +93,7 @@ export default function TripSaveBar({ config, days, stats, tripId, setTripId, on
 
           {config.startDate && config.endDate && (
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
               {fmtDate(config.startDate)} — {fmtDate(config.endDate)} · from {config.startPoint?.name}
             </div>
           )}
@@ -127,11 +128,11 @@ export default function TripSaveBar({ config, days, stats, tripId, setTripId, on
             </button>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={exportPDF} className="h-11 text-[13px] font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center justify-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 Download PDF
               </button>
               <button onClick={() => window.print()} className="h-11 text-[13px] font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center justify-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                 Print
               </button>
             </div>
@@ -152,14 +153,14 @@ export default function TripSaveBar({ config, days, stats, tripId, setTripId, on
       {/* Nav */}
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="h-10 px-4 text-[13px] font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center gap-1.5">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           Edit itinerary
         </button>
         <button onClick={onReset} className="text-[13px] text-gray-400 hover:text-gray-600 font-medium transition-colors">Plan another trip</button>
         {user && tripId && (
           <button onClick={() => navigate('/profile')} className="h-10 px-4 text-[13px] font-medium text-gray-900 hover:bg-gray-50 rounded transition-colors inline-flex items-center gap-1.5">
             View in profile
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
           </button>
         )}
       </div>

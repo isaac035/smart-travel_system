@@ -137,6 +137,7 @@ export async function optimizeDayRoutes(startPoint, locationsByDay, totalDays, r
 
 /**
  * Legacy: Auto-group selected locations into days using nearest-neighbor clustering.
+ 
  */
 export async function autoGroupLocations(startPoint, locations, numDays, pace, reverse = false) {
   const maxPerDay = PACE_LIMITS[pace]?.max || 5;

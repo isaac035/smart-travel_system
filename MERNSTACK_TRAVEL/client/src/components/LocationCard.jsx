@@ -61,6 +61,7 @@ export default function LocationCard({ location }) {
 
       </div>
 
+
       {/* Content section - 30% height */}
       <div style={{
         height: '30%',
