@@ -24,17 +24,39 @@ const inputStyle = {
   transition: 'border-color 0.2s',
 };
 
+const inputErrorStyle = {
+  ...inputStyle, border: '2px solid #ef4444', background: '#fff5f5',
+};
+
+const errorMsgStyle = {
+  fontSize: '12px', color: '#ef4444', fontWeight: 600, marginTop: '5px',
+  display: 'flex', alignItems: 'center', gap: '4px',
+};
+
+function FieldError({ msg }) {
+  if (!msg) return null;
+  return (
+    <p style={errorMsgStyle}>
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2.5}>
+        <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4m0 4h.01" />
+      </svg>
+      {msg}
+    </p>
+  );
+}
+
 // Returns the best-fitting vehicle for a given traveler count
 function getRecommendedVehicle(travelers, pkg) {
   if (!pkg) return null;
   const options = pkg.vehicleOptions?.length ? pkg.vehicleOptions : ['car', 'van', 'bus'];
   const capacities = { car: 4, van: 8, bus: 50 };
-  // Merge with package-defined capacities
   const caps = { ...capacities, ...pkg.maxTravelersByVehicle };
-  // Find smallest vehicle that fits
   const order = ['car', 'van', 'bus'];
   return order.find((v) => options.includes(v) && caps[v] >= travelers) || options[options.length - 1];
 }
+
+const NOTES_MAX = 500;
+const TODAY = new Date().toISOString().split('T')[0];
 
 export default function TourBookingPage() {
   const { id } = useParams();
@@ -48,11 +70,14 @@ export default function TourBookingPage() {
   const [form, setForm] = useState({
     vehicle: 'car',
     travelers: 1,
-    customDuration: null, // null = use package default; set after pkg loads
+    customDuration: null,
     startDate: '',
     notes: '',
     slip: null,
   });
+
+  // Inline validation errors
+  const [errors, setErrors] = useState({ startDate: '', travelers: '', notes: '' });
 
   // Live price preview state
   const [priceData, setPriceData] = useState(null);
@@ -83,7 +108,6 @@ export default function TourBookingPage() {
         });
         setPriceData(data);
       } catch {
-        // Fallback to local calculation
         const multiplier = pkg.vehicleMultipliers?.[form.vehicle] || 1;
         const caps = { car: 4, van: 8, bus: 50 };
         const vehicleCapacity = (pkg.maxTravelersByVehicle?.[form.vehicle]) ?? caps[form.vehicle] ?? 50;
@@ -106,13 +130,54 @@ export default function TourBookingPage() {
   const recommended = pkg ? getRecommendedVehicle(form.travelers, pkg) : null;
   const capacityExceeded = priceData?.exceedsCapacity || false;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  /* ── Field-level validators ── */
+  const validateStartDate = (value) => {
+    if (!value) return 'Start date is required.';
+    const chosen = new Date(value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (chosen < today) return 'Start date must be today or a future date.';
+    return '';
+  };
+
+  const validateTravelers = (value) => {
+    const n = Number(value);
+    if (!value) return 'Number of travelers is required.';
+    if (!Number.isInteger(n) || n < 1 || n > 50) return 'Must be between 1 and 50 travelers.';
+    return '';
+  };
+
+  const validateNotes = (value) => {
+    if (value && value.length > NOTES_MAX) return `Maximum ${NOTES_MAX} characters (${value.length} used).`;
+    return '';
+  };
+
+  /* ── Change handlers with live validation ── */
+  const setTravelers = (val) => {
+    setForm((f) => ({ ...f, travelers: val }));
+    setErrors((e) => ({ ...e, travelers: validateTravelers(val) }));
+  };
+
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
+
+    // Run all validations
+    const dateErr = validateStartDate(form.startDate);
+    const travelersErr = validateTravelers(form.travelers);
+    const notesErr = validateNotes(form.notes);
+
+    setErrors({ startDate: dateErr, travelers: travelersErr, notes: notesErr });
+
+    if (dateErr || travelersErr || notesErr) {
+      toast.error('Please fix the highlighted errors before submitting.');
+      return;
+    }
+
     if (capacityExceeded) {
       toast.error(`Selected vehicle can't accommodate ${form.travelers} travelers. Please choose a larger vehicle.`);
       return;
     }
-    if (!form.startDate) return toast.error('Please select a start date');
+
     setSubmitting(true);
     try {
       const fd = new FormData();
@@ -202,7 +267,7 @@ export default function TourBookingPage() {
                       <h2 style={{ fontWeight: 700, color: '#111827', fontSize: '16px', marginBottom: '4px' }}>Customize Duration</h2>
                       <p style={{ fontSize: '13px', color: '#6b7280' }}>
                         Base package: <strong style={{ color: '#374151' }}>{pkg.duration} {pkg.duration === 1 ? 'day' : 'days'}</strong>
-                        &nbsp;·&nbsp;${((pkg.basePrice / (pkg.duration || 1))).toFixed(0)}/day per traveler
+                        &nbsp;·&nbsp;LKR {((pkg.basePrice / (pkg.duration || 1))).toFixed(0)}/day per traveler
                       </p>
                     </div>
                     {form.customDuration !== pkg.duration && (
@@ -218,7 +283,6 @@ export default function TourBookingPage() {
                     )}
                   </div>
 
-                  {/* Stepper */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
                     <button type="button"
                       onClick={() => setForm((f) => ({ ...f, customDuration: Math.max(1, f.customDuration - 1) }))}
@@ -231,10 +295,7 @@ export default function TourBookingPage() {
                         cursor: form.customDuration <= 1 ? 'not-allowed' : 'pointer',
                         color: form.customDuration <= 1 ? '#d1d5db' : '#374151',
                         transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => { if (form.customDuration > 1) e.currentTarget.style.background = '#e5e7eb'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = form.customDuration <= 1 ? '#f9fafb' : '#f3f4f6'; }}
-                    >−</button>
+                      }}>−</button>
 
                     <div style={{ textAlign: 'center', minWidth: '80px' }}>
                       <div style={{ fontSize: '36px', fontWeight: 900, color: '#111827', lineHeight: 1 }}>{form.customDuration}</div>
@@ -243,16 +304,14 @@ export default function TourBookingPage() {
 
                     <button type="button"
                       onClick={() => setForm((f) => ({ ...f, customDuration: Math.min(60, f.customDuration + 1) }))}
+                      disabled={form.customDuration >= 60}
                       style={{
                         width: '44px', height: '44px', borderRadius: '50%',
                         background: '#f3f4f6', border: '2px solid #e5e7eb',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '20px', fontWeight: 700, color: '#374151',
-                        cursor: 'pointer', transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#e5e7eb'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
-                    >+</button>
+                        cursor: form.customDuration >= 60 ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                      }}>+</button>
                   </div>
 
                   {/* Duration progress bar */}
@@ -273,14 +332,12 @@ export default function TourBookingPage() {
                           : 'linear-gradient(90deg, #10b981, #f59e0b)',
                       }} />
                     </div>
-                    {/* Base marker */}
                     <div style={{
                       position: 'absolute', bottom: '-2px',
                       left: `${Math.min(98, (pkg.duration / 60) * 100)}%`,
                       transform: 'translateX(-50%)',
                       width: '10px', height: '10px', borderRadius: '50%',
-                      background: '#f59e0b', border: '2px solid #fff',
-                      boxShadow: '0 0 0 2px #f59e0b',
+                      background: '#f59e0b', border: '2px solid #fff', boxShadow: '0 0 0 2px #f59e0b',
                     }} />
                   </div>
 
@@ -298,6 +355,10 @@ export default function TourBookingPage() {
                       }
                     </div>
                   )}
+
+                  {(form.customDuration < 1 || form.customDuration > 60) && (
+                    <FieldError msg="Duration must be between 1 and 60 days." />
+                  )}
                 </div>
               )}
 
@@ -306,38 +367,37 @@ export default function TourBookingPage() {
                 <h2 style={{ fontWeight: 700, color: '#111827', fontSize: '16px', marginBottom: '16px' }}>Number of Travelers</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <button type="button"
-                    onClick={() => setForm((f) => ({ ...f, travelers: Math.max(1, f.travelers - 1) }))}
+                    onClick={() => setTravelers(Math.max(1, form.travelers - 1))}
                     style={{
                       width: '44px', height: '44px', borderRadius: '50%',
-                      background: '#f3f4f6', border: '2px solid #e5e7eb',
+                      background: '#f3f4f6', border: `2px solid ${errors.travelers ? '#ef4444' : '#e5e7eb'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#374151', fontSize: '20px', fontWeight: 700, cursor: 'pointer',
-                      transition: 'all 0.2s',
+                      color: '#374151', fontSize: '20px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = '#e5e7eb'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}>
                     −
                   </button>
-                  <span style={{ fontSize: '28px', fontWeight: 800, color: '#111827', width: '40px', textAlign: 'center', userSelect: 'none' }}>
+                  <span style={{ fontSize: '28px', fontWeight: 800, color: errors.travelers ? '#ef4444' : '#111827', width: '40px', textAlign: 'center', userSelect: 'none' }}>
                     {form.travelers}
                   </span>
                   <button type="button"
-                    onClick={() => setForm((f) => ({ ...f, travelers: Math.min(50, f.travelers + 1) }))}
+                    onClick={() => setTravelers(Math.min(50, form.travelers + 1))}
                     style={{
                       width: '44px', height: '44px', borderRadius: '50%',
-                      background: '#f3f4f6', border: '2px solid #e5e7eb',
+                      background: '#f3f4f6', border: `2px solid ${errors.travelers ? '#ef4444' : '#e5e7eb'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#374151', fontSize: '20px', fontWeight: 700, cursor: 'pointer',
-                      transition: 'all 0.2s',
+                      color: '#374151', fontSize: '20px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = '#e5e7eb'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}>
                     +
                   </button>
                   <span style={{ fontSize: '14px', color: '#6b7280', marginLeft: '4px' }}>
-                    {form.travelers === 1 ? 'traveler' : 'travelers'}
+                    {form.travelers === 1 ? 'traveler' : 'travelers'} <span style={{ fontSize: '12px', color: '#9ca3af' }}>(max 50)</span>
                   </span>
                 </div>
+                <FieldError msg={errors.travelers} />
 
                 {/* Smart vehicle recommendation */}
                 {recommended && recommended !== form.vehicle && (
@@ -382,14 +442,11 @@ export default function TourBookingPage() {
                           background: tooSmall ? '#fff1f2' : selected ? '#fffbeb' : '#f9fafb',
                           boxShadow: selected ? '0 4px 15px rgba(245,158,11,0.2)' : 'none',
                           position: 'relative',
-                        }}
-                        onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = tooSmall ? '#f87171' : '#fcd34d'; e.currentTarget.style.background = tooSmall ? '#fff1f2' : '#fffbeb'; } }}
-                        onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = tooSmall ? '#fca5a5' : '#e5e7eb'; e.currentTarget.style.background = tooSmall ? '#fff1f2' : '#f9fafb'; } }}
-                      >
+                        }}>
                         <div style={{ fontSize: '28px', marginBottom: '6px' }}>{vehicleIcons[v]}</div>
                         <div style={{ fontSize: '14px', fontWeight: 700, textTransform: 'capitalize', color: tooSmall ? '#dc2626' : selected ? '#92400e' : '#374151' }}>{v}</div>
                         <div style={{ fontSize: '12px', marginTop: '2px', color: tooSmall ? '#ef4444' : selected ? '#d97706' : '#9ca3af', fontWeight: 600 }}>
-                          ${price}/person
+                          LKR {price}/person
                         </div>
                         <div style={{ fontSize: '11px', marginTop: '2px', color: tooSmall ? '#dc2626' : '#9ca3af' }}>
                           up to {cap} people
@@ -428,29 +485,53 @@ export default function TourBookingPage() {
 
               {/* Date & Notes */}
               <div style={{ ...sectionStyle, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Start Date */}
                 <div>
                   <label style={labelStyle}>
                     Start Date <span style={{ color: '#ef4444' }}>*</span>
                   </label>
-                  <input type="date" value={form.startDate}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-                    style={inputStyle}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = '#f59e0b'; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; }}
-                    required />
+                  <input
+                    type="date"
+                    value={form.startDate}
+                    min={TODAY}
+                    onChange={(e) => {
+                      setForm((f) => ({ ...f, startDate: e.target.value }));
+                      setErrors((er) => ({ ...er, startDate: '' }));
+                    }}
+                    onBlur={(e) => setErrors((er) => ({ ...er, startDate: validateStartDate(e.target.value) }))}
+                    style={errors.startDate ? inputErrorStyle : inputStyle}
+                    onFocus={(e) => { if (!errors.startDate) e.currentTarget.style.borderColor = '#f59e0b'; }}
+                    required
+                  />
+                  <FieldError msg={errors.startDate} />
                 </div>
+
+                {/* Notes */}
                 <div>
-                  <label style={labelStyle}>
-                    Special Requests <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
-                  </label>
-                  <textarea value={form.notes}
-                    onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>
+                      Special Requests <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
+                    </label>
+                    <span style={{
+                      fontSize: '11px', fontWeight: 600,
+                      color: form.notes.length > NOTES_MAX ? '#ef4444' : form.notes.length > NOTES_MAX * 0.8 ? '#f59e0b' : '#9ca3af',
+                    }}>
+                      {form.notes.length}/{NOTES_MAX}
+                    </span>
+                  </div>
+                  <textarea
+                    value={form.notes}
+                    onChange={(e) => {
+                      setForm((f) => ({ ...f, notes: e.target.value }));
+                      setErrors((er) => ({ ...er, notes: validateNotes(e.target.value) }));
+                    }}
                     rows={3}
                     placeholder="Dietary requirements, accessibility needs, special preferences..."
-                    style={{ ...inputStyle, resize: 'none' }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = '#f59e0b'; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; }} />
+                    style={{ ...(errors.notes ? inputErrorStyle : inputStyle), resize: 'none' }}
+                    onFocus={(e) => { if (!errors.notes) e.currentTarget.style.borderColor = '#f59e0b'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = errors.notes ? '#ef4444' : '#e5e7eb'; }}
+                  />
+                  <FieldError msg={errors.notes} />
                 </div>
               </div>
 
@@ -463,16 +544,14 @@ export default function TourBookingPage() {
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     border: `2px dashed ${dragOver ? '#f59e0b' : '#d1d5db'}`,
                     background: dragOver ? '#fffbeb' : '#f9fafb',
-                    borderRadius: '14px', padding: '36px', cursor: 'pointer',
-                    transition: 'all 0.2s',
+                    borderRadius: '14px', padding: '36px', cursor: 'pointer', transition: 'all 0.2s',
                   }}
                   onMouseEnter={(e) => { if (!dragOver) { e.currentTarget.style.borderColor = '#fcd34d'; e.currentTarget.style.background = '#fffbeb'; } }}
                   onMouseLeave={(e) => { if (!dragOver) { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.background = '#f9fafb'; } }}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={(e) => {
-                    e.preventDefault();
-                    setDragOver(false);
+                    e.preventDefault(); setDragOver(false);
                     const file = e.dataTransfer.files[0];
                     if (file) setForm((f) => ({ ...f, slip: file }));
                   }}
@@ -540,13 +619,13 @@ export default function TourBookingPage() {
                     <p style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 700, marginBottom: '4px' }}>📌 {pkg.destination}</p>
                   )}
                   <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '20px' }}>
-                    {pkg.duration} {pkg.duration === 1 ? 'day' : 'days'} · {vehicleIcons[form.vehicle]} {form.vehicle}
+                    {form.customDuration || pkg.duration} {(form.customDuration || pkg.duration) === 1 ? 'day' : 'days'} · {vehicleIcons[form.vehicle]} {form.vehicle}
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px', borderTop: '1px solid #f3f4f6', paddingTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
                       <span>Base price</span>
-                      <span style={{ fontWeight: 600, color: '#374151' }}>${pkg.basePrice} / person</span>
+                      <span style={{ fontWeight: 600, color: '#374151' }}>LKR {pkg.basePrice} / pkg</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
                       <span>Vehicle ({form.vehicle})</span>
@@ -556,6 +635,12 @@ export default function TourBookingPage() {
                       <span>Travelers</span>
                       <span style={{ fontWeight: 600, color: '#374151' }}>×{form.travelers}</span>
                     </div>
+                    {form.customDuration && form.customDuration !== pkg.duration && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                        <span>Custom duration</span>
+                        <span style={{ fontWeight: 600, color: '#374151' }}>{form.customDuration} days</span>
+                      </div>
+                    )}
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid #f3f4f6', paddingTop: '14px', marginTop: '6px' }}>
                       <span style={{ fontWeight: 800, color: '#111827', fontSize: '16px' }}>Total</span>
@@ -563,7 +648,7 @@ export default function TourBookingPage() {
                         <span style={{ fontSize: '20px', color: '#d1d5db', fontWeight: 800 }}>Calculating…</span>
                       ) : (
                         <span style={{ fontWeight: 800, color: capacityExceeded ? '#ef4444' : '#d97706', fontSize: '26px', transition: 'color 0.3s' }}>
-                          ${totalPrice.toFixed(2)}
+                          LKR {totalPrice.toFixed(2)}
                         </span>
                       )}
                     </div>
@@ -576,6 +661,19 @@ export default function TourBookingPage() {
                       fontSize: '12px', color: '#dc2626', fontWeight: 600, textAlign: 'center',
                     }}>
                       ⚠️ Exceeds vehicle capacity ({priceData?.vehicleCapacity} max)
+                    </div>
+                  )}
+
+                  {/* Validation summary */}
+                  {(errors.startDate || errors.travelers || errors.notes) && (
+                    <div style={{
+                      marginTop: '12px', background: '#fef2f2', border: '1px solid #fecaca',
+                      borderRadius: '10px', padding: '10px 14px',
+                    }}>
+                      <p style={{ fontSize: '12px', fontWeight: 700, color: '#dc2626', marginBottom: '6px' }}>⚠️ Please fix these errors:</p>
+                      {errors.startDate && <p style={{ fontSize: '11px', color: '#dc2626', marginBottom: '2px' }}>• {errors.startDate}</p>}
+                      {errors.travelers && <p style={{ fontSize: '11px', color: '#dc2626', marginBottom: '2px' }}>• {errors.travelers}</p>}
+                      {errors.notes && <p style={{ fontSize: '11px', color: '#dc2626' }}>• {errors.notes}</p>}
                     </div>
                   )}
 

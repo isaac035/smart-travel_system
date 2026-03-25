@@ -1,8 +1,14 @@
 const TourPackage = require('../models/TourPackage');
 const TourBooking = require('../models/TourBooking');
 const { upload } = require('../config/cloudinary');
+const {
+  validateBookingInput,
+  validatePackageInput,
+  calculateTotalPrice,
+  filterPackages,
+} = require('../utils/tourValidator');
 
-// ── Package CRUD ──────────────────────────────────────────────────
+// ── Price Preview ─────────────────────────────────────────────────
 
 // POST /api/tours/calculate-price  (public — price preview only)
 exports.calculatePrice = async (req, res) => {
@@ -10,14 +16,17 @@ exports.calculatePrice = async (req, res) => {
     const { packageId, vehicle, travelers, customDuration } = req.body;
     const pkg = await TourPackage.findById(packageId);
     if (!pkg) return res.status(404).json({ message: 'Package not found' });
+
     const multiplier = pkg.vehicleMultipliers?.[vehicle] || 1;
-    const t = Math.max(1, Number(travelers) || 1);
-    // Duration-based pricing: pricePerDay = basePrice / pkg.duration; total += extra days
     const baseDur = pkg.duration || 1;
     const dur = Math.max(1, Number(customDuration) || baseDur);
+    const t = Math.max(1, Number(travelers) || 1);
     const pricePerDay = pkg.basePrice / baseDur;
     const totalPrice = pricePerDay * dur * multiplier * t;
-    const vehicleCapacity = pkg.maxTravelersByVehicle?.[vehicle] ?? (vehicle === 'car' ? 4 : vehicle === 'van' ? 8 : 50);
+    const vehicleCapacity =
+      pkg.maxTravelersByVehicle?.[vehicle] ??
+      (vehicle === 'car' ? 4 : vehicle === 'van' ? 8 : 50);
+
     res.json({
       basePrice: pkg.basePrice,
       pricePerDay,
@@ -36,13 +45,23 @@ exports.calculatePrice = async (req, res) => {
 
 // ── Package CRUD ──────────────────────────────────────────────────
 
-// GET /api/tours
+// GET /api/tours  — supports optional filter query params:
+//   ?destination=&minPrice=&maxPrice=&minDuration=&maxDuration=&vehicle=&search=
 exports.getPackages = async (req, res) => {
   try {
-    const packages = await TourPackage.find({ isActive: true })
+    const allPackages = await TourPackage.find({ isActive: true })
       .populate('locations', 'name district province')
       .populate('guideIds', 'name avatar rating');
-    res.json(packages);
+
+    // Apply optional server-side filtering
+    const { destination, minPrice, maxPrice, minDuration, maxDuration, vehicle, search } = req.query;
+    const hasFilter = destination || minPrice || maxPrice || minDuration || maxDuration || vehicle || search;
+
+    const result = hasFilter
+      ? filterPackages(allPackages.map((p) => p.toObject()), req.query)
+      : allPackages;
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -64,8 +83,13 @@ exports.getPackage = async (req, res) => {
 // POST /api/tours  (admin)
 exports.createPackage = async (req, res) => {
   try {
-    const images = req.files ? req.files.map((f) => f.path) : [];
     const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+
+    // Validate
+    const errors = validatePackageInput(body);
+    if (errors.length) return res.status(400).json({ message: errors.join(' ') });
+
+    const images = req.files ? req.files.map((f) => f.path) : [];
     const pkg = await TourPackage.create({ ...body, images });
     res.status(201).json(pkg);
   } catch (err) {
@@ -77,10 +101,16 @@ exports.createPackage = async (req, res) => {
 exports.updatePackage = async (req, res) => {
   try {
     const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+
+    // Validate
+    const errors = validatePackageInput(body);
+    if (errors.length) return res.status(400).json({ message: errors.join(' ') });
+
     const existingImages = body.existingImages || [];
     delete body.existingImages;
     const newImages = req.files ? req.files.map((f) => f.path) : [];
     body.images = [...existingImages, ...newImages];
+
     const pkg = await TourPackage.findByIdAndUpdate(req.params.id, body, { new: true });
     if (!pkg) return res.status(404).json({ message: 'Package not found' });
     res.json(pkg);
@@ -106,16 +136,19 @@ exports.deletePackage = async (req, res) => {
 exports.createBooking = async (req, res) => {
   try {
     const { packageId, vehicle, travelers, customDuration, startDate, notes } = req.body;
+
+    // Fetch package first so validator can check vehicle options & capacity
     const pkg = await TourPackage.findById(packageId);
     if (!pkg) return res.status(404).json({ message: 'Package not found' });
 
-    // Capacity validation
-    const maxForVehicle = pkg.maxTravelersByVehicle?.[vehicle] ?? (vehicle === 'car' ? 4 : vehicle === 'van' ? 8 : 50);
-    if (Number(travelers) > maxForVehicle) {
-      return res.status(400).json({
-        message: `A ${vehicle} can accommodate a maximum of ${maxForVehicle} traveler${maxForVehicle !== 1 ? 's' : ''}. Please choose a larger vehicle or reduce the number of travelers.`,
-      });
+    // Notes length limit
+    if (notes && String(notes).length > 500) {
+      return res.status(400).json({ message: 'Special requests must be 500 characters or fewer.' });
     }
+
+    // Run comprehensive validation
+    const errors = validateBookingInput(req.body, pkg);
+    if (errors.length) return res.status(400).json({ message: errors.join(' ') });
 
     const multiplier = pkg.vehicleMultipliers[vehicle] || 1;
     const baseDur = pkg.duration || 1;
@@ -129,7 +162,7 @@ exports.createBooking = async (req, res) => {
       userId: req.user._id,
       packageId,
       vehicle,
-      travelers,
+      travelers: Number(travelers),
       customDuration: dur,
       startDate,
       totalPrice,
@@ -171,6 +204,10 @@ exports.getAllBookings = async (req, res) => {
 exports.updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
+    const VALID_STATUSES = ['pending', 'confirmed', 'rejected', 'cancelled'];
+    if (!VALID_STATUSES.includes(status)) {
+      return res.status(400).json({ message: `status must be one of: ${VALID_STATUSES.join(', ')}.` });
+    }
     const booking = await TourBooking.findByIdAndUpdate(
       req.params.id,
       { status },
@@ -189,7 +226,7 @@ exports.cancelBooking = async (req, res) => {
     const booking = await TourBooking.findOne({ _id: req.params.id, userId: req.user._id });
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
     if (booking.status !== 'pending')
-      return res.status(400).json({ message: 'Only pending bookings can be cancelled' });
+      return res.status(400).json({ message: 'Only pending bookings can be cancelled.' });
     booking.status = 'cancelled';
     await booking.save();
     res.json(booking);

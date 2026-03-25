@@ -32,6 +32,7 @@ const QUICK_LINKS = [
   { to: '/services/travel-products', label: 'Shop Products', icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z' },
   { to: '/explore', label: 'Explore', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
   { to: '/explore?tab=tripplan', label: 'Trip Plans', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
+  { to: '/emergency', label: 'Emergency Support', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', emergency: true },
 ];
 
 /* ── Inline SVG icon helper ── */
@@ -302,6 +303,33 @@ export default function ProfilePage() {
                   </div>
                 ))}
               </div>
+
+              {/* ── Emergency Support Banner ── */}
+              <Link
+                to="/emergency"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  background: 'linear-gradient(135deg, #1e3a5f 0%, #dc2626 100%)',
+                  borderRadius: 16, padding: '18px 24px', textDecoration: 'none',
+                  transition: 'all 0.2s', boxShadow: '0 4px 16px rgba(220,38,38,0.2)',
+                  marginBottom: 4,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(220,38,38,0.3)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(220,38,38,0.2)'; }}
+              >
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                  background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+                }}>🚨</div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.3 }}>Emergency Support</p>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: '3px 0 0' }}>Nearby police stations &amp; hospitals on a live map</p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.7)" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
 
             </div>
           </div>

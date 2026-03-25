@@ -51,6 +51,7 @@ import AdminUsersPage from './pages/admin/AdminUsersPage';
 
 import AboutPage from './pages/about/AboutPage';
 import NotFoundPage from './pages/NotFoundPage';
+import EmergencyPage from './pages/emergency/EmergencyPage';
 
 export default function App() {
   return (
@@ -111,6 +112,7 @@ export default function App() {
 
               {/* Protected */}
               <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+              <Route path="/emergency" element={<PrivateRoute><EmergencyPage /></PrivateRoute>} />
 
               {/* Admin */}
               <Route path="/admin/login" element={<AdminLoginPage />} />

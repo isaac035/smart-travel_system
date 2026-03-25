@@ -17,10 +17,10 @@ const DURATION_OPTIONS = [
 
 const PRICE_OPTIONS = [
   { label: 'Any', icon: '💸', min: 0, max: Infinity },
-  { label: 'Under $200', icon: '🟢', min: 0, max: 199 },
-  { label: '$200–$500', icon: '🟡', min: 200, max: 500 },
-  { label: '$500–$1000', icon: '🟠', min: 500, max: 1000 },
-  { label: 'Over $1000', icon: '🔴', min: 1001, max: Infinity },
+  { label: 'Under LKR 30k', icon: '🟢', min: 0, max: 29999 },
+  { label: 'LKR 30k–75k', icon: '🟡', min: 30000, max: 75000 },
+  { label: 'LKR 75k–150k', icon: '🟠', min: 75001, max: 150000 },
+  { label: 'Over LKR 150k', icon: '🔴', min: 150001, max: Infinity },
 ];
 
 /* ─── Package Card ──────────────────────────────────────────────── */
@@ -96,8 +96,8 @@ function PackageCard({ pkg }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '16px', borderTop: '1px solid #f3f4f6' }}>
           <div>
             <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Starting from</p>
-            <p style={{ fontSize: '22px', fontWeight: 800, color: '#d97706', lineHeight: 1 }}>
-              ${pkg.basePrice}
+            <p style={{ fontSize: '18px', fontWeight: 800, color: '#d97706', lineHeight: 1 }}>
+              LKR {Number(pkg.basePrice).toLocaleString()}
               <span style={{ fontSize: '12px', fontWeight: 400, color: '#9ca3af', marginLeft: '4px' }}>/ pkg</span>
             </p>
           </div>
