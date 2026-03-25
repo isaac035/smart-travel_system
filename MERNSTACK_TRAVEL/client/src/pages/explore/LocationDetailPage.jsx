@@ -15,7 +15,7 @@ export default function LocationDetailPage() {
   useEffect(() => {
     api.get(`/locations/${id}`)
       .then((res) => setLocation(res.data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -87,6 +87,7 @@ export default function LocationDetailPage() {
             )}
           </div>
         )}
+
 
         {/* Main Content */}
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px 60px' }}>

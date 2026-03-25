@@ -85,18 +85,16 @@ export default function TripPlannerPage({ editTrip }) {
                   disabled={i > step}
                   className="flex flex-col items-center gap-1.5"
                 >
-                  <span className={`w-10 h-10 flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
-                    i <= step
+                  <span className={`w-10 h-10 flex items-center justify-center text-sm font-semibold transition-all duration-200 ${i <= step
                       ? 'bg-gray-900 text-white'
                       : 'border-2 border-gray-300 text-gray-400 bg-white'
-                  }`} style={{ borderRadius: 4 }}>
+                    }`} style={{ borderRadius: 4 }}>
                     {i < step ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                     ) : i + 1}
                   </span>
-                  <span className={`text-[11px] font-semibold uppercase tracking-wide transition-colors ${
-                    i === step ? 'text-gray-900' : i < step ? 'text-gray-700' : 'text-gray-400'
-                  }`}>{label}</span>
+                  <span className={`text-[11px] font-semibold uppercase tracking-wide transition-colors ${i === step ? 'text-gray-900' : i < step ? 'text-gray-700' : 'text-gray-400'
+                    }`}>{label}</span>
                 </button>
               ))}
             </div>
@@ -112,3 +110,4 @@ export default function TripPlannerPage({ editTrip }) {
     </div>
   );
 }
+

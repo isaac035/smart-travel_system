@@ -34,8 +34,8 @@ function CustomSelect({ value, onChange, options, placeholder }) {
               color: value === opt ? '#d97706' : '#374151', background: value === opt ? '#fffbeb' : 'transparent',
               transition: 'background 0.15s',
             }}
-            onMouseEnter={(e) => { if (value !== opt) e.currentTarget.style.background = '#f9fafb'; }}
-            onMouseLeave={(e) => { if (value !== opt) e.currentTarget.style.background = 'transparent'; }}
+              onMouseEnter={(e) => { if (value !== opt) e.currentTarget.style.background = '#f9fafb'; }}
+              onMouseLeave={(e) => { if (value !== opt) e.currentTarget.style.background = 'transparent'; }}
             >{opt}</div>
           ))}
         </div>
@@ -44,21 +44,22 @@ function CustomSelect({ value, onChange, options, placeholder }) {
   );
 }
 
-const PROVINCES = ['Central','Eastern','North Central','Northern','North Western','Sabaragamuwa','Southern','Uva','Western'];
-const DISTRICTS = ['Ampara','Anuradhapura','Badulla','Batticaloa','Colombo','Galle','Gampaha','Hambantota','Jaffna','Kalutara','Kandy','Kegalle','Kilinochchi','Kurunegala','Mannar','Matale','Matara','Monaragala','Mullaitivu','Nuwara Eliya','Polonnaruwa','Puttalam','Ratnapura','Trincomalee','Vavuniya'];
-const CATEGORIES = ['Nature','Beach','Wildlife','Historical','Religious','Hill Country','Adventure','City','Entertainment'];
+
+const PROVINCES = ['Central', 'Eastern', 'North Central', 'Northern', 'North Western', 'Sabaragamuwa', 'Southern', 'Uva', 'Western'];
+const DISTRICTS = ['Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle', 'Gampaha', 'Hambantota', 'Jaffna', 'Kalutara', 'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala', 'Mannar', 'Matale', 'Matara', 'Monaragala', 'Mullaitivu', 'Nuwara Eliya', 'Polonnaruwa', 'Puttalam', 'Ratnapura', 'Trincomalee', 'Vavuniya'];
+const CATEGORIES = ['Nature', 'Beach', 'Wildlife', 'Historical', 'Religious', 'Hill Country', 'Adventure', 'City', 'Entertainment'];
 const SUBCATEGORIES = {
-  Nature:['Mountain','Waterfall','River','Forest','Cave','Botanical Garden','Farm'],
-  Beach:['Beach','Lagoon','Island'],
-  Wildlife:['National Park','Safari','Wildlife Sanctuary'],
-  Historical:['Fort','Archaeological Site','Museum'],
-  Religious:['Temple','Church','Mosque','Kovil'],
-  'Hill Country':['Tea Estate','View Point'],
-  Adventure:['Hiking','Camping','Diving','Boat Tour'],
-  City:['Urban Attractions','Street Food Area','Shopping'],
-  Entertainment:['Zoo','Water Park and Aquarium'],
+  Nature: ['Mountain', 'Waterfall', 'River', 'Forest', 'Cave', 'Botanical Garden', 'Farm'],
+  Beach: ['Beach', 'Lagoon', 'Island'],
+  Wildlife: ['National Park', 'Safari', 'Wildlife Sanctuary'],
+  Historical: ['Fort', 'Archaeological Site', 'Museum'],
+  Religious: ['Temple', 'Church', 'Mosque', 'Kovil'],
+  'Hill Country': ['Tea Estate', 'View Point'],
+  Adventure: ['Hiking', 'Camping', 'Diving', 'Boat Tour'],
+  City: ['Urban Attractions', 'Street Food Area', 'Shopping'],
+  Entertainment: ['Zoo', 'Water Park and Aquarium'],
 };
-const EMPTY = { name:'', description:'', category:'Nature', subcategory:'', district:'', province:'', lat:'', lng:'', isActive:true };
+const EMPTY = { name: '', description: '', category: 'Nature', subcategory: '', district: '', province: '', lat: '', lng: '', isActive: true };
 
 export default function AdminLocationsPage() {
   const [locations, setLocations] = useState([]);
