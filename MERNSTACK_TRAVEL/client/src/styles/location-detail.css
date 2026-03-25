@@ -16,9 +16,10 @@
 
 
 .loc-detail-map {
-  border-radius: 18px;
+  border-radius: 14px;
   overflow: hidden;
-  height: 400px;
+  height: 480px;
+  max-width: 720px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   border: 1px solid #eee;
 }
