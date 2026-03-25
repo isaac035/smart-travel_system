@@ -4,19 +4,56 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Lock, Mail, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import loginBg from '../../assets/images/admin-login.png';
+import { validateEmail, validatePassword } from '../../utils/authValidators';
 
 
 export default function AdminLoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [submitted, setSubmitted] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const validateField = (name, value) => {
+    if (name === 'email') return validateEmail(value);
+    if (name === 'password') return validatePassword(value);
+    return '';
+  };
+
+  const validateForm = (currentForm = form) => {
+    return {
+      email: validateField('email', currentForm.email),
+      password: validateField('password', currentForm.password),
+    };
+  };
+
+  const hasErrors = (nextErrors) => Object.values(nextErrors).some(Boolean);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    if (touched[name] || submitted) {
+      setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitted(true);
+    const nextErrors = validateForm();
+    setErrors(nextErrors);
+    setTouched({ email: true, password: true });
+    if (hasErrors(nextErrors)) return;
+
     setLoading(true);
     try {
       const user = await login(form.email, form.password);
@@ -41,6 +78,7 @@ export default function AdminLoginPage() {
       setLoading(false);
     }
   };
+  const isFormValid = !hasErrors(validateForm());
 
   return (
     <div style={{
@@ -142,11 +180,16 @@ export default function AdminLoginPage() {
                     value={form.email}
                     onChange={handleChange}
                     placeholder="admin@ceyloncompass.com"
-                    required
+                    onBlur={handleBlur}
                     className="adm-login-input"
-                    style={{ paddingLeft: '42px', paddingRight: '16px' }}
+                    style={{
+                      paddingLeft: '42px',
+                      paddingRight: '16px',
+                      borderColor: errors.email ? '#ef4444' : undefined,
+                    }}
                   />
                 </div>
+                {errors.email && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.email}</p>}
               </div>
 
               {/* Password */}
@@ -168,9 +211,13 @@ export default function AdminLoginPage() {
                     value={form.password}
                     onChange={handleChange}
                     placeholder="Enter your password"
-                    required
+                    onBlur={handleBlur}
                     className="adm-login-input"
-                    style={{ paddingLeft: '42px', paddingRight: '46px' }}
+                    style={{
+                      paddingLeft: '42px',
+                      paddingRight: '46px',
+                      borderColor: errors.password ? '#ef4444' : undefined,
+                    }}
                   />
                   <button
                     type="button"
@@ -187,12 +234,13 @@ export default function AdminLoginPage() {
                     {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
                 </div>
+                {errors.password && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.password}</p>}
               </div>
 
               {/* Submit */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !isFormValid}
                 className="adm-login-btn"
               >
                 {loading ? (
