@@ -12,6 +12,7 @@ exports.getMyTrips = async (req, res) => {
   }
 };
 
+
 // GET /api/trips/:id
 exports.getTrip = async (req, res) => {
   try {
