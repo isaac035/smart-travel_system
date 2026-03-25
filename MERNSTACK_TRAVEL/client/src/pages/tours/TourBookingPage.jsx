@@ -77,6 +77,7 @@ function getRecommendedVehicle(travelers, pkg) {
 
 const NOTES_MAX = 500;
 const TODAY = new Date().toISOString().split('T')[0];
+const MAX_DURATION_DAYS = 60;
 
 export default function TourBookingPage() {
   const { id } = useParams();
@@ -101,9 +102,12 @@ export default function TourBookingPage() {
   });
 
   const [errors, setErrors] = useState({
+    customDuration: '',
     startDate: '',
+    vehicle: '',
     travelers: '',
     notes: '',
+    slip: '',
   });
 
   useEffect(() => {
@@ -141,12 +145,42 @@ export default function TourBookingPage() {
   };
 
   const validateTravelers = (value) => {
+    return validateTravelersForVehicle(value, form.vehicle);
+  };
+
+  const validateDuration = (value) => {
+    const n = Number(value);
+    if (value === '' || value === null || value === undefined || Number.isNaN(n)) {
+      return 'Enter a valid duration.';
+    }
+    if (!Number.isInteger(n) || n < 1 || n > MAX_DURATION_DAYS) {
+      return 'Enter a valid duration.';
+    }
+    return '';
+  };
+
+  const validateVehicle = (value) => {
+    if (!value) return 'Please select a vehicle.';
+    return '';
+  };
+
+  const validateSlip = (value) => {
+    if (!value) return 'Please upload your payment slip before continuing.';
+    return '';
+  };
+
+  const validateTravelersForVehicle = (value, vehicle) => {
     const n = Number(value);
     if (value === '' || value === null || value === undefined) {
       return 'Number of travelers is required.';
     }
-    if (!Number.isInteger(n) || n < 1 || n > 50) {
-      return 'Must be between 1 and 50 travelers.';
+    if (!Number.isInteger(n) || n < 1) {
+      return 'Travelers must be at least 1.';
+    }
+    const caps = { car: 4, van: 8, bus: 50, ...(pkg?.maxTravelersByVehicle || {}) };
+    const vehicleCapacity = caps[vehicle] ?? 50;
+    if (n > vehicleCapacity) {
+      return 'Travelers cannot exceed vehicle capacity.';
     }
     return '';
   };
@@ -161,6 +195,11 @@ export default function TourBookingPage() {
   const setTravelers = (val) => {
     setForm((f) => ({ ...f, travelers: val }));
     setErrors((e) => ({ ...e, travelers: validateTravelers(val) }));
+  };
+
+  const setCustomDuration = (val) => {
+    setForm((f) => ({ ...f, customDuration: val }));
+    setErrors((e) => ({ ...e, customDuration: validateDuration(val) }));
   };
 
   useEffect(() => {
@@ -251,17 +290,23 @@ export default function TourBookingPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const durationErr = validateDuration(form.customDuration || pkg.duration);
     const dateErr = validateStartDate(form.startDate);
+    const vehicleErr = validateVehicle(form.vehicle);
     const travelersErr = validateTravelers(form.travelers);
     const notesErr = validateNotes(form.notes);
+    const slipErr = validateSlip(form.slip);
 
     setErrors({
+      customDuration: durationErr,
       startDate: dateErr,
+      vehicle: vehicleErr,
       travelers: travelersErr,
       notes: notesErr,
+      slip: slipErr,
     });
 
-    if (dateErr || travelersErr || notesErr) {
+    if (durationErr || dateErr || vehicleErr || travelersErr || notesErr || slipErr) {
       toast.error('Please fix the highlighted errors before submitting.');
       return;
     }
@@ -278,7 +323,7 @@ export default function TourBookingPage() {
       fd.append('vehicle', form.vehicle);
       fd.append('travelers', String(form.travelers));
       fd.append('startDate', form.startDate);
-      fd.append('notes', form.notes);
+      fd.append('notes', form.notes.trim());
       fd.append('customDuration', String(form.customDuration || pkg.duration));
       if (form.slip) fd.append('slip', form.slip);
 
@@ -339,7 +384,7 @@ export default function TourBookingPage() {
                   {Number(form.customDuration) !== Number(pkg.duration) && (
                     <button
                       type="button"
-                      onClick={() => setForm((f) => ({ ...f, customDuration: pkg.duration }))}
+                      onClick={() => setCustomDuration(pkg.duration)}
                       style={{
                         border: 'none',
                         background: '#f3f4f6',
@@ -358,7 +403,7 @@ export default function TourBookingPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
                   <button
                     type="button"
-                    onClick={() => setForm((f) => ({ ...f, customDuration: Math.max(1, Number(f.customDuration) - 1) }))}
+                    onClick={() => setCustomDuration(Math.max(1, Number(form.customDuration) - 1))}
                     disabled={Number(form.customDuration) <= 1}
                     style={{
                       width: '44px',
@@ -389,8 +434,8 @@ export default function TourBookingPage() {
 
                   <button
                     type="button"
-                    onClick={() => setForm((f) => ({ ...f, customDuration: Math.min(60, Number(f.customDuration) + 1) }))}
-                    disabled={Number(form.customDuration) >= 60}
+                    onClick={() => setCustomDuration(Math.min(MAX_DURATION_DAYS, Number(form.customDuration) + 1))}
+                    disabled={Number(form.customDuration) >= MAX_DURATION_DAYS}
                     style={{
                       width: '44px',
                       height: '44px',
@@ -403,7 +448,7 @@ export default function TourBookingPage() {
                       fontSize: '20px',
                       fontWeight: 700,
                       color: '#374151',
-                      cursor: Number(form.customDuration) >= 60 ? 'not-allowed' : 'pointer',
+                      cursor: Number(form.customDuration) >= MAX_DURATION_DAYS ? 'not-allowed' : 'pointer',
                     }}
                   >
                     +
@@ -414,14 +459,14 @@ export default function TourBookingPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#9ca3af', marginBottom: '6px' }}>
                     <span>1 day</span>
                     <span>Base: {pkg.duration}d</span>
-                    <span>60 days</span>
+                    <span>{MAX_DURATION_DAYS} days</span>
                   </div>
                   <div style={{ height: '6px', background: '#f3f4f6', borderRadius: '99px', overflow: 'hidden' }}>
                     <div
                       style={{
                         height: '100%',
                         borderRadius: '99px',
-                        width: `${Math.min(100, (Number(form.customDuration) / 60) * 100)}%`,
+                        width: `${Math.min(100, (Number(form.customDuration) / MAX_DURATION_DAYS) * 100)}%`,
                         background:
                           Number(form.customDuration) > pkg.duration
                             ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
@@ -451,6 +496,8 @@ export default function TourBookingPage() {
                       : `📉 Shortened by ${pkg.duration - Number(form.customDuration)} day(s)`}
                   </div>
                 )}
+
+                <FieldError msg={errors.customDuration} />
               </div>
 
               <div style={sectionStyle}>
@@ -494,7 +541,7 @@ export default function TourBookingPage() {
 
                   <button
                     type="button"
-                    onClick={() => setTravelers(Math.min(50, Number(form.travelers) + 1))}
+                    onClick={() => setTravelers(Math.min(pkgCaps[form.vehicle] ?? 50, Number(form.travelers) + 1))}
                     style={{
                       width: '44px',
                       height: '44px',
@@ -515,7 +562,7 @@ export default function TourBookingPage() {
 
                   <span style={{ fontSize: '14px', color: '#6b7280', marginLeft: '4px' }}>
                     {Number(form.travelers) === 1 ? 'traveler' : 'travelers'}{' '}
-                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>(max 50)</span>
+                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>(max {pkgCaps[form.vehicle] ?? 50})</span>
                   </span>
                 </div>
 
@@ -541,7 +588,14 @@ export default function TourBookingPage() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setForm((f) => ({ ...f, vehicle: recommended }))}
+                      onClick={() => {
+                        setForm((f) => ({ ...f, vehicle: recommended }));
+                        setErrors((e) => ({
+                          ...e,
+                          vehicle: validateVehicle(recommended),
+                          travelers: validateTravelersForVehicle(form.travelers, recommended),
+                        }));
+                      }}
                       style={{
                         marginLeft: 'auto',
                         fontSize: '12px',
@@ -575,18 +629,27 @@ export default function TourBookingPage() {
                       <button
                         key={v}
                         type="button"
-                        onClick={() => setForm((f) => ({ ...f, vehicle: v }))}
+                        onClick={() => {
+                          setForm((f) => ({ ...f, vehicle: v }));
+                          setErrors((e) => ({
+                            ...e,
+                            vehicle: validateVehicle(v),
+                            travelers: validateTravelersForVehicle(form.travelers, v),
+                          }));
+                        }}
                         style={{
                           padding: '18px 12px',
                           borderRadius: '14px',
                           textAlign: 'center',
                           cursor: 'pointer',
-                          border: tooSmall
+                          border: errors.vehicle && !form.vehicle
+                            ? '2px solid #ef4444'
+                            : tooSmall
                             ? '2px solid #fca5a5'
                             : selected
                               ? '2px solid #f59e0b'
                               : '2px solid #e5e7eb',
-                          background: tooSmall ? '#fff1f2' : selected ? '#fffbeb' : '#f9fafb',
+                          background: errors.vehicle && !form.vehicle ? '#fff5f5' : tooSmall ? '#fff1f2' : selected ? '#fffbeb' : '#f9fafb',
                           boxShadow: selected ? '0 4px 15px rgba(245,158,11,0.2)' : 'none',
                           position: 'relative',
                         }}
@@ -660,6 +723,8 @@ export default function TourBookingPage() {
                     </span>
                   </div>
                 )}
+
+                <FieldError msg={errors.vehicle} />
               </div>
 
               <div style={{ ...sectionStyle, display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -722,7 +787,7 @@ export default function TourBookingPage() {
                   Payment Slip
                 </h2>
                 <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
-                  Upload your payment receipt. You can also upload this later.
+                  Upload your payment receipt before submitting your booking.
                 </p>
 
                 <label
@@ -731,8 +796,8 @@ export default function TourBookingPage() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    border: `2px dashed ${dragOver ? '#f59e0b' : '#d1d5db'}`,
-                    background: dragOver ? '#fffbeb' : '#f9fafb',
+                    border: `2px dashed ${errors.slip ? '#ef4444' : dragOver ? '#f59e0b' : '#d1d5db'}`,
+                    background: errors.slip ? '#fff5f5' : dragOver ? '#fffbeb' : '#f9fafb',
                     borderRadius: '14px',
                     padding: '36px',
                     cursor: 'pointer',
@@ -746,7 +811,10 @@ export default function TourBookingPage() {
                     e.preventDefault();
                     setDragOver(false);
                     const file = e.dataTransfer.files[0];
-                    if (file) setForm((f) => ({ ...f, slip: file }));
+                    if (file) {
+                      setForm((f) => ({ ...f, slip: file }));
+                      setErrors((er) => ({ ...er, slip: '' }));
+                    }
                   }}
                   onClick={() => fileInputRef.current?.click()}
                 >
@@ -755,7 +823,11 @@ export default function TourBookingPage() {
                     type="file"
                     accept="image/*"
                     style={{ display: 'none' }}
-                    onChange={(e) => setForm((f) => ({ ...f, slip: e.target.files?.[0] || null }))}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setForm((f) => ({ ...f, slip: file }));
+                      setErrors((er) => ({ ...er, slip: validateSlip(file) }));
+                    }}
                   />
 
                   {form.slip ? (
@@ -772,6 +844,7 @@ export default function TourBookingPage() {
                     </>
                   )}
                 </label>
+                <FieldError msg={errors.slip} />
               </div>
 
               <button
@@ -895,7 +968,7 @@ export default function TourBookingPage() {
                     </div>
                   )}
 
-                  {(errors.startDate || errors.travelers || errors.notes) && (
+                  {(errors.customDuration || errors.startDate || errors.vehicle || errors.travelers || errors.notes || errors.slip) && (
                     <div
                       style={{
                         marginTop: '12px',
