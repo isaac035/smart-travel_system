@@ -12,7 +12,7 @@ const getAvailabilityConfig = (availability, stock) => {
     return { text: 'Out of Stock', bg: 'rgba(239,68,68,0.12)', color: '#dc2626', border: 'rgba(239,68,68,0.25)', isUnavailable: true };
   }
   if (availability === 'coming_soon') {
-    return { text: 'Coming Soon', bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6', border: 'rgba(139,92,246,0.25)', isUnavailable: false };
+    return { text: 'Coming Soon', bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6', border: 'rgba(139,92,246,0.25)', isUnavailable: true };
   }
   if (availability === 'pre_order') {
     return { text: 'Pre Order', bg: 'rgba(56,189,248,0.12)', color: '#0284c7', border: 'rgba(56,189,248,0.25)', isUnavailable: false };
@@ -57,10 +57,13 @@ const ProductCard = ({ item, onAddToCart }) => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: '#d97706' }}>{formatLKR(item.price)}</span>
           <button
-            onClick={() => onAddToCart(item._id, 'product')} disabled={isUnavailable}
+            onClick={() => {
+              if (isUnavailable) return;
+              onAddToCart(item._id, 'product');
+            }} disabled={isUnavailable}
             style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: isUnavailable ? '#e5e7eb' : 'linear-gradient(135deg,#f59e0b,#d97706)', color: isUnavailable ? '#9ca3af' : '#fff', border: 'none', borderRadius: 8, cursor: isUnavailable ? 'not-allowed' : 'pointer' }}
           >
-            {isUnavailable ? 'Out' : 'Add'}
+            {isUnavailable ? 'Unavailable' : 'Add'}
           </button>
         </div>
       </div>
@@ -197,7 +200,10 @@ export default function ProductDetailsPage() {
 
               <button
                 disabled={isUnavailable}
-                onClick={() => addToCart(product._id, 'product')}
+                onClick={() => {
+                  if (isUnavailable) return;
+                  addToCart(product._id, 'product');
+                }}
                 style={{
                   marginTop: 'auto', width: '100%', padding: '16px 0', fontSize: 16, fontWeight: 700,
                   background: isUnavailable ? '#e5e7eb' : 'linear-gradient(135deg,#f59e0b,#d97706)',
@@ -207,7 +213,7 @@ export default function ProductDetailsPage() {
                 onMouseEnter={(e) => { if (!isUnavailable) e.target.style.transform = 'translateY(-2px)' }}
                 onMouseLeave={(e) => { if (!isUnavailable) e.target.style.transform = 'translateY(0)' }}
               >
-                {isUnavailable ? 'Currently Unavailable' : `Add to Cart - ${formatLKR(product.price)}`}
+                {isUnavailable ? 'Unavailable' : `Add to Cart - ${formatLKR(product.price)}`}
               </button>
             </div>
           </div>
