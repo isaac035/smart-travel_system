@@ -8,6 +8,12 @@ import AdminTabs from '../../components/AdminTabs';
 import { formatLKR } from '../../utils/currency';
 
 const EMPTY = { name: '', destination: '', description: '', duration: '', basePrice: '', vehicleOptions: ['car', 'van', 'bus'], maxTravelersByVehicle: { car: 4, van: 8, bus: 50 }, includes: '', excludes: '', isActive: true };
+const MAX_DURATION_DAYS = 60;
+const VEHICLE_LIMITS = {
+  car: { min: 1, max: 4, label: 'Car max travelers' },
+  van: { min: 1, max: 15, label: 'Van max travelers' },
+  bus: { min: 1, max: 50, label: 'Bus max travelers' },
+};
 
 export default function AdminToursPage() {
   /* ── shared state ── */
@@ -26,6 +32,7 @@ export default function AdminToursPage() {
   const [images, setImages] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
   const [locSearch, setLocSearch] = useState('');
   const [guideSearch, setGuideSearch] = useState('');
   const [search, setSearch] = useState('');
@@ -60,24 +67,105 @@ export default function AdminToursPage() {
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 
-  const openCreate = () => { setForm(EMPTY); setSelectedLocations([]); setSelectedGuides([]); setImages([]); setExistingImages([]); setEditId(null); setLocSearch(''); setGuideSearch(''); setShowForm(true); };
+  const openCreate = () => { setForm(EMPTY); setSelectedLocations([]); setSelectedGuides([]); setImages([]); setExistingImages([]); setEditId(null); setFormErrors({}); setLocSearch(''); setGuideSearch(''); setShowForm(true); };
   const openEdit = (pkg) => {
     setForm({ name: pkg.name, destination: pkg.destination || '', description: pkg.description, duration: pkg.duration, basePrice: pkg.basePrice, vehicleOptions: pkg.vehicleOptions || ['car', 'van', 'bus'], maxTravelersByVehicle: pkg.maxTravelersByVehicle || { car: 4, van: 8, bus: 50 }, includes: (pkg.includes || []).join('\n'), excludes: (pkg.excludes || []).join('\n'), isActive: pkg.isActive ?? true });
     setSelectedLocations((pkg.locations || []).map((l) => l._id || l));
     setSelectedGuides((pkg.guideIds || []).map((g) => g._id || g));
-    setExistingImages(pkg.images || []); setImages([]); setEditId(pkg._id); setLocSearch(''); setGuideSearch(''); setShowForm(true);
+    setExistingImages(pkg.images || []); setImages([]); setEditId(pkg._id); setFormErrors({}); setLocSearch(''); setGuideSearch(''); setShowForm(true);
   };
-  const closeForm = () => { setShowForm(false); setEditId(null); };
+  const closeForm = () => { setShowForm(false); setEditId(null); setFormErrors({}); };
 
-  const toggleVehicle = (v) => setForm((p) => ({ ...p, vehicleOptions: p.vehicleOptions.includes(v) ? p.vehicleOptions.filter((x) => x !== v) : [...p.vehicleOptions, v] }));
-  const toggleLoc = (id) => setSelectedLocations((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+  const trimText = (value) => (typeof value === 'string' ? value.trim() : '');
+  const splitLines = (value) => trimText(value).split('\n').map((s) => s.trim()).filter(Boolean);
+  const getFieldStyle = (field) => (formErrors[field] ? { borderColor: '#ef4444', background: '#fff5f5' } : {});
+  const getErrorText = (field) => formErrors[field] ? <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{formErrors[field]}</p> : null;
+
+  const validateRequiredText = (value, label) => (trimText(value) ? '' : `${label} is required`);
+  const validateDurationField = (value) => {
+    if (value === '' || value === null || value === undefined) return 'Enter a valid duration';
+    const num = Number(value);
+    if (!Number.isInteger(num) || num < 1 || num > MAX_DURATION_DAYS) return 'Enter a valid duration';
+    return '';
+  };
+  const validateBasePriceField = (value) => {
+    if (value === '' || value === null || value === undefined) return 'Enter a valid base price';
+    const num = Number(value);
+    if (Number.isNaN(num) || num <= 0) return 'Enter a valid base price';
+    return '';
+  };
+  const validateVehicleCapacityField = (vehicle, value) => {
+    const { min, max, label } = VEHICLE_LIMITS[vehicle];
+    if (value === '' || value === null || value === undefined) return `${label} is required`;
+    const num = Number(value);
+    if (!Number.isInteger(num) || num < min || num > max) return `${label} must be between ${min} and ${max}`;
+    return '';
+  };
+  const validateTourField = (field, currentForm = form, currentLocations = selectedLocations) => {
+    switch (field) {
+      case 'name': return validateRequiredText(currentForm.name, 'Package name');
+      case 'destination': return validateRequiredText(currentForm.destination, 'Destination');
+      case 'duration': return validateDurationField(currentForm.duration);
+      case 'basePrice': return validateBasePriceField(currentForm.basePrice);
+      case 'vehicleOptions': return currentForm.vehicleOptions.length ? '' : 'Please select at least one vehicle';
+      case 'locations': return currentLocations.length ? '' : 'Please select at least one location';
+      case 'description': return validateRequiredText(currentForm.description, 'Description');
+      case 'includes': return validateRequiredText(currentForm.includes, 'Includes field');
+      case 'excludes': return validateRequiredText(currentForm.excludes, 'Excludes field');
+      case 'car':
+      case 'van':
+      case 'bus':
+        return currentForm.vehicleOptions.includes(field) ? validateVehicleCapacityField(field, currentForm.maxTravelersByVehicle[field]) : '';
+      default: return '';
+    }
+  };
+  const validateTourForm = (currentForm = form, currentLocations = selectedLocations) => ({
+    name: validateTourField('name', currentForm, currentLocations),
+    destination: validateTourField('destination', currentForm, currentLocations),
+    duration: validateTourField('duration', currentForm, currentLocations),
+    basePrice: validateTourField('basePrice', currentForm, currentLocations),
+    vehicleOptions: validateTourField('vehicleOptions', currentForm, currentLocations),
+    car: validateTourField('car', currentForm, currentLocations),
+    van: validateTourField('van', currentForm, currentLocations),
+    bus: validateTourField('bus', currentForm, currentLocations),
+    locations: validateTourField('locations', currentForm, currentLocations),
+    description: validateTourField('description', currentForm, currentLocations),
+    includes: validateTourField('includes', currentForm, currentLocations),
+    excludes: validateTourField('excludes', currentForm, currentLocations),
+  });
+  const hasFormErrors = (errors) => Object.values(errors).some(Boolean);
+
+  const toggleVehicle = (v) => {
+    const nextOptions = form.vehicleOptions.includes(v) ? form.vehicleOptions.filter((x) => x !== v) : [...form.vehicleOptions, v];
+    const nextForm = { ...form, vehicleOptions: nextOptions };
+    setForm(nextForm);
+    setFormErrors((prev) => ({
+      ...prev,
+      vehicleOptions: validateTourField('vehicleOptions', nextForm),
+      car: validateTourField('car', nextForm),
+      van: validateTourField('van', nextForm),
+      bus: validateTourField('bus', nextForm),
+    }));
+  };
+  const toggleLoc = (id) => {
+    const nextLocations = selectedLocations.includes(id) ? selectedLocations.filter((x) => x !== id) : [...selectedLocations, id];
+    setSelectedLocations(nextLocations);
+    setFormErrors((prev) => ({ ...prev, locations: validateTourField('locations', form, nextLocations) }));
+  };
   const toggleGuide = (id) => setSelectedGuides((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
 
   const handleSave = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    const errors = validateTourForm();
+    setFormErrors(errors);
+    if (hasFormErrors(errors)) {
+      toast.error('Please fix the errors before submitting');
+      return;
+    }
+    setSaving(true);
     try {
       const fd = new FormData();
-      const payload = { name: form.name, destination: form.destination, description: form.description, duration: Number(form.duration), basePrice: Number(form.basePrice), vehicleOptions: form.vehicleOptions, maxTravelersByVehicle: { car: Number(form.maxTravelersByVehicle.car) || 4, van: Number(form.maxTravelersByVehicle.van) || 8, bus: Number(form.maxTravelersByVehicle.bus) || 50 }, locations: selectedLocations, guideIds: selectedGuides, includes: form.includes.split('\n').map((s) => s.trim()).filter(Boolean), excludes: form.excludes.split('\n').map((s) => s.trim()).filter(Boolean), isActive: form.isActive };
+      const payload = { name: trimText(form.name), destination: trimText(form.destination), description: trimText(form.description), duration: Number(form.duration), basePrice: Number(form.basePrice), vehicleOptions: form.vehicleOptions, maxTravelersByVehicle: { car: Number(form.maxTravelersByVehicle.car), van: Number(form.maxTravelersByVehicle.van), bus: Number(form.maxTravelersByVehicle.bus) }, locations: selectedLocations, guideIds: selectedGuides, includes: splitLines(form.includes), excludes: splitLines(form.excludes), isActive: form.isActive };
       if (editId) payload.existingImages = existingImages;
       fd.append('data', JSON.stringify(payload));
       images.forEach((f) => fd.append('images', f));
@@ -94,7 +182,17 @@ export default function AdminToursPage() {
     try { await api.delete(`/tours/${id}`); setPackages((p) => p.filter((pkg) => pkg._id !== id)); toast.success('Deleted'); } catch { toast.error('Failed'); }
   };
 
-  const f = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const f = (k) => (e) => {
+    const value = e.target.value;
+    const nextForm = { ...form, [k]: value };
+    setForm(nextForm);
+    setFormErrors((prev) => ({ ...prev, [k]: validateTourField(k, nextForm) }));
+  };
+  const handleVehicleCapacityChange = (vehicle, value) => {
+    const nextForm = { ...form, maxTravelersByVehicle: { ...form.maxTravelersByVehicle, [vehicle]: value } };
+    setForm(nextForm);
+    setFormErrors((prev) => ({ ...prev, [vehicle]: validateTourField(vehicle, nextForm) }));
+  };
 
   /* ── bookings logic ── */
   const pendingBookingsCount = bookings.filter(b => b.status === 'pending').length;
@@ -145,21 +243,22 @@ export default function AdminToursPage() {
       <div className="p-4 sm:p-6 lg:p-8" style={{ minWidth: 0, overflow: 'hidden' }}>
         <AdminDrawer open={showForm} onClose={closeForm} title={editId ? 'Edit Package' : 'Add New Package'} saving={saving} onSubmit={handleSave} submitLabel={editId ? 'Update Package' : 'Create Package'}>
           <div className="field-row cols-4">
-            <div className="field"><label>Package Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter package name" className="adm-input" /></div>
-            <div className="field"><label>Destination</label><input value={form.destination} onChange={f('destination')} placeholder="e.g. Nuwara Eliya" className="adm-input" /></div>
-            <div className="field"><label>Duration (days)</label><input type="number" min={1} value={form.duration} onChange={f('duration')} placeholder="3" className="adm-input" /></div>
-            <div className="field"><label>Base Price (LKR)</label><input type="number" value={form.basePrice} onChange={f('basePrice')} placeholder="299" className="adm-input" /></div>
+            <div className="field"><label>Package Name *</label><input required value={form.name} onChange={f('name')} onBlur={() => setFormErrors((prev) => ({ ...prev, name: validateTourField('name') }))} placeholder="Enter package name" className="adm-input" style={getFieldStyle('name')} />{getErrorText('name')}</div>
+            <div className="field"><label>Destination *</label><input value={form.destination} onChange={f('destination')} onBlur={() => setFormErrors((prev) => ({ ...prev, destination: validateTourField('destination') }))} placeholder="e.g. Nuwara Eliya" className="adm-input" style={getFieldStyle('destination')} />{getErrorText('destination')}</div>
+            <div className="field"><label>Duration (days) *</label><input type="number" min={1} max={MAX_DURATION_DAYS} value={form.duration} onChange={f('duration')} onBlur={() => setFormErrors((prev) => ({ ...prev, duration: validateTourField('duration') }))} placeholder="3" className="adm-input" style={getFieldStyle('duration')} />{getErrorText('duration')}</div>
+            <div className="field"><label>Base Price (LKR) *</label><input type="number" min={0.01} step="0.01" value={form.basePrice} onChange={f('basePrice')} onBlur={() => setFormErrors((prev) => ({ ...prev, basePrice: validateTourField('basePrice') }))} placeholder="299" className="adm-input" style={getFieldStyle('basePrice')} />{getErrorText('basePrice')}</div>
             <div className="field">
-              <label>Vehicles</label>
+              <label>Vehicles *</label>
               <div className="flex gap-2">{['car', 'van', 'bus'].map((v) => (<button key={v} type="button" onClick={() => toggleVehicle(v)} className={`adm-vehicle-btn ${form.vehicleOptions.includes(v) ? 'active' : ''}`}>{v}</button>))}</div>
+              {getErrorText('vehicleOptions')}
             </div>
-            <div className="field"><label>Car max travelers</label><input type="number" min={1} value={form.maxTravelersByVehicle.car} onChange={(e) => setForm(p => ({ ...p, maxTravelersByVehicle: { ...p.maxTravelersByVehicle, car: e.target.value } }))} className="adm-input" /></div>
-            <div className="field"><label>Van max travelers</label><input type="number" min={1} value={form.maxTravelersByVehicle.van} onChange={(e) => setForm(p => ({ ...p, maxTravelersByVehicle: { ...p.maxTravelersByVehicle, van: e.target.value } }))} className="adm-input" /></div>
-            <div className="field"><label>Bus max travelers</label><input type="number" min={1} value={form.maxTravelersByVehicle.bus} onChange={(e) => setForm(p => ({ ...p, maxTravelersByVehicle: { ...p.maxTravelersByVehicle, bus: e.target.value } }))} className="adm-input" /></div>
+            <div className="field"><label>Car max travelers</label><input type="number" min={VEHICLE_LIMITS.car.min} max={VEHICLE_LIMITS.car.max} value={form.maxTravelersByVehicle.car} onChange={(e) => handleVehicleCapacityChange('car', e.target.value)} onBlur={() => setFormErrors((prev) => ({ ...prev, car: validateTourField('car') }))} className="adm-input" style={getFieldStyle('car')} />{getErrorText('car')}</div>
+            <div className="field"><label>Van max travelers</label><input type="number" min={VEHICLE_LIMITS.van.min} max={VEHICLE_LIMITS.van.max} value={form.maxTravelersByVehicle.van} onChange={(e) => handleVehicleCapacityChange('van', e.target.value)} onBlur={() => setFormErrors((prev) => ({ ...prev, van: validateTourField('van') }))} className="adm-input" style={getFieldStyle('van')} />{getErrorText('van')}</div>
+            <div className="field"><label>Bus max travelers</label><input type="number" min={VEHICLE_LIMITS.bus.min} max={VEHICLE_LIMITS.bus.max} value={form.maxTravelersByVehicle.bus} onChange={(e) => handleVehicleCapacityChange('bus', e.target.value)} onBlur={() => setFormErrors((prev) => ({ ...prev, bus: validateTourField('bus') }))} className="adm-input" style={getFieldStyle('bus')} />{getErrorText('bus')}</div>
           </div>
           <div className="field-row cols-2">
             <div className="field">
-              <label>Locations ({selectedLocations.length})</label>
+              <label>Locations ({selectedLocations.length}) *</label>
               {selectedLocations.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
                   {selectedLocations.map(id => {
@@ -173,11 +272,12 @@ export default function AdminToursPage() {
                 </div>
               )}
               <input value={locSearch} onChange={e => setLocSearch(e.target.value)} placeholder="Search locations..." className="adm-input" style={{ marginBottom: 5, fontSize: 12 }} />
-              <div className="adm-checklist" style={{ maxHeight: 100 }}>
+              <div className="adm-checklist" style={{ maxHeight: 100, border: formErrors.locations ? '1px solid #fca5a5' : undefined, borderRadius: formErrors.locations ? 12 : undefined, background: formErrors.locations ? '#fff5f5' : undefined }}>
                 {locations.filter(l => l.name.toLowerCase().includes(locSearch.toLowerCase()) || (l.district || '').toLowerCase().includes(locSearch.toLowerCase())).map((l) => (
                   <label key={l._id} className={selectedLocations.includes(l._id) ? 'selected' : ''}><input type="checkbox" checked={selectedLocations.includes(l._id)} onChange={() => toggleLoc(l._id)} />{l.name}{l.district ? ` - ${l.district}` : ''}</label>
                 ))}
               </div>
+              {getErrorText('locations')}
             </div>
             <div className="field">
               <label>Guides ({selectedGuides.length})</label>
@@ -202,9 +302,9 @@ export default function AdminToursPage() {
             </div>
           </div>
           <div className="field-row cols-3">
-            <div className="field"><label>Includes (one per line)</label><textarea value={form.includes} onChange={f('includes')} rows={3} placeholder={"Accommodation\nMeals\nTransport"} className="adm-textarea" /></div>
-            <div className="field"><label>Excludes (one per line)</label><textarea value={form.excludes} onChange={f('excludes')} rows={3} placeholder={"Air tickets\nPersonal expenses"} className="adm-textarea" /></div>
-            <div className="field"><label>Description</label><textarea value={form.description} onChange={f('description')} rows={3} placeholder="Describe this tour package..." className="adm-textarea" /></div>
+            <div className="field"><label>Includes (one per line) *</label><textarea value={form.includes} onChange={f('includes')} onBlur={() => setFormErrors((prev) => ({ ...prev, includes: validateTourField('includes') }))} rows={3} placeholder={"Accommodation\nMeals\nTransport"} className="adm-textarea" style={getFieldStyle('includes')} />{getErrorText('includes')}</div>
+            <div className="field"><label>Excludes (one per line) *</label><textarea value={form.excludes} onChange={f('excludes')} onBlur={() => setFormErrors((prev) => ({ ...prev, excludes: validateTourField('excludes') }))} rows={3} placeholder={"Air tickets\nPersonal expenses"} className="adm-textarea" style={getFieldStyle('excludes')} />{getErrorText('excludes')}</div>
+            <div className="field"><label>Description *</label><textarea value={form.description} onChange={f('description')} onBlur={() => setFormErrors((prev) => ({ ...prev, description: validateTourField('description') }))} rows={3} placeholder="Describe this tour package..." className="adm-textarea" style={getFieldStyle('description')} />{getErrorText('description')}</div>
           </div>
           <div className="field-row cols-2">
             <div className="flex items-center gap-3">
