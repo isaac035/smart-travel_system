@@ -4,6 +4,7 @@ const axios = require('axios');
 
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
 
+
 // @route GET /api/weather?city=Colombo
 router.get('/', async (req, res) => {
   try {

@@ -7,6 +7,7 @@ import { Search, Cloud, Droplets, Wind, Eye, Thermometer, MapPin, Clock, ArrowLe
 import 'leaflet/dist/leaflet.css';
 import '../../styles/weather.css';
 
+
 /* ─── 25 Districts ─── */
 const DISTRICTS = [
   { name: 'Colombo', lat: 6.9271, lng: 79.8612 },
