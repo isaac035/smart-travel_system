@@ -44,7 +44,7 @@ export default function CategoryPage() {
     api
       .get(`/locations?category=${encodeURIComponent(categoryName)}`)
       .then((res) => setLocations(res.data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [categoryName]);
 
@@ -66,6 +66,7 @@ export default function CategoryPage() {
           {categoryName}
         </h1>
       </div>
+
 
       {/* Subcategory pill tabs */}
       {subcategories.length > 0 && (

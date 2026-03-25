@@ -10,7 +10,7 @@ const CATEGORIES = [
   { name: 'Entertainment', icon: '🎡' },
 ];
 
-const DAY_COLORS = ['#f59e0b','#3b82f6','#10b981','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#f43f5e'];
+const DAY_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#f43f5e'];
 
 const pinIcon = (selected, dayColor) =>
   L.divIcon({
@@ -32,7 +32,7 @@ const startIcon = L.divIcon({
 function MapFitter({ coords }) {
   const map = useMap();
   useEffect(() => {
-    if (coords.length > 0) { map.fitBounds(L.latLngBounds(coords.map(c => [c.lat, c.lng])), { padding: [40,40] }); }
+    if (coords.length > 0) { map.fitBounds(L.latLngBounds(coords.map(c => [c.lat, c.lng])), { padding: [40, 40] }); }
   }, [coords, map]);
   return null;
 }
@@ -44,7 +44,7 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
   const [category, setCategory] = useState('All');
   const [activeDay, setActiveDay] = useState(1);
 
-  useEffect(() => { api.get('/locations').then(r => setLocations(r.data)).catch(() => {}).finally(() => setLoading(false)); }, []);
+  useEffect(() => { api.get('/locations').then(r => setLocations(r.data)).catch(() => { }).finally(() => setLoading(false)); }, []);
   useEffect(() => {
     if (config.totalDays > 0) {
       setLocationsByDay(prev => {
@@ -107,9 +107,8 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
           const color = DAY_COLORS[(d - 1) % DAY_COLORS.length];
           return (
             <button key={d} onClick={() => setActiveDay(d)}
-              className={`shrink-0 h-10 px-4 flex items-center gap-2 text-[13px] font-semibold rounded transition-all ${
-                active ? 'text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
-              }`}
+              className={`shrink-0 h-10 px-4 flex items-center gap-2 text-[13px] font-semibold rounded transition-all ${active ? 'text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
+                }`}
               style={active ? { backgroundColor: color } : {}}
             >
               Day {d}
@@ -118,6 +117,7 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
           );
         })}
       </div>
+
 
       {/* Active day indicator */}
       <div className="flex items-center gap-2 text-sm" style={{ color: DAY_COLORS[(activeDay - 1) % DAY_COLORS.length] }}>
@@ -144,7 +144,7 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
                     </div>
                     <span className="text-sm font-medium text-gray-900 truncate flex-1">{loc.name}</span>
                     <button onClick={() => removeFromDay(loc._id, activeDay)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
                 ))}
@@ -154,7 +154,7 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
 
           {/* Search */}
           <div className="relative">
-            <svg className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <svg className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             <input type="text" placeholder="Search destinations..." value={search} onChange={e => setSearch(e.target.value)}
               className="w-full h-11 pl-10 pr-4 bg-white border border-gray-300 rounded text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-shadow" />
           </div>
@@ -163,9 +163,8 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             {CATEGORIES.map(c => (
               <button key={c.name} onClick={() => setCategory(c.name)}
-                className={`shrink-0 h-8 px-3 flex items-center gap-1 text-[12px] font-medium rounded-full transition-colors ${
-                  category === c.name ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
-                }`}>
+                className={`shrink-0 h-8 px-3 flex items-center gap-1 text-[12px] font-medium rounded-full transition-colors ${category === c.name ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
+                  }`}>
                 <span className="text-sm">{c.icon}</span> {c.name}
               </button>
             ))}
@@ -187,9 +186,8 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
               const dc = assigned ? DAY_COLORS[(ad - 1) % DAY_COLORS.length] : null;
               return (
                 <button key={loc._id} onClick={() => toggle(loc)}
-                  className={`w-full flex items-center gap-3 p-3 rounded text-left transition-all duration-150 ${
-                    onActive ? 'bg-gray-50 ring-2' : assigned ? 'bg-gray-50' : 'bg-white hover:bg-gray-50 border border-gray-100'
-                  }`}
+                  className={`w-full flex items-center gap-3 p-3 rounded text-left transition-all duration-150 ${onActive ? 'bg-gray-50 ring-2' : assigned ? 'bg-gray-50' : 'bg-white hover:bg-gray-50 border border-gray-100'
+                    }`}
                   style={onActive ? { ringColor: dc, borderColor: dc } : assigned ? { borderLeft: `3px solid ${dc}` } : {}}
                 >
                   <div className="w-12 h-12 rounded overflow-hidden shrink-0 bg-gray-100">
@@ -203,7 +201,7 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
                     <span className="h-6 px-2 text-[11px] font-bold text-white rounded shrink-0" style={{ backgroundColor: dc }}>Day {ad}</span>
                   ) : (
                     <span className="w-7 h-7 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-300 shrink-0">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                     </span>
                   )}
                 </button>
@@ -221,7 +219,7 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
             </div>
             <MapContainer center={[7.8731, 80.7718]} zoom={8} style={{ height: 'calc(100% - 44px)', width: '100%' }}>
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              {config.startPoint && <Marker position={[config.startPoint.lat, config.startPoint.lng]} icon={startIcon}><Popup><strong>Start</strong><br/>{config.startPoint.name}</Popup></Marker>}
+              {config.startPoint && <Marker position={[config.startPoint.lat, config.startPoint.lng]} icon={startIcon}><Popup><strong>Start</strong><br />{config.startPoint.name}</Popup></Marker>}
               {locations.filter(l => l.coordinates?.lat).map(loc => {
                 const ad = getDay(loc._id);
                 const dc = ad ? DAY_COLORS[(ad - 1) % DAY_COLORS.length] : null;
@@ -230,7 +228,7 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
                     <Popup>
                       <div style={{ width: 200 }}>
                         {loc.images?.[0] && <img src={loc.images[0]} alt={loc.name} style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 8, marginBottom: 6 }} />}
-                        <strong style={{ fontSize: 13 }}>{loc.name}</strong><br/>
+                        <strong style={{ fontSize: 13 }}>{loc.name}</strong><br />
                         <span style={{ fontSize: 11, color: '#6b7280' }}>{loc.district} · {loc.category}</span>
                         {ad && <div style={{ marginTop: 4 }}><span style={{ fontSize: 11, fontWeight: 600, color: dc }}>Day {ad}</span></div>}
                       </div>
