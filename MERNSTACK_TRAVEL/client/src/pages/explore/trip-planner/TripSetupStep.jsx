@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import api from '../../../utils/api';
 
 /* ── Map Icons ── */
 const userIcon = L.divIcon({
@@ -17,6 +18,108 @@ const startIcon = L.divIcon({
 function MapClickHandler({ onMapClick }) {
   useMapEvents({ click: (e) => onMapClick(e.latlng) });
   return null;
+}
+
+/* ── Location Search (Sri Lanka) ── */
+function LocationSearch({ onSelect }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const search = useCallback((q) => {
+    if (q.trim().length < 2) { setResults([]); setOpen(false); return; }
+    setLoading(true);
+    api.get(`/locations/geocode?q=${encodeURIComponent(q)}`)
+      .then(res => {
+        setResults(res.data.map(item => ({
+          name: item.display_name.split(',').slice(0, 2).join(','),
+          fullName: item.display_name,
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+        })));
+        setOpen(true);
+        setLoading(false);
+      })
+      .catch(() => { setLoading(false); });
+  }, []);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => search(val), 400);
+  };
+
+  const pick = (item) => {
+    onSelect({ lat: item.lat, lng: item.lng, name: item.name });
+    setQuery(item.name);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+      <div className="flex items-center h-10 px-4 rounded-full border border-gray-300 bg-white hover:border-gray-900 transition-colors" style={{ gap: '8px' }}>
+        <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" /></svg>
+        <input
+          type="text"
+          value={query}
+          onChange={handleChange}
+          placeholder="Search a place in Sri Lanka..."
+          className="flex-1 bg-transparent border-none outline-none text-[13px] text-gray-900 placeholder-gray-400"
+        />
+        {loading && (
+          <svg className="w-3.5 h-3.5 text-gray-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+        )}
+        {query && !loading && (
+          <button type="button" onClick={() => { setQuery(''); setResults([]); setOpen(false); }} className="shrink-0" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        )}
+      </div>
+      {open && results.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '6px', zIndex: 50,
+          background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.12)', maxHeight: '240px', overflowY: 'auto',
+        }}>
+          {results.map((item, i) => (
+            <button key={i} type="button" onClick={() => pick(item)} className="w-full text-left" style={{
+              display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px',
+              borderBottom: i < results.length - 1 ? '1px solid #f3f4f6' : 'none',
+              background: 'transparent', border: 'none', cursor: 'pointer', transition: 'background 0.15s',
+            }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: '#111827', margin: 0 }}>{item.name}</p>
+                <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.fullName}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && query.trim().length >= 2 && results.length === 0 && !loading && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '6px', zIndex: 50,
+          background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.12)', padding: '16px', textAlign: 'center',
+        }}>
+          <p style={{ fontSize: '13px', color: '#9ca3af', margin: 0 }}>No places found</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ── Helpers ── */
@@ -74,7 +177,7 @@ function DateRangePicker({ startDate, endDate, onDateChange }) {
       const past = date < today;
       const isS = same(date, startDate), isE = same(date, endDate);
       const inRange = startDate && endDate && date > startDate && date < endDate;
-      const inHover = picking && startDate && !endDate && hover && date > startDate && date <= hover;
+      const inHover = picking && startDate && !endDate && hover && date >= startDate && date <= hover;
       const isToday = same(date, today);
 
       let base = 'relative w-8 h-8 flex items-center justify-center text-[12px] transition-all duration-100 ';
@@ -118,10 +221,10 @@ function DateRangePicker({ startDate, endDate, onDateChange }) {
     <div className="space-y-8" >
       {/* Quick select */}
       <div className="flex items-center gap-2 flex-wrap">
-        {[3, 5, 7, 10, 14].map(n => (
+        {[1, 3, 5, 7, 10, 14].map(n => (
           <button key={n} onClick={() => quick(n)}
             className="h-9 px-5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm hover:border-amber-400 hover:bg-amber-50 hover:text-gray-900 transition">
-            {n} days
+            {n} {n === 1 ? 'day' : 'days'}
           </button>
         ))}
       </div>
@@ -146,7 +249,7 @@ function DateRangePicker({ startDate, endDate, onDateChange }) {
         {/* Footer */}
         {picking && startDate && !endDate && (
           <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 text-center">
-            <p className="text-sm text-gray-500">Select your check-out date</p>
+            <p className="text-sm text-gray-500">Select your end date (click same date for a 1-day trip)</p>
           </div>
         )}
         {startDate && endDate && (
@@ -222,7 +325,7 @@ export default function TripSetupStep({ config, setConfig, onNext }) {
           <div style={{ padding: '6px 40px' }}>
             <label className="block text-[13px] font-semibold text-gray-900 uppercase tracking-wide mb-3">Where will you start?</label>
 
-            <div className="flex flex-wrap gap-3 mb-6">
+            <div className="flex flex-wrap items-center gap-3 mb-6">
               <button
                 onClick={detect}
                 disabled={detecting}
@@ -231,6 +334,8 @@ export default function TripSetupStep({ config, setConfig, onNext }) {
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4m10-10h-4M6 12H2" /></svg>
                 {detecting ? 'Detecting...' : 'Current location'}
               </button>
+              <span className="text-[13px] text-gray-300">or</span>
+              <LocationSearch onSelect={(loc) => setConfig(prev => ({ ...prev, startPoint: loc }))} />
             </div>
 
             {config.startPoint && (

@@ -6,6 +6,50 @@ import api from '../../utils/api';
 import Layout from '../../components/Layout';
 import '../../styles/location-detail.css';
 
+function DescriptionBlock({ html }) {
+  const [expanded, setExpanded] = useState(false);
+  const MAX_HEIGHT = 220;
+
+  return (
+    <div>
+      <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#222', marginBottom: '12px' }}>About this place</h2>
+      <div style={{ position: 'relative' }}>
+        <div
+          className="location-description"
+          style={{
+            color: '#555', fontSize: '15px', lineHeight: '1.8',
+            maxHeight: expanded ? 'none' : MAX_HEIGHT,
+            overflow: 'hidden',
+            transition: 'max-height 0.4s ease',
+          }}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+        {!expanded && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: 80,
+            background: 'linear-gradient(transparent, #fff)',
+            pointerEvents: 'none',
+          }} />
+        )}
+      </div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          marginTop: 8, background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 14, fontWeight: 600, color: '#d97706', padding: '4px 0',
+          display: 'flex', alignItems: 'center', gap: 4,
+        }}
+      >
+        {expanded ? 'Show less' : 'Read more'}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 export default function LocationDetailPage() {
   const { id } = useParams();
   const [location, setLocation] = useState(null);
@@ -138,12 +182,7 @@ export default function LocationDetailPage() {
               </div>
 
               {/* Description */}
-              <div>
-                <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#222', marginBottom: '12px' }}>About this place</h2>
-                <p style={{ color: '#555', fontSize: '15px', lineHeight: '1.8', margin: 0 }}>
-                  {location.description}
-                </p>
-              </div>
+              <DescriptionBlock html={location.description} />
             </div>
 
             {/* Right: Info card */}
@@ -220,20 +259,34 @@ export default function LocationDetailPage() {
 
           {/* Map Section */}
           {location.coordinates?.lat && (
-            <div style={{ marginTop: '48px' }}>
+            <div style={{ marginTop: '48px', maxWidth: 720 }}>
               <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#222', marginBottom: '16px' }}>Location on Map</h2>
-              <div className="loc-detail-map">
-                <MapContainer
-                  center={[location.coordinates.lat, location.coordinates.lng]}
-                  zoom={13}
-                  style={{ height: '100%', width: '100%' }}
-                >
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <Marker position={[location.coordinates.lat, location.coordinates.lng]}>
-                    <Popup>{location.name}</Popup>
-                  </Marker>
-                </MapContainer>
-              </div>
+              {location.coordinates?.lat && (
+                <div className="loc-detail-map">
+                  <MapContainer
+                    center={[7.8731, 80.7718]}
+                    zoom={7}
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <Marker position={[location.coordinates.lat, location.coordinates.lng]}>
+                      <Popup>
+                        <div style={{ width: 220, fontFamily: 'system-ui, sans-serif' }}>
+                          {location.mapImage && (
+                            <div style={{ borderRadius: 8, overflow: 'hidden', marginBottom: 10 }}>
+                              <img src={location.mapImage} alt={`${location.name} map`} style={{
+                                width: '100%', height: 140, objectFit: 'cover', display: 'block',
+                              }} />
+                            </div>
+                          )}
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>{location.name}</p>
+                          <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>{location.district} · {location.category}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                </div>
+              )}
             </div>
           )}
         </div>
