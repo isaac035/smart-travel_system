@@ -3,6 +3,14 @@ import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
 import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
+import {
+  validateName,
+  validateEmail,
+  validatePhone,
+  validateNumber,
+  normalizeValue,
+  isAllowedNumericKey,
+} from '../../utils/guideValidation';
 import { Plus, Pencil, Trash2, Compass, Upload, Search, ClipboardList, CheckCircle, XCircle, Calendar, MapPin, Users, DollarSign, Clock, Eye, ShieldCheck, RefreshCw, ArrowRight, AlertTriangle, Ban, FileText, X, UserCheck, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
 import { formatLKR } from '../../utils/currency';
@@ -82,6 +90,8 @@ export default function AdminGuidesPage() {
   const [avatar, setAvatar] = useState(null);
   const [existingAvatar, setExistingAvatar] = useState('');
   const [saving, setSaving] = useState(false);
+  const [guideFormErrors, setGuideFormErrors] = useState({});
+  const [guideFormTouched, setGuideFormTouched] = useState({});
   const [search, setSearch] = useState('');
   const [availFilter, setAvailFilter] = useState('all');
   const [page, setPage] = useState(1);
@@ -120,19 +130,89 @@ export default function AdminGuidesPage() {
   };
 
   // === Guide CRUD ===
-  const openCreate = () => { setForm(EMPTY); setAvatar(null); setExistingAvatar(''); setEditId(null); setShowForm(true); };
+  const openCreate = () => {
+    setForm(EMPTY);
+    setAvatar(null);
+    setExistingAvatar('');
+    setEditId(null);
+    setGuideFormErrors({});
+    setGuideFormTouched({});
+    setShowForm(true);
+  };
   const openEdit = (g) => {
     setForm({ name: g.name, bio: g.bio || '', email: g.email || '', phone: g.phone || '', languages: (g.languages || []).join(', '), pricePerDay: g.pricePerDay || '', services: (g.services || []).join(', '), location: g.location || '', isAvailable: g.isAvailable ?? true });
-    setExistingAvatar(g.image || ''); setAvatar(null); setEditId(g._id); setShowForm(true);
+    setExistingAvatar(g.image || '');
+    setAvatar(null);
+    setEditId(g._id);
+    setGuideFormErrors({});
+    setGuideFormTouched({});
+    setShowForm(true);
   };
-  const closeForm = () => { setShowForm(false); setEditId(null); };
+  const closeForm = () => {
+    setShowForm(false);
+    setEditId(null);
+    setGuideFormErrors({});
+    setGuideFormTouched({});
+  };
+
+  const validateGuideField = (name, value, currentForm = form) => {
+    if (name === 'name') return validateName(value);
+    if (name === 'email') return validateEmail(value);
+    if (name === 'phone') return validatePhone(value);
+    if (name === 'location') return normalizeValue(value) ? '' : 'Please select a location';
+    if (name === 'languages') return currentForm.languages.split(',').map((s) => s.trim()).filter(Boolean).length > 0 ? '' : 'Please select at least one language';
+    if (name === 'bio') return normalizeValue(value).length >= 10 ? '' : 'Bio must be at least 10 characters';
+    if (name === 'services') return normalizeValue(value) ? '' : 'Please enter at least one service';
+    if (name === 'pricePerDay') {
+      return validateNumber(value, {
+        min: 1000,
+        max: 100000,
+        requiredMessage: 'Price must be a valid number',
+        invalidMessage: 'Price must be a valid number',
+        rangeMessage: 'Price must be between 1000 and 100000',
+      });
+    }
+    return '';
+  };
+
+  const validateGuideForm = (currentForm = form) => ({
+    name: validateGuideField('name', currentForm.name, currentForm),
+    email: validateGuideField('email', currentForm.email, currentForm),
+    phone: validateGuideField('phone', currentForm.phone, currentForm),
+    location: validateGuideField('location', currentForm.location, currentForm),
+    languages: validateGuideField('languages', currentForm.languages, currentForm),
+    bio: validateGuideField('bio', currentForm.bio, currentForm),
+    services: validateGuideField('services', currentForm.services, currentForm),
+    pricePerDay: validateGuideField('pricePerDay', currentForm.pricePerDay, currentForm),
+  });
+
+  const hasGuideFormErrors = (formErrors) => Object.values(formErrors).some(Boolean);
+  const getGuideInputStyle = (field) => (guideFormErrors[field] ? { borderColor: '#ef4444' } : {});
 
   const handleSave = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    const formErrors = validateGuideForm();
+    setGuideFormErrors(formErrors);
+    setGuideFormTouched({
+      name: true,
+      email: true,
+      phone: true,
+      location: true,
+      languages: true,
+      bio: true,
+      services: true,
+      pricePerDay: true,
+    });
+    if (hasGuideFormErrors(formErrors)) {
+      toast.error('Please fix the errors before submitting');
+      return;
+    }
+
+    setSaving(true);
     try {
       const fd = new FormData();
-      fd.append('name', form.name); fd.append('bio', form.bio); fd.append('email', form.email);
-      fd.append('phone', form.phone); fd.append('location', form.location);
+      fd.append('name', normalizeValue(form.name)); fd.append('bio', normalizeValue(form.bio)); fd.append('email', normalizeValue(form.email));
+      fd.append('phone', normalizeValue(form.phone)); fd.append('location', normalizeValue(form.location));
       fd.append('pricePerDay', Number(form.pricePerDay)); fd.append('isAvailable', form.isAvailable);
       fd.append('languages', JSON.stringify(form.languages.split(',').map((s) => s.trim()).filter(Boolean)));
       fd.append('services', JSON.stringify(form.services.split(',').map((s) => s.trim()).filter(Boolean)));
@@ -231,7 +311,20 @@ export default function AdminGuidesPage() {
     } catch (err) { toast.error(err.response?.data?.message || 'Reassignment failed'); }
   };
 
-  const f = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const f = (k) => (e) => {
+    const value = e.target.value;
+    if (k === 'pricePerDay' && !/^\d*$/.test(value)) return;
+    const nextForm = { ...form, [k]: value };
+    setForm(nextForm);
+    if (guideFormTouched[k]) {
+      setGuideFormErrors((prev) => ({ ...prev, [k]: validateGuideField(k, value, nextForm) }));
+    }
+  };
+  const handleGuideBlur = (field) => (e) => {
+    const value = e.target.value;
+    setGuideFormTouched((prev) => ({ ...prev, [field]: true }));
+    setGuideFormErrors((prev) => ({ ...prev, [field]: validateGuideField(field, value, { ...form, [field]: value }) }));
+  };
   const pendingCount = guides.filter(g => g.approvalStatus === 'pending').length;
   const filtered = guides.filter(g => {
     const matchSearch = g.name.toLowerCase().includes(search.toLowerCase()) || (g.location || '').toLowerCase().includes(search.toLowerCase());
@@ -278,19 +371,19 @@ export default function AdminGuidesPage() {
           <>
             <AdminDrawer open={showForm} onClose={closeForm} title={editId ? 'Edit Guide' : 'Add New Guide'} saving={saving} onSubmit={handleSave} submitLabel={editId ? 'Update Guide' : 'Create Guide'}>
               <div className="field-row cols-4">
-                <div className="field"><label>Guide Name *</label><input required value={form.name} onChange={f('name')} placeholder="Enter guide name" className="adm-input" /></div>
-                <div className="field"><label>Email</label><input type="email" value={form.email} onChange={f('email')} placeholder="email@example.com" className="adm-input" /></div>
-                <div className="field"><label>Phone</label><input value={form.phone} onChange={f('phone')} placeholder="+94 77 123 4567" className="adm-input" /></div>
-                <div className="field"><label>Price/Day (LKR)</label><input type="number" value={form.pricePerDay} onChange={f('pricePerDay')} placeholder="5000" className="adm-input" /></div>
+                <div className="field"><label>Guide Name *</label><input required value={form.name} onChange={f('name')} onBlur={handleGuideBlur('name')} placeholder="Enter guide name" className="adm-input" style={getGuideInputStyle('name')} />{guideFormErrors.name && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.name}</p>}</div>
+                <div className="field"><label>Email</label><input type="email" value={form.email} onChange={f('email')} onBlur={handleGuideBlur('email')} placeholder="email@example.com" className="adm-input" style={getGuideInputStyle('email')} />{guideFormErrors.email && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.email}</p>}</div>
+                <div className="field"><label>Phone</label><input value={form.phone} onChange={f('phone')} onBlur={handleGuideBlur('phone')} placeholder="07XXXXXXXX" className="adm-input" style={getGuideInputStyle('phone')} />{guideFormErrors.phone && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.phone}</p>}</div>
+                <div className="field"><label>Price/Day (LKR)</label><input type="number" value={form.pricePerDay} onChange={f('pricePerDay')} onBlur={handleGuideBlur('pricePerDay')} onKeyDown={(e) => { if (!isAllowedNumericKey(e)) e.preventDefault(); }} placeholder="5000" className="adm-input" style={getGuideInputStyle('pricePerDay')} />{guideFormErrors.pricePerDay && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.pricePerDay}</p>}</div>
               </div>
               <div className="field-row cols-2">
-                <div className="field"><label>Location *</label><input required value={form.location} onChange={f('location')} placeholder="e.g. Colombo" className="adm-input" /></div>
-                <div className="field"><label>Languages (comma-separated)</label><input value={form.languages} onChange={f('languages')} placeholder="English, Sinhala, Tamil..." className="adm-input" /></div>
+                <div className="field"><label>Location *</label><input required value={form.location} onChange={f('location')} onBlur={handleGuideBlur('location')} placeholder="e.g. Colombo" className="adm-input" style={getGuideInputStyle('location')} />{guideFormErrors.location && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.location}</p>}</div>
+                <div className="field"><label>Languages (comma-separated)</label><input value={form.languages} onChange={f('languages')} onBlur={handleGuideBlur('languages')} placeholder="English, Sinhala, Tamil..." className="adm-input" style={getGuideInputStyle('languages')} />{guideFormErrors.languages && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.languages}</p>}</div>
               </div>
-              <div className="field"><label>Services (comma-separated)</label><input value={form.services} onChange={f('services')} placeholder="City Tours, Wildlife Safaris, Cultural Tours..." className="adm-input" /></div>
+              <div className="field"><label>Services (comma-separated)</label><input value={form.services} onChange={f('services')} onBlur={handleGuideBlur('services')} placeholder="City Tours, Wildlife Safaris, Cultural Tours..." className="adm-input" style={getGuideInputStyle('services')} />{guideFormErrors.services && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.services}</p>}</div>
               <div style={{ height: 16 }} />
               <div className="field-row cols-2">
-                <div className="field"><label>Bio</label><textarea value={form.bio} onChange={f('bio')} rows={4} placeholder="Tell us about this guide..." className="adm-textarea" /></div>
+                <div className="field"><label>Bio</label><textarea value={form.bio} onChange={f('bio')} onBlur={handleGuideBlur('bio')} rows={4} placeholder="Tell us about this guide..." className="adm-textarea" style={getGuideInputStyle('bio')} />{guideFormErrors.bio && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{guideFormErrors.bio}</p>}</div>
                 <div>
                   <div className="field" style={{ marginBottom: 14 }}>
                     <label>Avatar Photo</label>
@@ -545,7 +638,7 @@ export default function AdminGuidesPage() {
                   </div>
 
                   {/* Booking Rows */}
-                  {filteredBookings.map((b, idx) => {
+                  {filteredBookings.map((b) => {
                     const statusStyle = STATUS_COLORS[b.status] || { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' };
                     const StatusIcon = STATUS_ICONS[b.status] || Clock;
                     const hasActions = ['deposit_submitted', 'guide_accepted', 'remaining_payment_submitted', 'guide_rejected'].includes(b.status)
