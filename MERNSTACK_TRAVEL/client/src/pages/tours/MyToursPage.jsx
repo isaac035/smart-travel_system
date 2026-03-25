@@ -117,7 +117,11 @@ export default function MyToursPage() {
                         <p>Duration: <span style={{ color: '#374151', fontWeight: 500 }}>{b.packageId.duration} {b.packageId.duration === 1 ? 'day' : 'days'}</span></p>
                       )}
                       <p>Start: <span style={{ color: '#374151', fontWeight: 500 }}>{new Date(b.startDate).toLocaleDateString()}</span></p>
+
+                      <p>Total: <span style={{ color: '#d97706', fontWeight: 700, fontSize: '16px' }}>LKR {Math.round(b.totalPrice).toLocaleString()}</span></p>
+
                       <p>Total: <span style={{ color: '#d97706', fontWeight: 700, fontSize: '16px' }}>{formatLKR(b.totalPrice.toFixed(2))}</span></p>
+
                     </div>
                     {b.slipUrl && (
                       <a href={b.slipUrl} target="_blank" rel="noreferrer" style={{
