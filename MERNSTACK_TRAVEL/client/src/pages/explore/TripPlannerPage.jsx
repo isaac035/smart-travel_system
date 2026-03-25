@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import TripSetupStep from './trip-planner/TripSetupStep';
 import LocationSelectStep from './trip-planner/LocationSelectStep';
 import ItineraryStep from './trip-planner/ItineraryStep';
@@ -47,6 +47,13 @@ export default function TripPlannerPage({ editTrip }) {
   const [itineraryStats, setItineraryStats] = useState(null);
   const [tripId, setTripId] = useState(editTrip?._id || null);
 
+  const topRef = useRef(null);
+  useEffect(() => {
+    if (topRef.current) {
+      topRef.current.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }
+  }, [step]);
+
   const handleItinerarySave = useCallback((days, stats) => {
     setItineraryDays(days);
     setItineraryStats(stats);
@@ -64,7 +71,7 @@ export default function TripPlannerPage({ editTrip }) {
 
   return (
     <div className="min-h-[80vh]" style={{ background: '#ffffff' }}>
-      <div className="py-10 sm:py-12">
+      <div ref={topRef} className="py-10 sm:py-12">
         {/* ── Stepper ── */}
         <nav style={{ marginBottom: 60 }}>
           <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative' }}>

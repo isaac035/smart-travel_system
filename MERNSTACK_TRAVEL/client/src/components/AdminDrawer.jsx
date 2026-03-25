@@ -17,10 +17,12 @@ export default function AdminDrawer({ open, onClose, title, saving, onSubmit, su
     const content = contentRef.current;
     if (!wrap || !content) return;
     if (open) {
+      wrap.style.overflow = 'hidden';
       wrap.style.height = content.scrollHeight + 'px';
-      const onEnd = () => { wrap.style.height = 'auto'; };
+      const onEnd = () => { wrap.style.height = 'auto'; wrap.style.overflow = 'visible'; };
       wrap.addEventListener('transitionend', onEnd, { once: true });
     } else {
+      wrap.style.overflow = 'hidden';
       wrap.style.height = content.scrollHeight + 'px';
       wrap.offsetHeight;
       wrap.style.height = '0px';
@@ -38,7 +40,7 @@ export default function AdminDrawer({ open, onClose, title, saving, onSubmit, su
       ref={wrapRef}
       style={{
         height: 0,
-        overflow: 'hidden',
+        overflow: open ? 'visible' : 'hidden',
         transition: 'height 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
         marginBottom: open ? 20 : 0,
       }}
@@ -51,7 +53,7 @@ export default function AdminDrawer({ open, onClose, title, saving, onSubmit, su
             borderRadius: 14,
             border: '1.5px solid #e2e5ea',
             boxShadow: '0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
-            overflow: 'hidden',
+            overflow: 'visible',
           }}>
             {/* Header */}
             <div style={{
@@ -61,6 +63,7 @@ export default function AdminDrawer({ open, onClose, title, saving, onSubmit, su
               padding: '12px 24px',
               background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
               borderBottom: '1px solid #fcd34d',
+              borderRadius: '14px 14px 0 0',
             }}>
               <h2 style={{ fontSize: 15, fontWeight: 800, color: '#92400e', margin: 0, letterSpacing: '-0.01em' }}>{title}</h2>
               <button
