@@ -6,6 +6,8 @@ import Layout from '../../components/Layout';
 import { CheckCircle, Plus, Search, Upload, X, Star, Home, Calendar, Edit3, Trash2, RefreshCw, ChevronRight, ChevronLeft, ArrowUpRight, Hotel, TrendingUp, Clock, Building2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import { validateEmail, validateRequired } from '../../utils/authValidators';
+import { validateSriLankanMobile } from '../../utils/validators';
 
 /* ─────────────────────────────────────────────────
    GLOBAL STYLES — Refined Light Theme
@@ -288,6 +290,28 @@ function dealPreview(room) {
   }
   return {original:base, final:Math.max(0,base-Number(room.discountValue||0))};
 }
+
+const fieldErrorStyle = { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.12)' };
+const textRequired = (label) => (value) => {
+  const msg = validateRequired(value, label);
+  return msg || true;
+};
+const validEmail = (value) => {
+  const msg = validateEmail(value);
+  return msg || true;
+};
+const validPhone = (value) => {
+  const msg = validateSriLankanMobile(value || '');
+  return msg || true;
+};
+const validNumber = (label, opts = {}) => (value) => {
+  if (value === '' || value === null || value === undefined) return `${label} is required`;
+  const num = Number(value);
+  if (Number.isNaN(num)) return `${label} must be a valid number`;
+  if (opts.integer && !Number.isInteger(num)) return `${label} must be a whole number`;
+  if (opts.min !== undefined && num < opts.min) return `${label} must be at least ${opts.min}`;
+  return true;
+};
 
 /* ─── SUB-COMPONENTS ─── */
 function Lbl({ children, required }) {
@@ -1034,7 +1058,7 @@ function EditHotelForm({ hotel, amenitiesOptions, roomFacilityOptions, onSuccess
     existingImage: r.images?.[0]||null,
   }));
 
-  const { register, control, handleSubmit, watch, setValue, formState:{errors} } = useForm({
+  const { register, control, handleSubmit, watch, setValue, trigger, formState:{errors} } = useForm({
     defaultValues: {
       hotelName: hotel.name||'',
       description: hotel.description||'',
@@ -1081,6 +1105,25 @@ function EditHotelForm({ hotel, amenitiesOptions, roomFacilityOptions, onSuccess
   };
 
   const pickPin = c => { setValue('coordinates.lat', c.lat); setValue('coordinates.lng', c.lng); };
+
+  const goToRoomStep = async () => {
+    const ok = await trigger(['hotelName', 'starRating', 'description', 'contactEmail', 'phone1', 'location', 'address', 'coordinates.lat', 'coordinates.lng']);
+    if (!ok) return;
+    setStep(1);
+  };
+
+  const goToReviewStep = async () => {
+    const roomFields = fields.flatMap((_, idx) => ([
+      `rooms.${idx}.roomName`,
+      `rooms.${idx}.roomSize`,
+      `rooms.${idx}.bedType`,
+      `rooms.${idx}.bedCount`,
+      `rooms.${idx}.basePricePerNight`,
+    ]));
+    const ok = await trigger(roomFields);
+    if (!ok) return;
+    setStep(2);
+  };
 
   const onSubmit = async values => {
     setSaving(true);
@@ -1163,35 +1206,37 @@ function EditHotelForm({ hotel, amenitiesOptions, roomFacilityOptions, onSuccess
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
             <div>
               <Lbl required>Hotel Name</Lbl>
-              <input className="inp" {...register('hotelName',{required:true})} placeholder="e.g. Cinnamon Grand Colombo" />
+              <input className="inp" style={errors.hotelName ? fieldErrorStyle : undefined} {...register('hotelName',{ validate: textRequired('Hotel name') })} placeholder="e.g. Cinnamon Grand Colombo" />
               {errors.hotelName && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>Hotel name is required</p>}
             </div>
             <div>
               <Lbl required>Star Rating</Lbl>
-              <select className="inp" {...register('starRating',{required:true})}>
+              <select className="inp" style={errors.starRating ? fieldErrorStyle : undefined} {...register('starRating',{ required:'Star rating is required' })}>
                 {[1,2,3,4,5].map(n=><option key={n} value={n}>{n} Star{n>1?'s':''}</option>)}
               </select>
+              {errors.starRating && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.starRating.message}</p>}
             </div>
           </div>
 
           <div style={{marginBottom:14}}>
             <Lbl required>Description</Lbl>
-            <textarea className="inp" {...register('description',{required:true})} rows={4} placeholder="Describe your hotel…" />
+            <textarea className="inp" style={errors.description ? fieldErrorStyle : undefined} {...register('description',{ validate: textRequired('Description') })} rows={4} placeholder="Describe your hotel…" />
+            {errors.description && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.description.message}</p>}
           </div>
 
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:14}}>
-            <div><Lbl required>Contact Email</Lbl><input className="inp" {...register('contactEmail')} type="email" placeholder="hotel@email.com" /></div>
-            <div><Lbl required>Phone 1</Lbl><input className="inp" {...register('phone1')} placeholder="+94 77 123 4567" /></div>
+            <div><Lbl required>Contact Email</Lbl><input className="inp" style={errors.contactEmail ? fieldErrorStyle : undefined} {...register('contactEmail', { validate: validEmail })} type="email" placeholder="hotel@email.com" />{errors.contactEmail && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.contactEmail.message}</p>}</div>
+            <div><Lbl required>Phone 1</Lbl><input className="inp" style={errors.phone1 ? fieldErrorStyle : undefined} {...register('phone1', { validate: validPhone })} placeholder="0771234567" />{errors.phone1 && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.phone1.message}</p>}</div>
             <div><Lbl>Phone 2</Lbl><input className="inp" {...register('phone2')} placeholder="+94 11 234 5678" /></div>
           </div>
 
           <div style={{display:'grid',gridTemplateColumns:'1fr 1.4fr',gap:18,marginBottom:18}}>
             <div style={{display:'flex',flexDirection:'column',gap:12}}>
-              <div><Lbl required>City / Location</Lbl><input className="inp" {...register('location',{required:true})} placeholder="e.g. Colombo 03" /></div>
-              <div><Lbl>Full Address</Lbl><input className="inp" {...register('address')} placeholder="77 Galle Road, Colombo 03" /></div>
+              <div><Lbl required>City / Location</Lbl><input className="inp" style={errors.location ? fieldErrorStyle : undefined} {...register('location',{ validate: textRequired('City / location') })} placeholder="e.g. Colombo 03" />{errors.location && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.location.message}</p>}</div>
+              <div><Lbl required>Full Address</Lbl><input className="inp" style={errors.address ? fieldErrorStyle : undefined} {...register('address', { validate: textRequired('Full address') })} placeholder="77 Galle Road, Colombo 03" />{errors.address && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.address.message}</p>}</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                <div><Lbl>Latitude</Lbl><input className="inp" {...register('coordinates.lat')} type="number" step="any" /></div>
-                <div><Lbl>Longitude</Lbl><input className="inp" {...register('coordinates.lng')} type="number" step="any" /></div>
+                <div><Lbl required>Latitude</Lbl><input className="inp" style={errors.coordinates?.lat ? fieldErrorStyle : undefined} {...register('coordinates.lat', { validate: validNumber('Latitude') })} type="number" step="any" />{errors.coordinates?.lat && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.coordinates.lat.message}</p>}</div>
+                <div><Lbl required>Longitude</Lbl><input className="inp" style={errors.coordinates?.lng ? fieldErrorStyle : undefined} {...register('coordinates.lng', { validate: validNumber('Longitude') })} type="number" step="any" />{errors.coordinates?.lng && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.coordinates.lng.message}</p>}</div>
               </div>
               <div><Lbl>Status</Lbl>
                 <select className="inp" value={watch('isActive')?'true':'false'} onChange={e=>setValue('isActive',e.target.value==='true')}>
@@ -1228,7 +1273,22 @@ function EditHotelForm({ hotel, amenitiesOptions, roomFacilityOptions, onSuccess
                 <div key={label} className={`upload-zone${(!multi&&file)||( multi&&file?.length>0)?' has-file':''}`}>
                   <Upload size={20} style={{color:T.amber,margin:'0 auto 8px'}} />
                   <p style={{fontSize:12,fontWeight:600,color:T.inkMid,marginBottom:8}}>{label}</p>
-                  <input type="file" accept="image/*" multiple={multi} onChange={e=>setter(multi?Array.from(e.target.files||[]):(e.target.files?.[0]||null))} style={{fontSize:12,color:T.inkMid,maxWidth:'100%'}} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple={multi}
+                    onChange={e => {
+                      if (!multi) {
+                        setImageErrors(prev => {
+                          const next = { ...prev };
+                          delete next.mainImage;
+                          return next;
+                        });
+                      }
+                      setter(multi ? Array.from(e.target.files || []) : (e.target.files?.[0] || null));
+                    }}
+                    style={{fontSize:12,color:T.inkMid,maxWidth:'100%'}}
+                  />
                   {!multi && file && <p style={{fontSize:11,color:T.amber,marginTop:8,fontWeight:700}}>✓ {file.name}</p>}
                   {multi && file?.length>0 && <p style={{fontSize:11,color:T.amber,marginTop:8,fontWeight:700}}>✓ {file.length} file{file.length>1?'s':''} selected</p>}
                   {hotel.images?.[0] && !file && <p style={{fontSize:10,color:T.inkSoft,marginTop:6}}>Current image kept unless replaced</p>}
@@ -1238,7 +1298,7 @@ function EditHotelForm({ hotel, amenitiesOptions, roomFacilityOptions, onSuccess
           </div>
 
           <div style={{display:'flex',justifyContent:'flex-end'}}>
-            <button type="button" className="btn-amber" onClick={() => setStep(1)}>
+            <button type="button" className="btn-amber" onClick={goToRoomStep}>
               Continue to Rooms <ChevronRight size={14}/>
             </button>
           </div>
@@ -1280,14 +1340,15 @@ function EditHotelForm({ hotel, amenitiesOptions, roomFacilityOptions, onSuccess
                   </div>
 
                   <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr',gap:12,marginBottom:14}}>
-                    <div><Lbl required>Room Name</Lbl><input className="inp" {...register(`rooms.${idx}.roomName`,{required:true})} placeholder="Deluxe Ocean View" /></div>
-                    <div><Lbl>Size (sq ft)</Lbl><input className="inp" {...register(`rooms.${idx}.roomSize`)} type="number" placeholder="250" /></div>
+                    <div><Lbl required>Room Name</Lbl><input className="inp" style={errors.rooms?.[idx]?.roomName ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.roomName`,{ validate: textRequired('Room name') })} placeholder="Deluxe Ocean View" />{errors.rooms?.[idx]?.roomName && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].roomName.message}</p>}</div>
+                    <div><Lbl required>Size (sq ft)</Lbl><input className="inp" style={errors.rooms?.[idx]?.roomSize ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.roomSize`, { validate: validNumber('Room size', { min: 1 }) })} type="number" placeholder="250" />{errors.rooms?.[idx]?.roomSize && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].roomSize.message}</p>}</div>
                     <div><Lbl>Bed Type</Lbl>
-                      <select className="inp" {...register(`rooms.${idx}.bedType`)}>
+                      <select className="inp" style={errors.rooms?.[idx]?.bedType ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.bedType`, { validate: textRequired('Bed type') })}>
                         {BED_TYPES.map(b=><option key={b.value} value={b.value}>{b.label}</option>)}
                       </select>
+                      {errors.rooms?.[idx]?.bedType && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].bedType.message}</p>}
                     </div>
-                    <div><Lbl>Bed Count</Lbl><input className="inp" {...register(`rooms.${idx}.bedCount`,{valueAsNumber:true})} type="number" min={1} /></div>
+                    <div><Lbl required>Bed Count</Lbl><input className="inp" style={errors.rooms?.[idx]?.bedCount ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.bedCount`,{ valueAsNumber:true, validate: validNumber('Bed count', { integer: true, min: 1 }) })} type="number" min={1} />{errors.rooms?.[idx]?.bedCount && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].bedCount.message}</p>}</div>
                   </div>
 
                   <div style={{marginBottom:14}}>
@@ -1333,7 +1394,7 @@ function EditHotelForm({ hotel, amenitiesOptions, roomFacilityOptions, onSuccess
                       </label>
                     </div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                      <div><Lbl required>Base Price / Night (LKR)</Lbl><input className="inp" {...register(`rooms.${idx}.basePricePerNight`,{required:true})} type="number" placeholder="32000" /></div>
+                      <div><Lbl required>Base Price / Night (LKR)</Lbl><input className="inp" style={errors.rooms?.[idx]?.basePricePerNight ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.basePricePerNight`,{ validate: validNumber('Base price per night', { min: 1 }) })} type="number" placeholder="32000" />{errors.rooms?.[idx]?.basePricePerNight && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].basePricePerNight.message}</p>}</div>
                       <div>
                         <Lbl>Price Preview</Lbl>
                         <div style={{padding:'10px 14px',borderRadius:9,background:'#fff',border:`1.5px solid ${T.amberBg}`,display:'flex',alignItems:'center',gap:10}}>
@@ -1370,7 +1431,7 @@ function EditHotelForm({ hotel, amenitiesOptions, roomFacilityOptions, onSuccess
 
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:20,flexWrap:'wrap',gap:12}}>
             <button type="button" className="btn-ghost" onClick={() => setStep(0)}><ChevronLeft size={14}/>Back</button>
-            <button type="button" className="btn-amber" onClick={() => setStep(2)}>Review Changes <ChevronRight size={14}/></button>
+            <button type="button" className="btn-amber" onClick={goToReviewStep}>Review Changes <ChevronRight size={14}/></button>
           </div>
         </div>
       )}
@@ -1471,7 +1532,7 @@ function AddHotelForm({ amenitiesOptions, roomFacilityOptions, onHotelPublished 
 
   const defaultRoom = { roomName:'', roomSize:'', bedType:'double', bedCount:1, roomFacilities:[], basePricePerNight:'', hasHotDeal:false, dealType:'percentage', discountPercentage:'', discountValue:'' };
 
-  const { register, control, handleSubmit, watch, setValue, formState:{errors} } = useForm({
+  const { register, control, handleSubmit, watch, setValue, trigger, formState:{errors} } = useForm({
     defaultValues: { hotelName:'', description:'', location:'', address:'', coordinates:{lat:6.9271,lng:79.8612}, starRating:5, contactEmail:'', phone1:'', phone2:'', hotelAmenities:[], rooms:[defaultRoom] }
   });
 
@@ -1484,6 +1545,7 @@ function AddHotelForm({ amenitiesOptions, roomFacilityOptions, onHotelPublished 
   const [mainImageFile, setMainImageFile] = useState(null);
   const [secondaryImageFiles, setSecondaryImageFiles] = useState([]);
   const [roomImageFiles, setRoomImageFiles] = useState([null]);
+  const [imageErrors, setImageErrors] = useState({});
 
   useEffect(() => {
     setRoomImageFiles(prev => {
@@ -1506,11 +1568,36 @@ function AddHotelForm({ amenitiesOptions, roomFacilityOptions, onHotelPublished 
 
   const pickPin = c => { setValue('coordinates.lat', c.lat); setValue('coordinates.lng', c.lng); };
 
+  const goToRoomStep = async () => {
+    const ok = await trigger(['hotelName', 'starRating', 'description', 'contactEmail', 'phone1', 'location', 'address', 'coordinates.lat', 'coordinates.lng']);
+    if (!ok) return;
+    setStep(1);
+  };
+
+  const goToReviewStep = async () => {
+    const roomFields = fields.flatMap((_, idx) => ([
+      `rooms.${idx}.roomName`,
+      `rooms.${idx}.roomSize`,
+      `rooms.${idx}.bedType`,
+      `rooms.${idx}.bedCount`,
+      `rooms.${idx}.basePricePerNight`,
+    ]));
+    const ok = await trigger(roomFields);
+    if (!ok) return;
+    setStep(2);
+  };
+
   const publishHotel = async values => {
+    const nextImageErrors = {};
     for (let i = 0; i < fields.length; i++) {
-      if (!roomImageFiles?.[i]) { toast.error(`Please upload an image for Room ${i+1}`); return; }
+      if (!roomImageFiles?.[i]) nextImageErrors[`room-${i}`] = `Room ${i + 1} image is required`;
     }
-    if (!mainImageFile) { toast.error('Please upload a main hotel image'); return; }
+    if (!mainImageFile) nextImageErrors.mainImage = 'Main hotel image is required';
+    setImageErrors(nextImageErrors);
+    if (Object.keys(nextImageErrors).length) {
+      toast.error('Please fix validation errors before publishing');
+      return;
+    }
 
     const computedRooms = (values.rooms||[]).map(r => {
       const p = dealPreview(r);
@@ -1571,35 +1658,37 @@ function AddHotelForm({ amenitiesOptions, roomFacilityOptions, onHotelPublished 
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
             <div>
               <Lbl required>Hotel Name</Lbl>
-              <input className="inp" {...register('hotelName',{required:true})} placeholder="e.g. Cinnamon Grand Colombo" />
+              <input className="inp" style={errors.hotelName ? fieldErrorStyle : undefined} {...register('hotelName',{ validate: textRequired('Hotel name') })} placeholder="e.g. Cinnamon Grand Colombo" />
               {errors.hotelName && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>Required</p>}
             </div>
             <div>
               <Lbl required>Star Rating</Lbl>
-              <select className="inp" {...register('starRating')}>
+              <select className="inp" style={errors.starRating ? fieldErrorStyle : undefined} {...register('starRating', { required: 'Star rating is required' })}>
                 {[1,2,3,4,5].map(n=><option key={n} value={n}>{n} Star{n>1?'s':''}</option>)}
               </select>
+              {errors.starRating && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.starRating.message}</p>}
             </div>
           </div>
 
           <div style={{marginBottom:14}}>
             <Lbl required>Description</Lbl>
-            <textarea className="inp" {...register('description',{required:true})} rows={4} placeholder="Describe your hotel…" />
+            <textarea className="inp" style={errors.description ? fieldErrorStyle : undefined} {...register('description',{ validate: textRequired('Description') })} rows={4} placeholder="Describe your hotel…" />
+            {errors.description && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.description.message}</p>}
           </div>
 
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:14}}>
-            <div><Lbl required>Contact Email</Lbl><input className="inp" {...register('contactEmail')} type="email" placeholder="hotel@email.com" /></div>
-            <div><Lbl required>Phone 1</Lbl><input className="inp" {...register('phone1')} placeholder="+94 77 123 4567" /></div>
+            <div><Lbl required>Contact Email</Lbl><input className="inp" style={errors.contactEmail ? fieldErrorStyle : undefined} {...register('contactEmail', { validate: validEmail })} type="email" placeholder="hotel@email.com" />{errors.contactEmail && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.contactEmail.message}</p>}</div>
+            <div><Lbl required>Phone 1</Lbl><input className="inp" style={errors.phone1 ? fieldErrorStyle : undefined} {...register('phone1', { validate: validPhone })} placeholder="0771234567" />{errors.phone1 && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.phone1.message}</p>}</div>
             <div><Lbl>Phone 2</Lbl><input className="inp" {...register('phone2')} placeholder="+94 11 234 5678" /></div>
           </div>
 
           <div style={{display:'grid',gridTemplateColumns:'1fr 1.4fr',gap:18,marginBottom:18}}>
             <div style={{display:'flex',flexDirection:'column',gap:12}}>
-              <div><Lbl required>City / Location</Lbl><input className="inp" {...register('location',{required:true})} placeholder="e.g. Colombo 03" /></div>
-              <div><Lbl>Full Address</Lbl><input className="inp" {...register('address')} placeholder="77 Galle Road, Colombo 03" /></div>
+              <div><Lbl required>City / Location</Lbl><input className="inp" style={errors.location ? fieldErrorStyle : undefined} {...register('location',{ validate: textRequired('City / location') })} placeholder="e.g. Colombo 03" />{errors.location && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.location.message}</p>}</div>
+              <div><Lbl required>Full Address</Lbl><input className="inp" style={errors.address ? fieldErrorStyle : undefined} {...register('address', { validate: textRequired('Full address') })} placeholder="77 Galle Road, Colombo 03" />{errors.address && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.address.message}</p>}</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                <div><Lbl>Latitude</Lbl><input className="inp" {...register('coordinates.lat')} type="number" step="any" /></div>
-                <div><Lbl>Longitude</Lbl><input className="inp" {...register('coordinates.lng')} type="number" step="any" /></div>
+                <div><Lbl required>Latitude</Lbl><input className="inp" style={errors.coordinates?.lat ? fieldErrorStyle : undefined} {...register('coordinates.lat', { validate: validNumber('Latitude') })} type="number" step="any" />{errors.coordinates?.lat && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.coordinates.lat.message}</p>}</div>
+                <div><Lbl required>Longitude</Lbl><input className="inp" style={errors.coordinates?.lng ? fieldErrorStyle : undefined} {...register('coordinates.lng', { validate: validNumber('Longitude') })} type="number" step="any" />{errors.coordinates?.lng && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.coordinates.lng.message}</p>}</div>
               </div>
               <div style={{background:T.amberBg,border:`1px solid #fde68a`,borderRadius:10,padding:'10px 13px'}}>
                 <p style={{fontSize:10,fontWeight:700,color:T.amber,textTransform:'uppercase',margin:'0 0 3px',letterSpacing:'0.1em'}}>💡 Map Tip</p>
@@ -1638,13 +1727,14 @@ function AddHotelForm({ amenitiesOptions, roomFacilityOptions, onHotelPublished 
                   <input type="file" accept="image/*" multiple={multi} onChange={e=>setter(multi?Array.from(e.target.files||[]):(e.target.files?.[0]||null))} style={{fontSize:12,color:T.inkMid,maxWidth:'100%'}} />
                   {!multi && file && <p style={{fontSize:11,color:T.amber,marginTop:8,fontWeight:700}}>✓ {file.name}</p>}
                   {multi && file?.length>0 && <p style={{fontSize:11,color:T.amber,marginTop:8,fontWeight:700}}>✓ {file.length} file{file.length>1?'s':''} selected</p>}
+                  {!multi && imageErrors.mainImage && <p style={{fontSize:11,color:T.red,marginTop:8,fontWeight:700}}>{imageErrors.mainImage}</p>}
                 </div>
               ))}
             </div>
           </div>
 
           <div style={{display:'flex',justifyContent:'flex-end'}}>
-            <button type="button" className="btn-amber" onClick={() => setStep(1)}>
+            <button type="button" className="btn-amber" onClick={goToRoomStep}>
               Continue to Rooms <ChevronRight size={14}/>
             </button>
           </div>
@@ -1686,14 +1776,15 @@ function AddHotelForm({ amenitiesOptions, roomFacilityOptions, onHotelPublished 
                   </div>
 
                   <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr',gap:12,marginBottom:14}}>
-                    <div><Lbl required>Room Name</Lbl><input className="inp" {...register(`rooms.${idx}.roomName`,{required:true})} placeholder="Deluxe Ocean View" /></div>
-                    <div><Lbl>Size (sq ft)</Lbl><input className="inp" {...register(`rooms.${idx}.roomSize`)} type="number" placeholder="250" /></div>
+                    <div><Lbl required>Room Name</Lbl><input className="inp" style={errors.rooms?.[idx]?.roomName ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.roomName`,{ validate: textRequired('Room name') })} placeholder="Deluxe Ocean View" />{errors.rooms?.[idx]?.roomName && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].roomName.message}</p>}</div>
+                    <div><Lbl required>Size (sq ft)</Lbl><input className="inp" style={errors.rooms?.[idx]?.roomSize ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.roomSize`, { validate: validNumber('Room size', { min: 1 }) })} type="number" placeholder="250" />{errors.rooms?.[idx]?.roomSize && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].roomSize.message}</p>}</div>
                     <div><Lbl>Bed Type</Lbl>
-                      <select className="inp" {...register(`rooms.${idx}.bedType`)}>
+                      <select className="inp" style={errors.rooms?.[idx]?.bedType ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.bedType`, { validate: textRequired('Bed type') })}>
                         {BED_TYPES.map(b=><option key={b.value} value={b.value}>{b.label}</option>)}
                       </select>
+                      {errors.rooms?.[idx]?.bedType && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].bedType.message}</p>}
                     </div>
-                    <div><Lbl>Bed Count</Lbl><input className="inp" {...register(`rooms.${idx}.bedCount`,{valueAsNumber:true})} type="number" min={1} /></div>
+                    <div><Lbl required>Bed Count</Lbl><input className="inp" style={errors.rooms?.[idx]?.bedCount ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.bedCount`,{valueAsNumber:true, validate: validNumber('Bed count', { integer: true, min: 1 })})} type="number" min={1} />{errors.rooms?.[idx]?.bedCount && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].bedCount.message}</p>}</div>
                   </div>
 
                   <div style={{marginBottom:14}}>
@@ -1716,9 +1807,15 @@ function AddHotelForm({ amenitiesOptions, roomFacilityOptions, onHotelPublished 
                     <input type="file" accept="image/*" className="inp" style={{padding:'9px 12px'}}
                       onChange={e => {
                         const f = e.target.files?.[0]||null;
+                        setImageErrors(prev => {
+                          const next = { ...prev };
+                          delete next[`room-${idx}`];
+                          return next;
+                        });
                         setRoomImageFiles(prev => prev.map((x,i) => i===idx ? f : x));
                       }} />
                     {roomImageFiles?.[idx] && <p style={{fontSize:11,color:T.amber,marginTop:5,fontWeight:700}}>✓ {roomImageFiles[idx].name}</p>}
+                    {imageErrors[`room-${idx}`] && <p style={{fontSize:11,color:T.red,marginTop:5,fontWeight:700}}>{imageErrors[`room-${idx}`]}</p>}
                   </div>
 
                   <div style={{background:'#fffbeb',border:`1.5px solid ${T.amberBg}`,borderRadius:12,padding:'16px 18px'}}>
@@ -1731,7 +1828,7 @@ function AddHotelForm({ amenitiesOptions, roomFacilityOptions, onHotelPublished 
                       </label>
                     </div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                      <div><Lbl required>Base Price / Night (LKR)</Lbl><input className="inp" {...register(`rooms.${idx}.basePricePerNight`,{required:true})} type="number" placeholder="32000" /></div>
+                      <div><Lbl required>Base Price / Night (LKR)</Lbl><input className="inp" style={errors.rooms?.[idx]?.basePricePerNight ? fieldErrorStyle : undefined} {...register(`rooms.${idx}.basePricePerNight`,{ validate: validNumber('Base price per night', { min: 1 }) })} type="number" placeholder="32000" />{errors.rooms?.[idx]?.basePricePerNight && <p style={{color:T.red,fontSize:11,marginTop:4,fontWeight:600}}>{errors.rooms[idx].basePricePerNight.message}</p>}</div>
                       <div>
                         <Lbl>Preview</Lbl>
                         <div style={{padding:'10px 14px',borderRadius:9,background:'#fff',border:`1.5px solid ${T.amberBg}`,display:'flex',alignItems:'center',gap:10}}>
@@ -1766,7 +1863,7 @@ function AddHotelForm({ amenitiesOptions, roomFacilityOptions, onHotelPublished 
 
           <div style={{display:'flex',justifyContent:'space-between',marginTop:20,flexWrap:'wrap',gap:12}}>
             <button type="button" className="btn-ghost" onClick={() => setStep(0)}><ChevronLeft size={14}/>Back</button>
-            <button type="button" className="btn-amber" onClick={() => setStep(2)}>Review & Publish <ChevronRight size={14}/></button>
+            <button type="button" className="btn-amber" onClick={goToReviewStep}>Review & Publish <ChevronRight size={14}/></button>
           </div>
         </div>
       )}
