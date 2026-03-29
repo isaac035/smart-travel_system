@@ -98,7 +98,12 @@ export default function TourBookingPage() {
     customDuration: null,
     startDate: '',
     notes: '',
-    slip: null,
+    // card payment
+    cardNumber: '',
+    cardHolder: '',
+    expiryMonth: '',
+    expiryYear: '',
+    cvv: '',
   });
 
   const [errors, setErrors] = useState({
@@ -107,8 +112,13 @@ export default function TourBookingPage() {
     vehicle: '',
     travelers: '',
     notes: '',
-    slip: '',
+    cardNumber: '',
+    cardHolder: '',
+    expiry: '',
+    cvv: '',
   });
+
+  const [cardFlipped, setCardFlipped] = useState(false);
 
   useEffect(() => {
     api
@@ -164,10 +174,27 @@ export default function TourBookingPage() {
     return '';
   };
 
-  const validateSlip = (value) => {
-    if (!value) return 'Please upload your payment slip before continuing.';
-    return '';
+  const validateCard = () => {
+    const errs = { cardNumber: '', cardHolder: '', expiry: '', cvv: '' };
+    const raw = form.cardNumber.replace(/\s/g, '');
+    if (!/^\d{16}$/.test(raw)) errs.cardNumber = 'Enter a valid 16-digit card number.';
+    if (!form.cardHolder || form.cardHolder.trim().length < 3) errs.cardHolder = 'Card holder name is required (min 3 chars).';
+    const nowDate = new Date();
+    const expM = parseInt(form.expiryMonth, 10);
+    const expY = parseInt(form.expiryYear, 10);
+    const fullYear = expY < 100 ? 2000 + expY : expY;
+    if (!expM || expM < 1 || expM > 12 || !expY) {
+      errs.expiry = 'Enter a valid expiry date (MM/YY).';
+    } else if (fullYear < nowDate.getFullYear() || (fullYear === nowDate.getFullYear() && expM < nowDate.getMonth() + 1)) {
+      errs.expiry = 'This card has expired.';
+    }
+    const rawCvv = String(form.cvv);
+    if (!/^\d{3,4}$/.test(rawCvv)) errs.cvv = 'Enter a valid 3 or 4-digit CVV.';
+    return errs;
   };
+
+  const validateSlip = () => '';
+
 
   const validateTravelersForVehicle = (value, vehicle) => {
     const n = Number(value);
@@ -295,7 +322,7 @@ export default function TourBookingPage() {
     const vehicleErr = validateVehicle(form.vehicle);
     const travelersErr = validateTravelers(form.travelers);
     const notesErr = validateNotes(form.notes);
-    const slipErr = validateSlip(form.slip);
+    const cardErrs = validateCard();
 
     setErrors({
       customDuration: durationErr,
@@ -303,10 +330,11 @@ export default function TourBookingPage() {
       vehicle: vehicleErr,
       travelers: travelersErr,
       notes: notesErr,
-      slip: slipErr,
+      ...cardErrs,
     });
 
-    if (durationErr || dateErr || vehicleErr || travelersErr || notesErr || slipErr) {
+    const hasCardErr = Object.values(cardErrs).some(Boolean);
+    if (durationErr || dateErr || vehicleErr || travelersErr || notesErr || hasCardErr) {
       toast.error('Please fix the highlighted errors before submitting.');
       return;
     }
@@ -318,20 +346,21 @@ export default function TourBookingPage() {
 
     setSubmitting(true);
     try {
-      const fd = new FormData();
-      fd.append('packageId', id);
-      fd.append('vehicle', form.vehicle);
-      fd.append('travelers', String(form.travelers));
-      fd.append('startDate', form.startDate);
-      fd.append('notes', form.notes.trim());
-      fd.append('customDuration', String(form.customDuration || pkg.duration));
-      if (form.slip) fd.append('slip', form.slip);
-
-      await api.post('/tours/bookings', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      await api.post('/tours/bookings', {
+        packageId: id,
+        vehicle: form.vehicle,
+        travelers: String(form.travelers),
+        startDate: form.startDate,
+        notes: form.notes.trim(),
+        customDuration: String(form.customDuration || pkg.duration),
+        cardHolder: form.cardHolder.trim(),
+        cardNumber: form.cardNumber.replace(/\s/g, ''),
+        expiryMonth: form.expiryMonth,
+        expiryYear: form.expiryYear,
+        cvv: form.cvv,
       });
 
-      toast.success('Booking submitted! Awaiting confirmation.');
+      toast.success('Booking submitted! 20% advance payment processed.');
       navigate('/my-tours');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Booking failed');
@@ -782,69 +811,214 @@ export default function TourBookingPage() {
                 </div>
               </div>
 
+              {/* ─── Card Payment Section ───────────────────────── */}
               <div style={sectionStyle}>
                 <h2 style={{ fontWeight: 700, color: '#111827', fontSize: '16px', marginBottom: '4px' }}>
-                  Payment Slip
+                  💳 Card Payment
                 </h2>
-                <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
-                  Upload your payment receipt before submitting your booking.
+                <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>
+                  You'll be charged <strong style={{ color: '#d97706' }}>20% now</strong> as an advance. The remaining 80% is due before your trip.
                 </p>
 
-                <label
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: `2px dashed ${errors.slip ? '#ef4444' : dragOver ? '#f59e0b' : '#d1d5db'}`,
-                    background: errors.slip ? '#fff5f5' : dragOver ? '#fffbeb' : '#f9fafb',
-                    borderRadius: '14px',
-                    padding: '36px',
-                    cursor: 'pointer',
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOver(true);
-                  }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragOver(false);
-                    const file = e.dataTransfer.files[0];
-                    if (file) {
-                      setForm((f) => ({ ...f, slip: file }));
-                      setErrors((er) => ({ ...er, slip: '' }));
-                    }
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      setForm((f) => ({ ...f, slip: file }));
-                      setErrors((er) => ({ ...er, slip: validateSlip(file) }));
-                    }}
-                  />
+                {/* Advance breakdown */}
+                {totalPrice > 0 && (
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px',
+                  }}>
+                    <div style={{
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      borderRadius: '14px', padding: '16px 20px', color: '#fff',
+                    }}>
+                      <p style={{ fontSize: '11px', fontWeight: 600, opacity: 0.85, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pay Now (20%)</p>
+                      <p style={{ fontSize: '22px', fontWeight: 900, margin: 0 }}>{formatLKR(Math.round(totalPrice * 0.2))}</p>
+                    </div>
+                    <div style={{
+                      background: '#f9fafb', border: '1px solid #e5e7eb',
+                      borderRadius: '14px', padding: '16px 20px',
+                    }}>
+                      <p style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Due Later (80%)</p>
+                      <p style={{ fontSize: '22px', fontWeight: 900, color: '#374151', margin: 0 }}>{formatLKR(Math.round(totalPrice * 0.8))}</p>
+                    </div>
+                  </div>
+                )}
 
-                  {form.slip ? (
-                    <>
-                      <span style={{ fontSize: '32px', marginBottom: '8px' }}>📎</span>
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#92400e' }}>{form.slip.name}</span>
-                      <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>Click to change file</span>
-                    </>
-                  ) : (
-                    <>
-                      <span style={{ fontSize: '32px', marginBottom: '8px' }}>📤</span>
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#4b5563' }}>Drag & drop or click to upload</span>
-                      <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>JPG, PNG, WebP accepted</span>
-                    </>
-                  )}
-                </label>
-                <FieldError msg={errors.slip} />
+                {/* Animated card visual */}
+                <div style={{ perspective: '1000px', marginBottom: '24px' }}>
+                  <div style={{
+                    width: '100%', maxWidth: '340px', margin: '0 auto',
+                    height: '190px', position: 'relative',
+                    transformStyle: 'preserve-3d',
+                    transition: 'transform 0.6s cubic-bezier(0.4,0,0.2,1)',
+                    transform: cardFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                  }}>
+                    {/* Front */}
+                    <div style={{
+                      position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
+                      borderRadius: '18px',
+                      background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #7c3aed 100%)',
+                      padding: '24px 28px', color: '#fff',
+                      boxShadow: '0 8px 32px rgba(37,99,235,0.35)',
+                      display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, opacity: 0.8, letterSpacing: '0.05em' }}>CEYLON TRAVEL</span>
+                        <div style={{ display: 'flex', gap: '-6px' }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.5)' }} />
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.3)', marginLeft: -12 }} />
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ fontFamily: 'monospace', fontSize: '18px', letterSpacing: '0.18em', fontWeight: 700, margin: '0 0 8px' }}>
+                          {form.cardNumber
+                            ? form.cardNumber.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim() || '**** **** **** ****'
+                            : '**** **** **** ****'}
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                          <div>
+                            <p style={{ fontSize: '9px', opacity: 0.7, margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Card Holder</p>
+                            <p style={{ fontSize: '13px', fontWeight: 600, margin: 0, textTransform: 'uppercase' }}>
+                              {form.cardHolder.trim() || 'YOUR NAME'}
+                            </p>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <p style={{ fontSize: '9px', opacity: 0.7, margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Expires</p>
+                            <p style={{ fontSize: '13px', fontWeight: 600, margin: 0 }}>
+                              {form.expiryMonth || 'MM'}/{form.expiryYear || 'YY'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Back */}
+                    <div style={{
+                      position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
+                      transform: 'rotateY(180deg)',
+                      borderRadius: '18px',
+                      background: 'linear-gradient(135deg, #374151, #111827)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                      overflow: 'hidden',
+                    }}>
+                      <div style={{ height: '46px', background: '#000', margin: '24px 0 20px' }} />
+                      <div style={{ padding: '0 28px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ flex: 1, height: '36px', background: '#f3f4f6', borderRadius: '6px' }} />
+                        <div style={{
+                          background: '#e5e7eb', borderRadius: '6px', padding: '6px 14px',
+                          fontFamily: 'monospace', fontWeight: 700, fontSize: '16px', color: '#374151', letterSpacing: '0.1em',
+                        }}>
+                          {form.cvv || 'CVV'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card fields */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Card number */}
+                  <div>
+                    <label style={labelStyle}>Card Number <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={19}
+                      placeholder="1234 5678 9012 3456"
+                      value={form.cardNumber}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+                        const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 ');
+                        setForm((f) => ({ ...f, cardNumber: formatted }));
+                        setErrors((er) => ({ ...er, cardNumber: '' }));
+                      }}
+                      style={errors.cardNumber ? inputErrorStyle : { ...inputStyle, fontFamily: 'monospace', letterSpacing: '0.1em' }}
+                    />
+                    <FieldError msg={errors.cardNumber} />
+                  </div>
+
+                  {/* Card holder */}
+                  <div>
+                    <label style={labelStyle}>Card Holder Name <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input
+                      type="text"
+                      placeholder="As it appears on the card"
+                      value={form.cardHolder}
+                      onChange={(e) => {
+                        setForm((f) => ({ ...f, cardHolder: e.target.value }));
+                        setErrors((er) => ({ ...er, cardHolder: '' }));
+                      }}
+                      style={errors.cardHolder ? inputErrorStyle : { ...inputStyle, textTransform: 'uppercase' }}
+                    />
+                    <FieldError msg={errors.cardHolder} />
+                  </div>
+
+                  {/* Expiry + CVV */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div>
+                      <label style={labelStyle}>Expiry Date <span style={{ color: '#ef4444' }}>*</span></label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={2}
+                          placeholder="MM"
+                          value={form.expiryMonth}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 2);
+                            setForm((f) => ({ ...f, expiryMonth: val }));
+                            setErrors((er) => ({ ...er, expiry: '' }));
+                          }}
+                          style={{ ...(errors.expiry ? inputErrorStyle : inputStyle), textAlign: 'center', fontFamily: 'monospace' }}
+                        />
+                        <span style={{ display: 'flex', alignItems: 'center', color: '#9ca3af', fontWeight: 700 }}>/</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={2}
+                          placeholder="YY"
+                          value={form.expiryYear}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 2);
+                            setForm((f) => ({ ...f, expiryYear: val }));
+                            setErrors((er) => ({ ...er, expiry: '' }));
+                          }}
+                          style={{ ...(errors.expiry ? inputErrorStyle : inputStyle), textAlign: 'center', fontFamily: 'monospace' }}
+                        />
+                      </div>
+                      <FieldError msg={errors.expiry} />
+                    </div>
+
+                    <div>
+                      <label style={labelStyle}>CVV <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="•••"
+                        value={form.cvv}
+                        onFocus={() => setCardFlipped(true)}
+                        onBlur={() => setCardFlipped(false)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                          setForm((f) => ({ ...f, cvv: val }));
+                          setErrors((er) => ({ ...er, cvv: '' }));
+                        }}
+                        style={{ ...(errors.cvv ? inputErrorStyle : inputStyle), fontFamily: 'monospace', letterSpacing: '0.2em' }}
+                      />
+                      <FieldError msg={errors.cvv} />
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    background: '#f0fdf4', border: '1px solid #bbf7d0',
+                    borderRadius: '10px', padding: '10px 14px',
+                  }}>
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#16a34a" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 600 }}>Your card details are encrypted and secure</span>
+                  </div>
+                </div>
               </div>
 
               <button
@@ -863,7 +1037,7 @@ export default function TourBookingPage() {
                   boxShadow: submitting ? 'none' : '0 4px 15px rgba(245,158,11,0.4)',
                 }}
               >
-                {submitting ? 'Submitting...' : 'Confirm Booking'}
+                {submitting ? 'Processing...' : `Pay ${totalPrice > 0 ? formatLKR(Math.round(totalPrice * 0.2)) : ''} & Confirm Booking`}
               </button>
             </form>
 

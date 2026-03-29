@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
 import AdminDrawer from '../../components/AdminDrawer';
 import api from '../../utils/api';
-import { Plus, Pencil, Trash2, Map, Upload, Search, ChevronLeft, ChevronRight, Eye, CheckCircle, XCircle, Ban, CreditCard, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Map, Upload, Search, ChevronLeft, ChevronRight, CheckCircle, XCircle, CreditCard, X, Trash } from 'lucide-react';
 import AdminTabs from '../../components/AdminTabs';
 import { formatLKR } from '../../utils/currency';
 
@@ -47,7 +47,8 @@ export default function AdminToursPage() {
   const [bookingStatusFilter, setBookingStatusFilter] = useState('all');
   const [bookingPage, setBookingPage] = useState(1);
   const bookingPerPage = 8;
-  const [slipModal, setSlipModal] = useState(null);
+  const [paymentModal, setPaymentModal] = useState(null);  // booking object
+  const [clearingRejected, setClearingRejected] = useState(false);
 
   /* ── fetch on mount ── */
   useEffect(() => {
@@ -198,7 +199,18 @@ export default function AdminToursPage() {
   const pendingBookingsCount = bookings.filter(b => b.status === 'pending').length;
   const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
   const rejectedCount = bookings.filter(b => b.status === 'rejected').length;
-  const cancelledCount = bookings.filter(b => b.status === 'cancelled').length;
+
+  const handleClearRejectedBookings = async () => {
+    if (rejectedCount === 0) { toast('No rejected bookings to clear.'); return; }
+    if (!window.confirm(`Delete all ${rejectedCount} rejected booking(s)? This cannot be undone.`)) return;
+    setClearingRejected(true);
+    try {
+      const { data } = await api.delete('/admin/tour-bookings/rejected');
+      setBookings(prev => prev.filter(b => b.status !== 'rejected'));
+      toast.success(data.message);
+    } catch { toast.error('Failed to clear rejected bookings.'); }
+    finally { setClearingRejected(false); }
+  };
 
   const filteredBookings = bookings.filter(b => {
     const matchStatus = bookingStatusFilter === 'all' || b.status === bookingStatusFilter;
@@ -235,7 +247,6 @@ export default function AdminToursPage() {
     { key: 'pending', label: 'Pending', count: pendingBookingsCount },
     { key: 'confirmed', label: 'Confirmed', count: confirmedCount },
     { key: 'rejected', label: 'Rejected', count: rejectedCount },
-    { key: 'cancelled', label: 'Cancelled', count: cancelledCount },
   ];
 
   return (
@@ -396,7 +407,26 @@ export default function AdminToursPage() {
         {/* ══════════════ BOOKINGS & PAYMENTS TAB ══════════════ */}
         {activeTab === 1 && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+              <button
+                onClick={handleClearRejectedBookings}
+                disabled={clearingRejected || rejectedCount === 0}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: rejectedCount === 0 ? '#f9fafb' : '#fef2f2',
+                  border: `1px solid ${rejectedCount === 0 ? '#e5e7eb' : '#fecaca'}`,
+                  color: rejectedCount === 0 ? '#9ca3af' : '#dc2626',
+                  borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 700,
+                  cursor: rejectedCount === 0 || clearingRejected ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <Trash size={14} />
+                {clearingRejected ? 'Clearing...' : `Clear Rejected Bookings (${rejectedCount})`}
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
               {[
                 { label: 'Total Bookings', value: bookings.length, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
                 { label: 'Pending', value: pendingBookingsCount, color: '#d97706', bg: '#fffbeb', border: '#fcd34d' },
@@ -446,7 +476,7 @@ export default function AdminToursPage() {
                     <table>
                       <thead>
                         <tr>
-                          <th>Traveler</th><th>Package</th><th>Vehicle</th><th>Travelers</th><th>Start Date</th><th>Amount</th><th>Status</th><th className="text-right">Actions</th>
+                          <th>Traveler</th><th>Package</th><th>Vehicle</th><th>Travelers</th><th>Start Date</th><th>Amount</th><th>Payment</th><th>Status</th><th className="text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -466,6 +496,24 @@ export default function AdminToursPage() {
                             <td className="text-sm text-gray-500">{fmtDate(b.startDate)}</td>
                             <td className="text-sm font-bold text-gray-900">{fmtCurrency(b.totalPrice)}</td>
                             <td>
+                              {b.payment?.cardLastFour ? (
+                                <button
+                                  onClick={() => setPaymentModal(b)}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                                    background: '#eff6ff', border: '1px solid #bfdbfe',
+                                    color: '#1d4ed8', borderRadius: 8, padding: '5px 10px',
+                                    fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                  }}
+                                >
+                                  <CreditCard size={12} />
+                                  ••••{b.payment.cardLastFour}
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: 11, color: '#9ca3af' }}>—</span>
+                              )}
+                            </td>
+                            <td>
                               <span style={{
                                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
                                 background: { pending: '#fef3c7', confirmed: '#d1fae5', rejected: '#fee2e2', cancelled: '#f3f4f6' }[b.status] || '#f3f4f6',
@@ -477,14 +525,12 @@ export default function AdminToursPage() {
                             </td>
                             <td>
                               <div className="flex items-center justify-end gap-2">
-                                {b.slipUrl && <button onClick={() => setSlipModal(b.slipUrl)} className="adm-btn-edit"><Eye size={14} /> Slip</button>}
                                 {b.status === 'pending' && (
                                   <>
                                     <button onClick={() => updateBookingStatus(b._id, 'confirmed')} className="adm-btn-edit" style={{ color: '#16a34a', borderColor: '#bbf7d0', background: '#f0fdf4' }}><CheckCircle size={14} /> Approve</button>
                                     <button onClick={() => updateBookingStatus(b._id, 'rejected')} className="adm-btn-delete"><XCircle size={14} /> Reject</button>
                                   </>
                                 )}
-                                {b.status === 'confirmed' && <button onClick={() => updateBookingStatus(b._id, 'cancelled')} className="adm-btn-edit" style={{ color: '#6b7280', borderColor: '#d1d5db' }}><Ban size={14} /> Cancel</button>}
                               </div>
                             </td>
                           </tr>
@@ -506,14 +552,49 @@ export default function AdminToursPage() {
               </>
             )}
 
-            {slipModal && (
-              <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setSlipModal(null)}>
-                <div style={{ background: '#fff', borderRadius: 16, padding: 8, maxWidth: '90vw', maxHeight: '90vh', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px 12px' }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#374151' }}>Payment Slip</span>
-                    <button onClick={() => setSlipModal(null)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#6b7280' }}>&times;</button>
+            {paymentModal && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} onClick={() => setPaymentModal(null)}>
+                <div style={{ background: '#fff', borderRadius: 20, padding: '28px 32px', width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CreditCard size={18} style={{ color: '#1d4ed8' }} />
+                      </div>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: '#111827' }}>Payment Details</span>
+                    </div>
+                    <button onClick={() => setPaymentModal(null)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#6b7280' }}>&times;</button>
                   </div>
-                  <img src={slipModal} alt="Payment slip" style={{ maxWidth: '80vw', maxHeight: '75vh', borderRadius: 12, objectFit: 'contain' }} />
+
+                  {/* Simulated card */}
+                  <div style={{ borderRadius: 14, background: 'linear-gradient(135deg, #1e3a5f, #2563eb)', padding: '20px 22px', color: '#fff', marginBottom: 20 }}>
+                    <p style={{ fontFamily: 'monospace', fontSize: 18, letterSpacing: '0.15em', fontWeight: 700, margin: '0 0 10px' }}>
+                      •••• •••• •••• {paymentModal.payment?.cardLastFour || '????'}
+                    </p>
+                    <p style={{ fontSize: 12, opacity: 0.75, margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Card Holder</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, margin: 0, textTransform: 'uppercase' }}>{paymentModal.payment?.cardHolder || '—'}</p>
+                  </div>
+
+                  {/* Payment breakdown */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#f0fdf4', borderRadius: 10, border: '1px solid #bbf7d0' }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Advance Paid (20%)</p>
+                        <p style={{ fontSize: 20, fontWeight: 900, color: '#047857', margin: '2px 0 0' }}>{fmtCurrency(paymentModal.payment?.advancePaid || 0)}</p>
+                      </div>
+                      <span style={{ fontSize: 22 }}>✓</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#fefce8', borderRadius: 10, border: '1px solid #fef08a' }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: '#ca8a04', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Remaining Due (80%)</p>
+                        <p style={{ fontSize: 20, fontWeight: 900, color: '#a16207', margin: '2px 0 0' }}>{fmtCurrency(paymentModal.payment?.remainingAmount || 0)}</p>
+                      </div>
+                      <span style={{ fontSize: 22 }}>⏳</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', background: '#f9fafb', borderRadius: 10, border: '1px solid #e5e7eb' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#6b7280' }}>Total Booking Value</span>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>{fmtCurrency(paymentModal.totalPrice)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

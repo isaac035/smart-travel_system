@@ -36,6 +36,8 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/trips', require('./routes/tripRoutes'));
 app.use('/api/routes', require('./routes/routeRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/support', require('./routes/supportRoutes'));
+
 
 // Global error handler (catches multer/cloudinary upload errors etc.)
 app.use((err, req, res, next) => {

@@ -10,6 +10,7 @@ const TourBooking = require('../models/TourBooking');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const ProductOrder = require('../models/ProductOrder');
+const SupportRequest = require('../models/SupportRequest');
 
 
 // GET /api/admin/users
@@ -410,6 +411,16 @@ exports.updatePaymentStatus = async (req, res) => {
   }
 };
 
+// DELETE /api/admin/tour-bookings/rejected
+exports.clearRejectedTourBookings = async (req, res) => {
+  try {
+    const result = await TourBooking.deleteMany({ status: 'rejected' });
+    res.json({ message: `Cleared ${result.deletedCount} rejected booking(s).`, count: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // GET /api/admin/owner-hotels — all hotels submitted by hotel owners
 exports.getOwnerSubmittedHotels = async (req, res) => {
   try {
@@ -572,5 +583,65 @@ exports.createAdmin = async (req, res) => {
     res.status(201).json(created);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+};
+
+// ─── Emergency Support Management ────────────────────────────────────────────
+
+// GET /api/admin/support
+exports.getSupportRequests = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+    if (status && status !== 'all') filter.status = status;
+
+    const requests = await SupportRequest.find(filter)
+      .populate('userId', 'name email avatar')
+      .sort({ createdAt: -1 });
+    res.json(requests);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PUT /api/admin/support/:id
+exports.updateSupportRequest = async (req, res) => {
+  try {
+    const { status, adminReply } = req.body;
+    const VALID = ['pending', 'accepted', 'rejected'];
+    if (status && !VALID.includes(status)) {
+      return res.status(400).json({ message: `Status must be one of: ${VALID.join(', ')}` });
+    }
+
+    const updates = {};
+    if (status) updates.status = status;
+    if (adminReply !== undefined) {
+      updates.adminReply = adminReply.trim();
+      if (adminReply.trim()) {
+        updates.repliedAt = new Date();
+        updates.repliedBy = req.user._id;
+      }
+    }
+
+    const request = await SupportRequest.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
+    ).populate('userId', 'name email avatar');
+
+    if (!request) return res.status(404).json({ message: 'Support request not found' });
+    res.json(request);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// DELETE /api/admin/support/rejected  — clear all rejected requests
+exports.clearRejectedRequests = async (req, res) => {
+  try {
+    const result = await SupportRequest.deleteMany({ status: 'rejected' });
+    res.json({ message: `Cleared ${result.deletedCount} rejected request(s).`, count: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
