@@ -20,7 +20,7 @@ const { upload } = require('../config/cloudinary');
 router.post('/calculate-price', calculatePrice);
 
 // Bookings (must be before /:id to avoid conflicts)
-router.post('/bookings', protect, upload.single('slip'), createBooking);
+router.post('/bookings', protect, createBooking);
 router.get('/bookings/my', protect, getMyBookings);
 router.get('/bookings/all', protect, adminOnly, getAllBookings);
 router.put('/bookings/:id/status', protect, adminOnly, updateBookingStatus);

@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Menu,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 
 const navGroups = [
@@ -41,6 +42,7 @@ const navGroups = [
     label: 'SYSTEM',
     items: [
       { label: 'Users', to: '/admin/users', icon: Users },
+      { label: 'Emergency Support', to: '/admin/support', icon: AlertTriangle },
     ],
   },
 ];
@@ -53,6 +55,7 @@ const pageTitles = {
   '/admin/tours': 'Tour Packages',
   '/admin/products': 'Products',
   '/admin/users': 'Users',
+  '/admin/support': 'Emergency Support',
 };
 
 /* ── Inline style objects (guaranteed to render) ── */

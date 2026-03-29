@@ -52,6 +52,7 @@ import AdminGuidesPage from './pages/admin/AdminGuidesPage';
 import AdminToursPage from './pages/admin/AdminToursPage';
 import AdminProductsPage from './pages/admin/AdminProductsPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminSupportPage from './pages/admin/AdminSupportPage';
 
 import AboutPage from './pages/about/AboutPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -134,6 +135,7 @@ export default function App() {
               <Route path="/admin/tours" element={<AdminRoute><AdminToursPage /></AdminRoute>} />
               <Route path="/admin/products" element={<AdminRoute><AdminProductsPage /></AdminRoute>} />
               <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+              <Route path="/admin/support" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
 
               {/* 404 */}
               <Route path="*" element={<NotFoundPage />} />

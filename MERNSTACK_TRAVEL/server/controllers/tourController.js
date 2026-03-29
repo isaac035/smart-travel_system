@@ -135,7 +135,10 @@ exports.deletePackage = async (req, res) => {
 // POST /api/tours/bookings  (user)
 exports.createBooking = async (req, res) => {
   try {
-    const { packageId, vehicle, travelers, customDuration, startDate, notes } = req.body;
+    const {
+      packageId, vehicle, travelers, customDuration, startDate, notes,
+      cardHolder, cardNumber, expiryMonth, expiryYear, cvv,
+    } = req.body;
 
     // Fetch package first so validator can check vehicle options & capacity
     const pkg = await TourPackage.findById(packageId);
@@ -150,13 +153,38 @@ exports.createBooking = async (req, res) => {
     const errors = validateBookingInput(req.body, pkg);
     if (errors.length) return res.status(400).json({ message: errors.join(' ') });
 
+    // ── Card payment validation ──────────────────────────────────────
+    if (!cardHolder || cardHolder.trim().length < 3) {
+      return res.status(400).json({ message: 'Card holder name must be at least 3 characters.' });
+    }
+    const rawCard = String(cardNumber || '').replace(/\s/g, '');
+    if (!/^\d{16}$/.test(rawCard)) {
+      return res.status(400).json({ message: 'Card number must be exactly 16 digits.' });
+    }
+    const expM = parseInt(expiryMonth, 10);
+    const expY = parseInt(expiryYear, 10);
+    if (!expM || expM < 1 || expM > 12) {
+      return res.status(400).json({ message: 'Invalid expiry month.' });
+    }
+    const now = new Date();
+    const fullYear = expY < 100 ? 2000 + expY : expY;
+    if (fullYear < now.getFullYear() || (fullYear === now.getFullYear() && expM < now.getMonth() + 1)) {
+      return res.status(400).json({ message: 'Card has expired.' });
+    }
+    const rawCvv = String(cvv || '');
+    if (!/^\d{3,4}$/.test(rawCvv)) {
+      return res.status(400).json({ message: 'CVV must be 3 or 4 digits.' });
+    }
+    // ─────────────────────────────────────────────────────────────────
+
     const multiplier = pkg.vehicleMultipliers[vehicle] || 1;
     const baseDur = pkg.duration || 1;
     const dur = Math.max(1, Number(customDuration) || baseDur);
     const pricePerDay = pkg.basePrice / baseDur;
     const totalPrice = pricePerDay * dur * multiplier * Number(travelers);
 
-    const slipUrl = req.file ? req.file.path : undefined;
+    const advancePaid = Math.round(totalPrice * 0.2 * 100) / 100;
+    const remainingAmount = Math.round((totalPrice - advancePaid) * 100) / 100;
 
     const booking = await TourBooking.create({
       userId: req.user._id,
@@ -166,14 +194,21 @@ exports.createBooking = async (req, res) => {
       customDuration: dur,
       startDate,
       totalPrice,
-      slipUrl,
       notes,
+      payment: {
+        cardHolder: cardHolder.trim(),
+        cardLastFour: rawCard.slice(-4),
+        advancePaid,
+        remainingAmount,
+        paymentStatus: 'advance_paid',
+      },
     });
     res.status(201).json(booking);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 };
+
 
 // GET /api/tours/bookings/my  (user)
 exports.getMyBookings = async (req, res) => {
