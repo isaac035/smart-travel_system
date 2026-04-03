@@ -338,7 +338,24 @@ export default function AdminLocationsPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     const errors = {};
-    if (/[0-9]/.test(form.name)) errors.name = 'Numbers are not allowed in location name';
+    // Name validation
+    if (!form.name.trim()) errors.name = 'Location name is required';
+    else if (/[0-9]/.test(form.name)) errors.name = 'Numbers are not allowed in location name';
+    // Description validation
+    const plainDesc = form.description.replace(/<[^>]*>/g, '').trim();
+    if (!plainDesc) errors.description = 'Description is required';
+    // Subcategory validation
+    if (!form.subcategory) errors.subcategory = 'Please select a subcategory';
+    // District validation
+    if (!form.district) errors.district = 'Please select a district';
+    // Province validation
+    if (!form.province) errors.province = 'Please select a province';
+    // Coordinates validation
+    if (!form.lat && form.lat !== 0) errors.lat = 'Latitude is required';
+    else if (isNaN(parseFloat(form.lat)) || parseFloat(form.lat) < SL_BOUNDS.south || parseFloat(form.lat) > SL_BOUNDS.north) errors.lat = `Latitude must be between ${SL_BOUNDS.south} and ${SL_BOUNDS.north}`;
+    if (!form.lng && form.lng !== 0) errors.lng = 'Longitude is required';
+    else if (isNaN(parseFloat(form.lng)) || parseFloat(form.lng) < SL_BOUNDS.west || parseFloat(form.lng) > SL_BOUNDS.east) errors.lng = `Longitude must be between ${SL_BOUNDS.west} and ${SL_BOUNDS.east}`;
+    // Images validation
     const totalImages = existingImages.length + images.length;
     if (!editId && totalImages === 0) errors.images = 'Please upload at least one image';
     if (totalImages > MAX_IMAGES) errors.images = `Maximum ${MAX_IMAGES} images allowed. You have ${totalImages}`;
@@ -401,13 +418,13 @@ export default function AdminLocationsPage() {
           <div className="field-row cols-4">
             <div className="field"><label>Location Name *</label><input required value={form.name} onChange={(e) => { if (/[0-9]/.test(e.target.value)) { setFieldErrors((p) => ({ ...p, name: 'Numbers are not allowed in location name' })); return; } setFieldErrors((p) => ({ ...p, name: '' })); f('name')(e); }} placeholder="Enter location name" className="adm-input" style={fieldErrors.name ? { borderColor: '#ef4444' } : {}} />{fieldErrors.name && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', display: 'block' }}>{fieldErrors.name}</span>}</div>
             <div className="field"><label>Category</label><select value={form.category} onChange={f('category')} className="adm-select">{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
-            <div className="field"><label>Subcategory</label><select value={form.subcategory} onChange={f('subcategory')} className="adm-select"><option value="">-- Select --</option>{(SUBCATEGORIES[form.category] || []).map((s) => <option key={s}>{s}</option>)}</select></div>
-            <div className="field"><label>District</label><SearchableSelect value={form.district} onChange={(v) => setForm((p) => ({ ...p, district: v }))} options={DISTRICTS} placeholder="Select District" /></div>
+            <div className="field"><label>Subcategory *</label><select value={form.subcategory} onChange={(e) => { setFieldErrors((p) => ({ ...p, subcategory: '' })); f('subcategory')(e); }} className="adm-select" style={fieldErrors.subcategory ? { borderColor: '#ef4444' } : {}}><option value="">-- Select --</option>{(SUBCATEGORIES[form.category] || []).map((s) => <option key={s}>{s}</option>)}</select>{fieldErrors.subcategory && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', display: 'block' }}>{fieldErrors.subcategory}</span>}</div>
+            <div className="field"><label>District *</label><SearchableSelect value={form.district} onChange={(v) => { setFieldErrors((p) => ({ ...p, district: '' })); setForm((p) => ({ ...p, district: v })); }} options={DISTRICTS} placeholder="Select District" />{fieldErrors.district && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', display: 'block' }}>{fieldErrors.district}</span>}</div>
           </div>
           <div className="field-row cols-3">
-            <div className="field"><label>Province</label><CustomSelect value={form.province} onChange={(v) => setForm((p) => ({ ...p, province: v }))} options={PROVINCES} placeholder="Select Province" /></div>
-            <div className="field"><label>Latitude</label><input type="text" value={form.lat} onChange={(e) => { if (e.target.value !== '' && !/^-?\d*\.?\d*$/.test(e.target.value)) { setFieldErrors((p) => ({ ...p, lat: 'Only numbers and decimal point allowed' })); return; } setFieldErrors((p) => ({ ...p, lat: '' })); f('lat')(e); }} placeholder="7.2906" className="adm-input" style={fieldErrors.lat ? { borderColor: '#ef4444' } : {}} />{fieldErrors.lat && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', display: 'block' }}>{fieldErrors.lat}</span>}</div>
-            <div className="field"><label>Longitude</label><input type="text" value={form.lng} onChange={(e) => { if (e.target.value !== '' && !/^-?\d*\.?\d*$/.test(e.target.value)) { setFieldErrors((p) => ({ ...p, lng: 'Only numbers and decimal point allowed' })); return; } setFieldErrors((p) => ({ ...p, lng: '' })); f('lng')(e); }} placeholder="80.6337" className="adm-input" style={fieldErrors.lng ? { borderColor: '#ef4444' } : {}} />{fieldErrors.lng && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', display: 'block' }}>{fieldErrors.lng}</span>}</div>
+            <div className="field"><label>Province *</label><CustomSelect value={form.province} onChange={(v) => { setFieldErrors((p) => ({ ...p, province: '' })); setForm((p) => ({ ...p, province: v })); }} options={PROVINCES} placeholder="Select Province" />{fieldErrors.province && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', display: 'block' }}>{fieldErrors.province}</span>}</div>
+            <div className="field"><label>Latitude *</label><input type="text" value={form.lat} onChange={(e) => { if (e.target.value !== '' && !/^-?\d*\.?\d*$/.test(e.target.value)) { setFieldErrors((p) => ({ ...p, lat: 'Only numbers and decimal point allowed' })); return; } setFieldErrors((p) => ({ ...p, lat: '' })); f('lat')(e); }} placeholder="7.2906" className="adm-input" style={fieldErrors.lat ? { borderColor: '#ef4444' } : {}} />{fieldErrors.lat && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', display: 'block' }}>{fieldErrors.lat}</span>}</div>
+            <div className="field"><label>Longitude *</label><input type="text" value={form.lng} onChange={(e) => { if (e.target.value !== '' && !/^-?\d*\.?\d*$/.test(e.target.value)) { setFieldErrors((p) => ({ ...p, lng: 'Only numbers and decimal point allowed' })); return; } setFieldErrors((p) => ({ ...p, lng: '' })); f('lng')(e); }} placeholder="80.6337" className="adm-input" style={fieldErrors.lng ? { borderColor: '#ef4444' } : {}} />{fieldErrors.lng && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', display: 'block' }}>{fieldErrors.lng}</span>}</div>
           </div>
           {/* ── Location Picker: Search + Map ── */}
           <div className="field-row" style={{ gridTemplateColumns: '1fr' }}>
@@ -447,10 +464,11 @@ export default function AdminLocationsPage() {
           </div>
           <div className="field-row" style={{ gridTemplateColumns: '1fr' }}>
             <div className="field">
-              <label>Description</label>
-              <div className="loc-quill-wrap">
-                <ReactQuill theme="snow" value={form.description} onChange={(val) => setForm((p) => ({ ...p, description: val }))} modules={QUILL_MODULES} formats={QUILL_FORMATS} placeholder="Describe this location..." />
+              <label>Description *</label>
+              <div className="loc-quill-wrap" style={fieldErrors.description ? { border: '1px solid #ef4444', borderRadius: '10px' } : {}}>
+                <ReactQuill theme="snow" value={form.description} onChange={(val) => { setFieldErrors((p) => ({ ...p, description: '' })); setForm((p) => ({ ...p, description: val })); }} modules={QUILL_MODULES} formats={QUILL_FORMATS} placeholder="Describe this location..." />
               </div>
+              {fieldErrors.description && <span style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', display: 'block' }}>{fieldErrors.description}</span>}
             </div>
           </div>
           <div className="field-row cols-2">

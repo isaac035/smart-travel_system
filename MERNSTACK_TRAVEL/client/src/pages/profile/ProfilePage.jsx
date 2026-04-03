@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { formatLKR } from '../../utils/currency';
+import { exportTripPDF } from '../../utils/tripPdf';
 
 
 /* ── fallback cover (reliable Unsplash Sri Lanka photo) ── */
@@ -65,7 +66,8 @@ export default function ProfilePage() {
 
   // Redirect admin to admin dashboard
   if (user?.role === 'admin') return <Navigate to="/admin" replace />;
-  const [tab, setTab] = useState(0);
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => searchParams.get('tab') === 'trips' ? 4 : 0);
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [avatarFile, setAvatarFile] = useState(null);
@@ -580,7 +582,7 @@ export default function ProfilePage() {
 
                           <div style={{ display: 'flex', gap: 8 }}>
                             <Link
-                              to="/explore?tab=tripplan"
+                              to={`/explore?tab=tripplan&editTripId=${trip._id}`}
                               style={{
                                 fontSize: 12, fontWeight: 600, color: '#d97706',
                                 background: '#fffbeb', border: '1px solid #fde68a',
@@ -590,6 +592,23 @@ export default function ProfilePage() {
                             >
                               Edit Plan
                             </Link>
+                            <button
+                              onClick={() => { exportTripPDF(trip); toast.success('PDF exported!'); }}
+                              style={{
+                                fontSize: 12, fontWeight: 600, color: '#2563eb',
+                                background: '#eff6ff', border: '1px solid #bfdbfe',
+                                borderRadius: 8, padding: '7px 16px', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: 5,
+                                transition: 'all 0.2s',
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = '#dbeafe'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><polyline points="9 15 12 18 15 15" />
+                              </svg>
+                              PDF
+                            </button>
                             <button
                               onClick={async () => {
                                 if (!window.confirm('Delete this trip?')) return;
