@@ -6,6 +6,8 @@ const {
   getTourBookings, getHotelBookings, getProductOrders,
   updateUserStatus, getUserDetails, createAdmin,
   getOwnerSubmittedHotels, updateOwnerHotelApproval, updateOwnerHotelDetails,
+  getSupportRequests, updateSupportRequest, clearRejectedRequests,
+  clearRejectedTourBookings,
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
@@ -16,6 +18,7 @@ router.get('/stats', getStats);
 router.get('/payments', getAllPayments);
 router.put('/payments/:type/:id/status', updatePaymentStatus);
 router.get('/tour-bookings', getTourBookings);
+router.delete('/tour-bookings/rejected', clearRejectedTourBookings);
 router.get('/hotel-bookings', getHotelBookings);
 router.get('/product-orders', getProductOrders);
 
@@ -33,6 +36,11 @@ router.delete('/users/:id', deleteUser);
 router.get('/owner-hotels', getOwnerSubmittedHotels);
 router.put('/owner-hotels/:id/approval', updateOwnerHotelApproval);
 router.put('/owner-hotels/:id', updateOwnerHotelDetails);
+
+// Emergency Support Management
+router.get('/support', getSupportRequests);
+router.put('/support/:id', updateSupportRequest);
+router.delete('/support/rejected', clearRejectedRequests);
 
 module.exports = router;
 

@@ -5,6 +5,8 @@ import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import Layout from '../../components/Layout';
 import { Mail, Lock, Phone, MapPin, User, Building2 } from 'lucide-react';
+import { validateEmail, validatePassword, validateConfirmPassword, validateRequired } from '../../utils/authValidators';
+import { validateSriLankanMobile } from '../../utils/validators';
 
 /* ─────────────────────────────────────────────
    GLOBAL STYLES
@@ -165,7 +167,7 @@ function pwStrength(pw) {
   return { score: s, ...map[s] };
 }
 
-function InputField({ icon: Icon, label, name, type = 'text', value, onChange, placeholder, required = true, children }) {
+function InputField({ icon: Icon, label, name, type = 'text', value, onChange, placeholder, required = true, error, children }) {
   const [focused, setFocused] = useState(false);
   return (
     <div>
@@ -181,7 +183,7 @@ function InputField({ icon: Icon, label, name, type = 'text', value, onChange, p
           className="ho-inp"
           name={name} type={type} value={value} onChange={onChange}
           placeholder={placeholder} required={required}
-          style={{ padding: Icon ? '12px 14px 12px 42px' : '12px 14px' }}
+          style={{ padding: Icon ? '12px 14px 12px 42px' : '12px 14px', ...(error ? invalidInputStyle : {}) }}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
@@ -190,6 +192,8 @@ function InputField({ icon: Icon, label, name, type = 'text', value, onChange, p
     </div>
   );
 }
+
+const invalidInputStyle = { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239,68,68,0.15)' };
 
 /* ─── SPINNER ─── */
 function Spinner() {
@@ -217,12 +221,48 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
   const [signUp, setSignUp] = useState({
     fullName: '', email: '', password: '', confirmPassword: '', phone: '', location: '',
   });
+  const [signInErrors, setSignInErrors] = useState({});
+  const [signUpErrors, setSignUpErrors] = useState({});
 
-  const updateSignIn = e => setSignIn(p => ({ ...p, [e.target.name]: e.target.value }));
-  const updateSignUp = e => setSignUp(p => ({ ...p, [e.target.name]: e.target.value }));
+  const validateSignIn = (values) => ({
+    email: validateEmail(values.email),
+    password: validateRequired(values.password, 'Password'),
+  });
+
+  const validateSignUp = (values) => ({
+    fullName: validateRequired(values.fullName, 'Full name'),
+    email: validateEmail(values.email),
+    password: validatePassword(values.password),
+    confirmPassword: validateConfirmPassword(values.password, values.confirmPassword),
+    phone: validateSriLankanMobile((values.phone || '').trim()),
+    location: validateRequired(values.location, 'Location'),
+  });
+
+  const hasErrors = (errs) => Object.values(errs).some(Boolean);
+
+  const updateSignIn = e => {
+    const { name, value } = e.target;
+    const next = { ...signIn, [name]: value };
+    setSignIn(next);
+    if (signInErrors[name]) {
+      setSignInErrors(prev => ({ ...prev, [name]: validateSignIn(next)[name] }));
+    }
+  };
+  const updateSignUp = e => {
+    const { name, value } = e.target;
+    const next = { ...signUp, [name]: value };
+    setSignUp(next);
+    if (Object.keys(signUpErrors).length) {
+      const nextErrors = validateSignUp(next);
+      setSignUpErrors(prev => ({ ...prev, [name]: nextErrors[name], ...(name === 'password' ? { confirmPassword: nextErrors.confirmPassword } : {}) }));
+    }
+  };
 
   const handleSignIn = async e => {
     e.preventDefault();
+    const nextErrors = validateSignIn(signIn);
+    setSignInErrors(nextErrors);
+    if (hasErrors(nextErrors)) return;
     setLoading(true);
     try {
       const { data } = await api.post('/auth/hotel-owner/login', {
@@ -241,9 +281,11 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
 
   const handleSignUp = async e => {
     e.preventDefault();
+    const nextErrors = validateSignUp(signUp);
+    setSignUpErrors(nextErrors);
+    if (hasErrors(nextErrors)) return;
     setLoading(true);
     try {
-      if (signUp.password !== signUp.confirmPassword) { toast.error('Passwords do not match'); return; }
       const response = await api.post('/auth/hotel-owner/register', {
         fullName: signUp.fullName, email: signUp.email,
         password: signUp.password, confirmPassword: signUp.confirmPassword,
@@ -368,7 +410,7 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
             {/* Mode tabs */}
             <div style={{ display:'flex', gap:4, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:16, padding:5, marginBottom:32 }}>
               {[['signin','Sign In'],['signup','Create Account']].map(([m,lbl])=>(
-                <button key={m} type="button" onClick={()=>setMode(m)} style={{
+                <button key={m} type="button" onClick={() => { setMode(m); setSignInErrors({}); setSignUpErrors({}); }} style={{
                   flex:1, padding:'10px 0', borderRadius:12, border:'none', cursor:'pointer',
                   fontSize:13, fontWeight:800, transition:'all .25s', fontFamily:"'DM Sans',sans-serif",
                 }} className={mode===m?'ho-tab-active':'ho-tab-inactive'}>
@@ -387,7 +429,9 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
 
                 <form onSubmit={handleSignIn} style={{ display:'flex', flexDirection:'column', gap:16 }}>
                   <InputField icon={Mail} label="Email Address" name="email" type="email"
-                    value={signIn.email} onChange={updateSignIn} placeholder="owner@email.com" />
+                    value={signIn.email} onChange={updateSignIn} placeholder="owner@email.com" error={signInErrors.email}>
+                    {signInErrors.email && <p style={{ fontSize:11, color:'#ef4444', margin:'6px 0 0', fontWeight:700 }}>{signInErrors.email}</p>}
+                  </InputField>
 
                   <div>
                     <label style={{ display:'flex', alignItems:'center', gap:7, fontSize:10, fontWeight:800, color:'rgba(255,255,255,0.45)', textTransform:'uppercase', letterSpacing:'0.13em', marginBottom:8 }}>
@@ -398,13 +442,14 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
                       <input className="ho-inp" name="password" type={showPw?'text':'password'}
                         value={signIn.password} onChange={updateSignIn}
                         placeholder="Enter your password" required
-                        style={{ padding:'12px 42px 12px 42px' }} />
+                        style={{ padding:'12px 42px 12px 42px', ...(signInErrors.password ? invalidInputStyle : {}) }} />
                       <button type="button" onClick={()=>setShowPw(v=>!v)} style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.35)', fontSize:13, padding:0, transition:'color .2s' }}
                         onMouseOver={e=>{e.currentTarget.style.color='#f59e0b';}}
                         onMouseOut={e=>{e.currentTarget.style.color='rgba(255,255,255,0.35)';}}>
                         {showPw ? '🙈' : '👁'}
                       </button>
                     </div>
+                    {signInErrors.password && <p style={{ fontSize:11, color:'#ef4444', margin:'6px 0 0', fontWeight:700 }}>{signInErrors.password}</p>}
                   </div>
 
                   <div style={{ display:'flex', justifyContent:'flex-end' }}>
@@ -442,10 +487,14 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
 
                 <form onSubmit={handleSignUp} style={{ display:'flex', flexDirection:'column', gap:14 }}>
                   <InputField icon={User} label="Full Name" name="fullName"
-                    value={signUp.fullName} onChange={updateSignUp} placeholder="Your full name" />
+                    value={signUp.fullName} onChange={updateSignUp} placeholder="Your full name" error={signUpErrors.fullName}>
+                    {signUpErrors.fullName && <p style={{ fontSize:11, color:'#ef4444', margin:'6px 0 0', fontWeight:700 }}>{signUpErrors.fullName}</p>}
+                  </InputField>
 
                   <InputField icon={Mail} label="Email Address" name="email" type="email"
-                    value={signUp.email} onChange={updateSignUp} placeholder="owner@email.com" />
+                    value={signUp.email} onChange={updateSignUp} placeholder="owner@email.com" error={signUpErrors.email}>
+                    {signUpErrors.email && <p style={{ fontSize:11, color:'#ef4444', margin:'6px 0 0', fontWeight:700 }}>{signUpErrors.email}</p>}
+                  </InputField>
 
                   {/* Password row */}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -457,7 +506,7 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
                         <input className="ho-inp" name="password" type={showPw?'text':'password'}
                           value={signUp.password} onChange={updateSignUp}
                           placeholder="Create password" required
-                          style={{ padding:'12px 38px 12px 14px' }} />
+                          style={{ padding:'12px 38px 12px 14px', ...(signUpErrors.password ? invalidInputStyle : {}) }} />
                         <button type="button" onClick={()=>setShowPw(v=>!v)} style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.3)', fontSize:12, padding:0, transition:'color .2s' }}
                           onMouseOver={e=>{e.currentTarget.style.color='#f59e0b';}}
                           onMouseOut={e=>{e.currentTarget.style.color='rgba(255,255,255,0.3)';}}>
@@ -473,6 +522,7 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
                           <p style={{ fontSize:10, fontWeight:700, color:pw.color, margin:'4px 0 0' }}>{pw.label}</p>
                         </div>
                       )}
+                      {signUpErrors.password && <p style={{ fontSize:10, color:'#ef4444', margin:'5px 0 0', fontWeight:700 }}>{signUpErrors.password}</p>}
                     </div>
                     <div>
                       <label style={{ display:'flex', alignItems:'center', gap:7, fontSize:10, fontWeight:800, color:'rgba(255,255,255,0.45)', textTransform:'uppercase', letterSpacing:'0.13em', marginBottom:8 }}>
@@ -482,13 +532,13 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
                         <input className="ho-inp" name="confirmPassword" type={showCPw?'text':'password'}
                           value={signUp.confirmPassword} onChange={updateSignUp}
                           placeholder="Repeat password" required
-                          style={{ padding:'12px 38px 12px 14px', borderColor: signUp.confirmPassword && signUp.confirmPassword !== signUp.password ? '#ef4444' : undefined }} />
+                          style={{ padding:'12px 38px 12px 14px', ...(signUpErrors.confirmPassword ? invalidInputStyle : {}) }} />
                         <button type="button" onClick={()=>setShowCPw(v=>!v)} style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.3)', fontSize:12, padding:0 }}>
                           {showCPw?'🙈':'👁'}
                         </button>
                       </div>
-                      {signUp.confirmPassword && signUp.confirmPassword !== signUp.password && (
-                        <p style={{ fontSize:10, color:'#ef4444', margin:'5px 0 0', fontWeight:700 }}>Passwords don't match</p>
+                      {signUpErrors.confirmPassword && (
+                        <p style={{ fontSize:10, color:'#ef4444', margin:'5px 0 0', fontWeight:700 }}>{signUpErrors.confirmPassword}</p>
                       )}
                       {signUp.confirmPassword && signUp.confirmPassword === signUp.password && (
                         <p style={{ fontSize:10, color:'#10b981', margin:'5px 0 0', fontWeight:700 }}>✓ Passwords match</p>
@@ -499,9 +549,13 @@ export default function HotelOwnerLoginPage({ initialMode = 'signin' }) {
                   {/* Phone + Location row */}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                     <InputField icon={Phone} label="Phone Number" name="phone"
-                      value={signUp.phone} onChange={updateSignUp} placeholder="+94 77 123 4567" />
+                      value={signUp.phone} onChange={updateSignUp} placeholder="0771234567" error={signUpErrors.phone}>
+                      {signUpErrors.phone && <p style={{ fontSize:11, color:'#ef4444', margin:'6px 0 0', fontWeight:700 }}>{signUpErrors.phone}</p>}
+                    </InputField>
                     <InputField icon={MapPin} label="Location" name="location"
-                      value={signUp.location} onChange={updateSignUp} placeholder="City / Address" />
+                      value={signUp.location} onChange={updateSignUp} placeholder="City / Address" error={signUpErrors.location}>
+                      {signUpErrors.location && <p style={{ fontSize:11, color:'#ef4444', margin:'6px 0 0', fontWeight:700 }}>{signUpErrors.location}</p>}
+                    </InputField>
                   </div>
 
                   {/* Terms notice */}

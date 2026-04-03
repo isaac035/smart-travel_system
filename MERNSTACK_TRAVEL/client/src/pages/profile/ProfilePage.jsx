@@ -27,6 +27,7 @@ const TABS = [
   { label: 'Tour Bookings', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { label: 'Products', icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z' },
   { label: 'Trip Plans', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
+  { label: 'Support', icon: 'M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z' },
 ];
 
 const QUICK_LINKS = [
@@ -83,6 +84,12 @@ export default function ProfilePage() {
   const [productOrders, setProductOrders] = useState([]);
   const [tripPlans, setTripPlans] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [supportRequests, setSupportRequests] = useState([]);
+
+  // Support form state
+  const [supportForm, setSupportForm] = useState({ subject: '', message: '' });
+  const [supportErrors, setSupportErrors] = useState({ subject: '', message: '' });
+  const [supportSubmitting, setSupportSubmitting] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -91,14 +98,39 @@ export default function ProfilePage() {
       api.get('/tours/bookings/my'),
       api.get('/payments/my-orders'),
       api.get('/trips/my').catch(() => ({ data: [] })),
-    ]).then(([h, g, t, p, tr]) => {
+      api.get('/support/my').catch(() => ({ data: [] })),
+    ]).then(([h, g, t, p, tr, sup]) => {
       setHotelBookings(h.data);
       setGuideBookings(g.data);
       setTourBookings(t.data);
       setProductOrders(p.data);
       setTripPlans(tr.data);
+      setSupportRequests(sup.data);
     }).catch(() => { }).finally(() => setLoadingBookings(false));
   }, []);
+
+  const handleSupportSubmit = async (e) => {
+    e.preventDefault();
+    const errs = { subject: '', message: '' };
+    if (!supportForm.subject.trim() || supportForm.subject.trim().length < 3) errs.subject = 'Subject must be at least 3 characters.';
+    if (supportForm.subject.trim().length > 150) errs.subject = 'Subject must be 150 characters or fewer.';
+    if (!supportForm.message.trim() || supportForm.message.trim().length < 10) errs.message = 'Message must be at least 10 characters.';
+    if (supportForm.message.trim().length > 2000) errs.message = 'Message must be 2000 characters or fewer.';
+    setSupportErrors(errs);
+    if (errs.subject || errs.message) return;
+
+    setSupportSubmitting(true);
+    try {
+      const { data } = await api.post('/support', supportForm);
+      setSupportRequests((prev) => [data, ...prev]);
+      setSupportForm({ subject: '', message: '' });
+      toast.success('Support request sent successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send request.');
+    } finally {
+      setSupportSubmitting(false);
+    }
+  };
 
   const handleSaveProfile = async (e) => {
     if (e) e.preventDefault();
@@ -357,9 +389,9 @@ export default function ProfilePage() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '10px 16px', fontSize: 13, fontWeight: tab === i ? 600 : 500,
-                    color: tab === i ? '#d97706' : '#9ca3af',
+                    color: tab === i ? (i === 5 ? '#dc2626' : '#d97706') : '#9ca3af',
                     background: 'none', border: 'none',
-                    borderBottom: tab === i ? '2px solid #d97706' : '2px solid transparent',
+                    borderBottom: tab === i ? `2px solid ${i === 5 ? '#dc2626' : '#d97706'}` : '2px solid transparent',
                     marginBottom: -2, cursor: 'pointer',
                     whiteSpace: 'nowrap', transition: 'all 0.2s',
                   }}
@@ -368,14 +400,14 @@ export default function ProfilePage() {
                 >
                   <Icon d={t.icon} className="w-4 h-4" />
                   {t.label}
-                  {[hotelBookings.length, guideBookings.length, tourBookings.length, productOrders.length, tripPlans.length][i] > 0 && (
+                  {[hotelBookings.length, guideBookings.length, tourBookings.length, productOrders.length, tripPlans.length, supportRequests.length][i] > 0 && (
                     <span style={{
                       fontSize: 11, fontWeight: 600, padding: '1px 7px',
                       borderRadius: 20, marginLeft: 2,
-                      background: tab === i ? '#fef3c7' : '#f3f4f6',
-                      color: tab === i ? '#92400e' : '#6b7280',
+                      background: tab === i ? (i === 5 ? '#fef2f2' : '#fef3c7') : '#f3f4f6',
+                      color: tab === i ? (i === 5 ? '#991b1b' : '#92400e') : '#6b7280',
                     }}>
-                      {[hotelBookings.length, guideBookings.length, tourBookings.length, productOrders.length, tripPlans.length][i]}
+                      {[hotelBookings.length, guideBookings.length, tourBookings.length, productOrders.length, tripPlans.length, supportRequests.length][i]}
                     </span>
                   )}
                 </button>
@@ -633,6 +665,162 @@ export default function ProfilePage() {
                         </div>
                       ))}
                     </div>
+                )}
+
+                {/* Emergency Support */}
+                {tab === 5 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                    {/* Submit form */}
+                    <div style={{
+                      background: '#fff', border: '1px solid #e8eaed', borderRadius: 16,
+                      padding: '22px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                        <div style={{
+                          width: 40, height: 40, borderRadius: 12,
+                          background: 'linear-gradient(135deg, #1e3a5f, #dc2626)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+                        }}>🆘</div>
+                        <div>
+                          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>Send a Support Request</h3>
+                          <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 0' }}>Our team will respond as soon as possible.</p>
+                        </div>
+                      </div>
+
+                      <form onSubmit={handleSupportSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                            Subject <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <input
+                            value={supportForm.subject}
+                            onChange={(e) => { setSupportForm((f) => ({ ...f, subject: e.target.value })); setSupportErrors((er) => ({ ...er, subject: '' })); }}
+                            placeholder="e.g. I need help with my booking"
+                            maxLength={150}
+                            style={{
+                              width: '100%', background: supportErrors.subject ? '#fff5f5' : '#f9fafb',
+                              border: `1.5px solid ${supportErrors.subject ? '#ef4444' : '#e5e7eb'}`,
+                              borderRadius: 10, padding: '11px 14px', fontSize: 14, color: '#111827',
+                              outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
+                            }}
+                            onFocus={(e) => { if (!supportErrors.subject) e.target.style.borderColor = '#f59e0b'; }}
+                            onBlur={(e) => { if (!supportErrors.subject) e.target.style.borderColor = '#e5e7eb'; }}
+                          />
+                          {supportErrors.subject && <p style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginTop: 4 }}>⚠ {supportErrors.subject}</p>}
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <label style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                              Message <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <span style={{ fontSize: 11, color: supportForm.message.length > 1800 ? '#ef4444' : '#9ca3af' }}>
+                              {supportForm.message.length}/2000
+                            </span>
+                          </div>
+                          <textarea
+                            rows={4}
+                            value={supportForm.message}
+                            onChange={(e) => { setSupportForm((f) => ({ ...f, message: e.target.value })); setSupportErrors((er) => ({ ...er, message: '' })); }}
+                            placeholder="Describe your issue in detail..."
+                            maxLength={2000}
+                            style={{
+                              width: '100%', background: supportErrors.message ? '#fff5f5' : '#f9fafb',
+                              border: `1.5px solid ${supportErrors.message ? '#ef4444' : '#e5e7eb'}`,
+                              borderRadius: 10, padding: '11px 14px', fontSize: 14, color: '#111827',
+                              outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+                              fontFamily: 'inherit', lineHeight: 1.55, transition: 'border-color 0.2s',
+                            }}
+                            onFocus={(e) => { if (!supportErrors.message) e.target.style.borderColor = '#f59e0b'; }}
+                            onBlur={(e) => { if (!supportErrors.message) e.target.style.borderColor = '#e5e7eb'; }}
+                          />
+                          {supportErrors.message && <p style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginTop: 4 }}>⚠ {supportErrors.message}</p>}
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={supportSubmitting}
+                          style={{
+                            alignSelf: 'flex-start',
+                            background: supportSubmitting ? '#d4d4d4' : 'linear-gradient(135deg, #1e3a5f, #dc2626)',
+                            color: '#fff', fontWeight: 700, fontSize: 14,
+                            padding: '10px 28px', borderRadius: 10, border: 'none',
+                            cursor: supportSubmitting ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: supportSubmitting ? 'none' : '0 2px 8px rgba(220,38,38,0.25)',
+                          }}
+                        >
+                          {supportSubmitting ? 'Sending...' : '🆘 Send Request'}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* My Requests list */}
+                    {supportRequests.length > 0 && (
+                      <div>
+                        <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 12 }}>My Requests</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {supportRequests.map((req) => {
+                            const statusStyle = {
+                              pending:  { bg: '#fffbeb', border: '#fde68a', text: '#92400e', dot: '#f59e0b' },
+                              accepted: { bg: '#ecfdf5', border: '#a7f3d0', text: '#065f46', dot: '#10b981' },
+                              rejected: { bg: '#fef2f2', border: '#fecaca', text: '#991b1b', dot: '#ef4444' },
+                            }[req.status] || { bg: '#fffbeb', border: '#fde68a', text: '#92400e', dot: '#f59e0b' };
+
+                            return (
+                              <div key={req._id} style={{
+                                background: '#fff', border: '1px solid #e8eaed', borderRadius: 14,
+                                padding: '18px 20px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                transition: 'all 0.2s',
+                              }}
+                                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'; }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{req.subject}</p>
+                                    <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>
+                                      {new Date(req.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </p>
+                                  </div>
+                                  <span style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                                    background: statusStyle.bg, border: `1px solid ${statusStyle.border}`,
+                                    color: statusStyle.text, borderRadius: 20, padding: '4px 12px',
+                                    fontSize: 12, fontWeight: 700, flexShrink: 0, marginLeft: 12,
+                                  }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusStyle.dot, display: 'inline-block' }} />
+                                    {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                                  </span>
+                                </div>
+
+                                <p style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.55, margin: '0 0 12px', background: '#f9fafb', borderRadius: 8, padding: '10px 12px' }}>
+                                  {req.message}
+                                </p>
+
+                                {req.adminReply ? (
+                                  <div style={{
+                                    background: '#eff6ff', border: '1px solid #bfdbfe',
+                                    borderRadius: 10, padding: '12px 14px',
+                                  }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 6px' }}>Admin Reply</p>
+                                    <p style={{ fontSize: 13, color: '#1e40af', lineHeight: 1.55, margin: 0 }}>{req.adminReply}</p>
+                                    {req.repliedAt && (
+                                      <p style={{ fontSize: 11, color: '#93c5fd', marginTop: 6, marginBottom: 0 }}>
+                                        {new Date(req.repliedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic', margin: 0 }}>No reply yet — we'll get back to you soon.</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </>
             )}
