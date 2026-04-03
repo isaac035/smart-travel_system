@@ -20,7 +20,6 @@ exports.getMatrix = async (req, res) => {
           locations,
           metrics: ['distance', 'duration'],
           resolve_locations: true,
-          radiuses: locations.map(() => 5000),
         },
         {
           headers: {

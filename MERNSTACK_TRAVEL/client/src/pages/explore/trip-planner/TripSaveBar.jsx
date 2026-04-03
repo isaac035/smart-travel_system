@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { jsPDF } from 'jspdf';
 import toast from 'react-hot-toast';
 import api from '../../../utils/api';
 import { useAuth } from '../../../context/AuthContext';
+import { exportTripPDF } from '../../../utils/tripPdf';
 
 const DAY_COLORS = ['#d97706', '#2563eb', '#059669', '#dc2626', '#7c3aed', '#db2777', '#0891b2', '#ea580c', '#65a30d', '#e11d48'];
 function fmtDist(m) { return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`; }
@@ -28,96 +28,7 @@ export default function TripSaveBar({ config, days, stats, tripId, setTripId, on
   };
 
   const exportPDF = () => {
-    const doc = new jsPDF();
-    const pw = doc.internal.pageSize.getWidth();
-
-    // ── Brand header: compass logo + "Ceylon Compass" ──
-    const cx = 24, cy = 18, r = 9;
-
-    // Shadow ring (soft orange glow)
-    doc.setFillColor(255, 237, 213); // orange-100
-    doc.circle(cx, cy, r + 2.5, 'F');
-    doc.setFillColor(255, 247, 237); // orange-50
-    doc.circle(cx, cy, r + 4, 'F');
-
-    // Outer ring — orange gradient effect
-    doc.setFillColor(234, 88, 12); // orange-600
-    doc.circle(cx, cy, r, 'F');
-    doc.setFillColor(249, 115, 22); // orange-500 inner
-    doc.circle(cx, cy, r - 1.2, 'F');
-
-    // White compass face
-    doc.setFillColor(255, 255, 255);
-    doc.circle(cx, cy, r - 2.2, 'F');
-
-    // Degree ring marks (8 ticks)
-    doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
-    for (let a = 0; a < 360; a += 45) {
-      const rad = (a * Math.PI) / 180;
-      const inner = r - 3.8, outer = r - 2.4;
-      doc.line(cx + Math.sin(rad) * inner, cy - Math.cos(rad) * inner, cx + Math.sin(rad) * outer, cy - Math.cos(rad) * outer);
-    }
-
-    // Cardinal letters
-    doc.setFontSize(3.5); doc.setTextColor(150, 150, 150);
-    doc.text('N', cx - 1, cy - r + 4.8);
-    doc.text('S', cx - 0.8, cy + r - 3.2);
-    doc.text('E', cx + r - 5, cy + 1);
-    doc.text('W', cx - r + 3.2, cy + 1);
-
-    // Compass needle — North (orange)
-    doc.setFillColor(234, 88, 12);
-    doc.triangle(cx, cy - r + 3, cx - 1.4, cy, cx + 1.4, cy, 'F');
-    // Compass needle — South (dark gray)
-    doc.setFillColor(75, 85, 99);
-    doc.triangle(cx, cy + r - 3, cx - 1.4, cy, cx + 1.4, cy, 'F');
-
-    // Center dot
-    doc.setFillColor(234, 88, 12);
-    doc.circle(cx, cy, 1, 'F');
-    doc.setFillColor(255, 255, 255);
-    doc.circle(cx, cy, 0.4, 'F');
-
-    // Brand text
-    doc.setFontSize(20); doc.setTextColor(17, 24, 39);
-    doc.text('Ceylon', 38, 15);
-    doc.setTextColor(234, 88, 12); // orange
-    doc.text('Compass', 38 + doc.getTextWidth('Ceylon '), 15);
-    doc.setFontSize(8.5); doc.setTextColor(156, 163, 175);
-    doc.text('Your Sri Lanka Travel Guide', 38, 21);
-
-    // Divider with orange accent
-    doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.6);
-    doc.line(14, 29, 14 + 24, 29);
-    doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.2);
-    doc.line(14 + 24, 29, pw - 14, 29);
-
-    // ── Trip details ──
-    doc.setFontSize(18); doc.setTextColor(17, 24, 39); doc.text(config.tripName, 14, 39);
-    doc.setFontSize(10); doc.setTextColor(156, 163, 175);
-    const ds = config.startDate && config.endDate ? `${fmtDate(config.startDate)} — ${fmtDate(config.endDate)}` : new Date().toLocaleDateString();
-    doc.text(`${ds} · ${config.totalDays} days`, 14, 45);
-    if (stats) { doc.setFontSize(10); doc.setTextColor(234, 88, 12); doc.text(`Total: ${fmtDist(stats.totalDistance)} · ${fmtTime(stats.totalDuration)} driving`, 14, 51); }
-    doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.2); doc.line(14, 55, pw - 14, 55);
-    let y = 63;
-    days.forEach(d => {
-      if (d.items.length === 0) return;
-      if (y > 260) { doc.addPage(); y = 20; }
-      const dstat = stats?.dayStats?.find(s => s.dayNumber === d.dayNumber);
-      doc.setFontSize(14); doc.setTextColor(30, 30, 30); doc.text(`Day ${d.dayNumber}`, 14, y);
-      if (dstat) { doc.setFontSize(9); doc.setTextColor(150, 150, 150); doc.text(`${dstat.stops} stops · ${fmtDist(dstat.distance)} · ${fmtTime(dstat.duration)}`, 50, y); }
-      y += 8;
-      d.items.forEach((item, i) => {
-        if (y > 272) { doc.addPage(); y = 20; }
-        if (i > 0 && item.distFromPrev > 0) { doc.setFontSize(8); doc.setTextColor(180, 180, 180); doc.text(`    >> ${fmtDist(item.distFromPrev)} · ${fmtTime(item.durationFromPrev)}`, 18, y); y += 5; }
-        doc.setFontSize(11); doc.setTextColor(60, 60, 60); doc.text(`${i + 1}. ${item.location?.name || 'Unknown'}`, 18, y);
-        doc.setFontSize(9); doc.setTextColor(130, 130, 130); doc.text(`${item.location?.district || ''}`, 18, y + 4.5); y += 5;
-        if (item.notes) { doc.setTextColor(160, 160, 160); doc.text(`  Note: ${item.notes}`, 22, y + 4); y += 5; }
-        y += 5;
-      });
-      y += 4;
-    });
-    doc.save(`${config.tripName.replace(/\s+/g, '-')}.pdf`);
+    exportTripPDF({ name: config.tripName, days, totalDistance: stats?.totalDistance || 0, totalDuration: stats?.totalDuration || 0 });
     toast.success('PDF exported!');
   };
 
@@ -275,33 +186,50 @@ export default function TripSaveBar({ config, days, stats, tripId, setTripId, on
       }}>
         {user ? (
           <div>
-            {/* Save button */}
-            <button onClick={saveTrip} disabled={saving} style={{
-              width: '100%', height: 48, borderRadius: 12, border: 'none', fontSize: 15,
-              fontWeight: 600, cursor: saving ? 'default' : 'pointer', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', gap: 8,
-              background: saving ? '#f3f4f6' : '#111827', color: saving ? '#9ca3af' : '#fff',
-              transition: 'all 0.2s',
-            }}
-              onMouseEnter={e => { if (!saving) e.currentTarget.style.background = '#1f2937'; }}
-              onMouseLeave={e => { if (!saving) e.currentTarget.style.background = '#111827'; }}
-            >
-              {saving ? (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
-                    <path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4m-3.93 7.07l-2.83-2.83M7.76 7.76L4.93 4.93" strokeLinecap="round" />
-                  </svg>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    {tripId ? <><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></> : <><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></>}
-                  </svg>
-                  {tripId ? 'Update trip' : 'Save trip'}
-                </>
-              )}
-            </button>
+            {/* Save / View on Profile */}
+            {!tripId ? (
+              <button onClick={saveTrip} disabled={saving} style={{
+                width: '100%', height: 48, borderRadius: 12, border: 'none', fontSize: 15,
+                fontWeight: 600, cursor: saving ? 'default' : 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
+                background: saving ? '#f3f4f6' : '#111827', color: saving ? '#9ca3af' : '#fff',
+                transition: 'all 0.2s',
+              }}
+                onMouseEnter={e => { if (!saving) e.currentTarget.style.background = '#1f2937'; }}
+                onMouseLeave={e => { if (!saving) e.currentTarget.style.background = '#111827'; }}
+              >
+                {saving ? (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
+                      <path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4m-3.93 7.07l-2.83-2.83M7.76 7.76L4.93 4.93" strokeLinecap="round" />
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Save trip
+                  </>
+                )}
+              </button>
+            ) : (
+              <button onClick={() => navigate('/profile?tab=trips')} style={{
+                width: '100%', height: 48, borderRadius: 12, border: 'none', fontSize: 15,
+                fontWeight: 600, cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
+                background: '#111827', color: '#fff', transition: 'all 0.2s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = '#1f2937'}
+                onMouseLeave={e => e.currentTarget.style.background = '#111827'}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                View on Profile
+              </button>
+            )}
 
             {/* Secondary actions */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
@@ -426,22 +354,6 @@ export default function TripSaveBar({ config, days, stats, tripId, setTripId, on
           Plan another trip
         </button>
 
-        {user && tripId && (
-          <button onClick={() => navigate('/profile')} style={{
-            height: 40, padding: '0 16px', borderRadius: 10, border: 'none',
-            background: '#f9fafb', fontSize: 13, fontWeight: 600, color: '#111827',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-            transition: 'all 0.15s',
-          }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-            onMouseLeave={e => e.currentTarget.style.background = '#f9fafb'}
-          >
-            View in profile
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        )}
       </div>
     </div>
   );

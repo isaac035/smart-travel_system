@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../../../utils/api';
@@ -174,6 +174,69 @@ function MapFitter({ coords }) {
   return null;
 }
 
+function SuggestionCard({ loc, onAdd, dayColor }) {
+  return (
+    <div
+      style={{
+        flexShrink: 0, width: 220, borderRadius: 16, overflow: 'hidden', background: '#fff',
+        border: '1px solid #f3f4f6', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+        transition: 'all 0.2s ease', cursor: 'pointer', position: 'relative', scrollSnapAlign: 'start',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.10)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'; }}
+      onClick={() => onAdd(loc)}
+    >
+      <div style={{ position: 'relative', height: 120, background: '#f3f4f6' }}>
+        {loc.images?.[0] ? (
+          <img src={loc.images[0]} alt={loc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5"><path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><circle cx="12" cy="11" r="3" /></svg>
+          </div>
+        )}
+        <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 8px', fontSize: 10, fontWeight: 700, borderRadius: 6, background: 'rgba(0,0,0,0.55)', color: '#fff', backdropFilter: 'blur(4px)', letterSpacing: '0.02em' }}>
+          {loc.category}
+        </span>
+        {loc.distance != null && (
+          <span style={{ position: 'absolute', top: 8, right: 8, padding: '3px 8px', fontSize: 10, fontWeight: 700, borderRadius: 6, background: 'rgba(255,255,255,0.9)', color: '#374151', backdropFilter: 'blur(4px)' }}>
+            {loc.distance < 1 ? '<1' : loc.distance} km
+          </span>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); onAdd(loc); }}
+          style={{
+            position: 'absolute', bottom: -14, right: 12, width: 28, height: 28, borderRadius: '50%',
+            border: '2px solid #fff', background: dayColor || '#d97706', color: '#fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transition: 'transform 0.15s', zIndex: 2,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 5v14m7-7H5" /></svg>
+        </button>
+      </div>
+      <div style={{ padding: '14px 12px 12px' }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: '#111827', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>{loc.name}</p>
+        <p style={{ fontSize: 11, color: '#6b7280', margin: '3px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.district} · {loc.province}</p>
+        {loc.weather && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8, padding: '5px 8px', borderRadius: 8, background: '#f0f9ff' }}>
+            <img src={`https://openweathermap.org/img/wn/${loc.weather.icon}.png`} alt={loc.weather.condition} style={{ width: 22, height: 22 }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#0369a1' }}>{loc.weather.temp}°C</span>
+            <span style={{ fontSize: 11, color: '#0284c7' }}>{loc.weather.condition}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SuggestionSkeleton() {
+  return <div style={{ flexShrink: 0, width: 220, height: 210, borderRadius: 16, background: '#f3f4f6', animation: 'pulse 1.5s ease-in-out infinite', scrollSnapAlign: 'start' }} />;
+}
+
+const RADIUS_OPTIONS = [10, 20, 30, 50, 100];
+
 export default function LocationSelectStep({ config, locationsByDay, setLocationsByDay, onNext, onBack }) {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -182,6 +245,9 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
   const [province, setProvince] = useState('All');
   const [district, setDistrict] = useState('All');
   const [activeDay, setActiveDay] = useState(1);
+  const [suggestions, setSuggestions] = useState({ recommended: [], nearby: [] });
+  const [sugLoading, setSugLoading] = useState(false);
+  const [radius, setRadius] = useState(30);
 
   useEffect(() => { api.get('/locations').then(r => setLocations(r.data)).catch(() => { }).finally(() => setLoading(false)); }, []);
   useEffect(() => {
@@ -193,6 +259,28 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
       });
     }
   }, [config.totalDays, setLocationsByDay]);
+
+  // Fetch suggestions based on start point, selected locations, and radius
+  useEffect(() => {
+    const startLat = config.startPoint?.lat;
+    const startLng = config.startPoint?.lng;
+    if (!startLat || !startLng) return;
+
+    const allSelected = Object.values(locationsByDay).flat();
+    const selectedIds = allSelected.map((l) => l._id).join(',');
+    const lastAdded = allSelected[allSelected.length - 1];
+    const refLat = lastAdded?.coordinates?.lat || startLat;
+    const refLng = lastAdded?.coordinates?.lng || startLng;
+
+    setSugLoading(true);
+    api
+      .get('/locations/suggestions', {
+        params: { lat: refLat, lng: refLng, radius, selectedIds, days: config.totalDays },
+      })
+      .then((r) => setSuggestions(r.data))
+      .catch(() => setSuggestions({ recommended: [], nearby: [] }))
+      .finally(() => setSugLoading(false));
+  }, [config.startPoint, config.totalDays, locationsByDay, radius]);
 
   const provinces = PROVINCES;
   const districts = DISTRICTS;
@@ -228,6 +316,12 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 20px' }}>
+      <style>{`
+        .sug-scroll::-webkit-scrollbar { height: 4px; }
+        .sug-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sug-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+        .sug-scroll::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+      `}</style>
       {/* ── Header ── */}
       <div style={{
         background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb',
@@ -328,9 +422,29 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
       </div>
 
       {/* ── Main Content Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5" style={{ minHeight: 560 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         {/* Left — Locations Panel */}
         <div className="lg:col-span-2" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* ── Suggested for you ── */}
+          {(sugLoading || suggestions.recommended.length > 0) && (
+            <div style={{ marginBottom: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#d97706' }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#111827', letterSpacing: '-0.01em' }}>Suggested for you</span>
+                </div>
+                <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{suggestions.recommended.length} places</span>
+              </div>
+              <div className="sug-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
+                {sugLoading
+                  ? [...Array(3)].map((_, i) => <SuggestionSkeleton key={i} />)
+                  : suggestions.recommended.map((loc) => (
+                      <SuggestionCard key={loc._id} loc={loc} onAdd={addToDay} dayColor={dayColor} />
+                    ))}
+              </div>
+            </div>
+          )}
 
           {/* Search */}
           <div style={{ position: 'relative' }}>
@@ -420,6 +534,42 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
             </div>
           )}
 
+          {/* ── Nearby locations ── */}
+          {dayLocs.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /></svg>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Nearby</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {RADIUS_OPTIONS.map((r) => (
+                    <button key={r} onClick={() => setRadius(r)} style={{
+                      height: 26, padding: '0 8px', fontSize: 11, fontWeight: radius === r ? 700 : 500,
+                      borderRadius: 6, border: radius === r ? 'none' : '1px solid #e5e7eb',
+                      background: radius === r ? '#111827' : '#fff', color: radius === r ? '#fff' : '#6b7280',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}>{r}km</button>
+                  ))}
+                </div>
+              </div>
+              <div className="sug-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
+                {sugLoading ? (
+                  [...Array(3)].map((_, i) => <SuggestionSkeleton key={i} />)
+                ) : suggestions.nearby.length === 0 ? (
+                  <div style={{ width: '100%', textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: 13 }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 8px', opacity: 0.4 }}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /></svg>
+                    No locations within {radius}km
+                  </div>
+                ) : (
+                  suggestions.nearby.map((loc) => (
+                    <SuggestionCard key={loc._id} loc={loc} onAdd={addToDay} dayColor={dayColor} />
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Location List */}
           <div style={{ overflowY: 'auto', flex: 1, maxHeight: 420, display: 'flex', flexDirection: 'column', gap: 6, paddingRight: 4 }}>
             {loading ? (
@@ -488,10 +638,10 @@ export default function LocationSelectStep({ config, locationsByDay, setLocation
         </div>
 
         {/* Right — Map */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3" style={{ position: 'sticky', top: 80, alignSelf: 'start' }}>
           <div style={{
             background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', overflow: 'hidden',
-            height: '100%', minHeight: 560, display: 'flex', flexDirection: 'column',
+            height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column',
             boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
           }}>
             <div style={{

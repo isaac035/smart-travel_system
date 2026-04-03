@@ -7,6 +7,7 @@ const {
   updateLocation,
   deleteLocation,
   getCategories,
+  getSuggestions,
 } = require('../controllers/locationController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const { upload } = require('../config/cloudinary');
@@ -51,6 +52,7 @@ router.get('/geocode', async (req, res) => {
 
 // Public routes
 router.get('/categories', getCategories);
+router.get('/suggestions', getSuggestions);
 router.get('/', getLocations);
 router.get('/:id', getLocation);
 

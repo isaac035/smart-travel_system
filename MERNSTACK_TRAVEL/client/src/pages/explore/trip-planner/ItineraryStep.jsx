@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
@@ -13,6 +13,15 @@ const startMarkerIcon = L.divIcon({ className: '', html: `<div style="width:18px
 function MapFitter({ coords }) { const map = useMap(); useEffect(() => { if (coords.length > 1) map.fitBounds(L.latLngBounds(coords), { padding: [50, 50] }); }, [coords, map]); return null; }
 function fmtDist(m) { return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`; }
 function fmtTime(s) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
+
+/* ── Haversine distance (meters) for local recalculation after drag ── */
+function haversineM(a, b) {
+  const R = 6371000, toRad = x => (x * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const sinLat = Math.sin(dLat / 2), sinLng = Math.sin(dLng / 2);
+  const h = sinLat * sinLat + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLng * sinLng;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
 function fmtDate(d) { if (!d) return ''; const ms = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()}`; }
 
 /* ── Sortable Item ── */
@@ -84,7 +93,7 @@ function RouteConnector({ distance, duration }) {
 export default function ItineraryStep({ config, locationsByDay, onBack, onSave }) {
   const [days, setDays] = useState([]);
   const [routeGeoJSON, setRouteGeoJSON] = useState({});
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState(null); // initial stats from optimization (kept for reference)
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState(null);
   const [isAlt, setIsAlt] = useState(false);
@@ -113,6 +122,26 @@ export default function ItineraryStep({ config, locationsByDay, onBack, onSave }
   }, [config, locationsByDay]);
 
   useEffect(() => { generate(false); }, [generate]);
+
+  // Recalculate distances and stats from current day order (handles drag-and-drop, remove, reorder)
+  const liveStats = useMemo(() => {
+    if (days.length === 0) return null;
+    let prevPoint = config.startPoint;
+    const converted = days.map(d => {
+      const locations = d.items.map(it => {
+        const coord = it.location?.coordinates;
+        let dist = 0, dur = 0;
+        if (coord?.lat && coord?.lng && prevPoint?.lat && prevPoint?.lng) {
+          dist = haversineM(prevPoint, coord);
+          dur = (dist / 1000 / 50) * 3600; // estimate 50 km/h avg
+          prevPoint = coord;
+        }
+        return { distFromPrev: dist, durationFromPrev: dur };
+      });
+      return { dayNumber: d.dayNumber, locations };
+    });
+    return calculateTripStats(converted);
+  }, [days, config.startPoint]);
 
   const removeItem = uid => setDays(p => p.map(d => ({ ...d, items: d.items.filter(i => i.uid !== uid) })));
   const updateNote = (uid, n) => setDays(p => p.map(d => ({ ...d, items: d.items.map(i => i.uid === uid ? { ...i, notes: n } : i) })));
@@ -167,7 +196,7 @@ export default function ItineraryStep({ config, locationsByDay, onBack, onSave }
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
             Back
           </button>
-          <button onClick={() => onSave(days, stats)} style={{
+          <button onClick={() => onSave(days, liveStats || stats)} style={{
             height: 40, padding: '0 24px', fontSize: 13, fontWeight: 600, borderRadius: 10,
             border: 'none', background: '#111827', color: '#fff', cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s',
@@ -193,24 +222,53 @@ export default function ItineraryStep({ config, locationsByDay, onBack, onSave }
       )}
 
       {/* ── Stats ── */}
-      {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-          {[
-            { v: config.totalDays, l: 'Days', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> },
-            { v: totalStops, l: 'Stops', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round"><path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3"/></svg> },
-            { v: fmtDist(stats.totalDistance), l: 'Distance', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> },
-            { v: fmtTime(stats.totalDuration), l: 'Drive time', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> },
-          ].map(s => (
-            <div key={s.l} style={{
-              background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', padding: '18px 20px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)', textAlign: 'center',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>{s.icon}</div>
-              <p style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>{s.v}</p>
-              <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 0', fontWeight: 500 }}>{s.l}</p>
-            </div>
-          ))}
-        </div>
+      {liveStats && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 12 }}>
+            {[
+              { v: config.totalDays, l: 'Days', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> },
+              { v: totalStops, l: 'Stops', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round"><path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3"/></svg> },
+              { v: fmtDist(liveStats.totalDistance), l: 'Total Distance', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> },
+              { v: fmtTime(liveStats.totalDuration), l: 'Total Drive Time', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> },
+            ].map(s => (
+              <div key={s.l} style={{
+                background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', padding: '18px 20px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)', textAlign: 'center',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>{s.icon}</div>
+                <p style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>{s.v}</p>
+                <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 0', fontWeight: 500 }}>{s.l}</p>
+              </div>
+            ))}
+          </div>
+          {/* ── Per-day drive time ── */}
+          <div style={{
+            display: 'flex', gap: 10, overflowX: 'auto', marginBottom: 20, paddingBottom: 4,
+          }}>
+            {liveStats.dayStats?.map((ds, i) => {
+              const dc = DAY_COLORS[i % DAY_COLORS.length];
+              return (
+                <div key={ds.dayNumber} style={{
+                  flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 16px', borderRadius: 12, background: '#fff',
+                  border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: dc }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>Day {ds.dayNumber}</span>
+                  <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>
+                    {fmtDist(ds.distance)}
+                  </span>
+                  <span style={{
+                    fontSize: 12, fontWeight: 700, color: dc,
+                    padding: '2px 8px', borderRadius: 6, background: `${dc}12`,
+                  }}>
+                    {fmtTime(ds.duration)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {loading ? (
@@ -225,13 +283,13 @@ export default function ItineraryStep({ config, locationsByDay, onBack, onSave }
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5" style={{ minHeight: 520 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
           {/* Day cards */}
-          <div className="lg:col-span-2" style={{ overflowY: 'auto', maxHeight: 640, paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="lg:col-span-2" style={{ paddingRight: 4, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               {days.map((day, di) => {
                 const dc = DAY_COLORS[di % DAY_COLORS.length];
-                const ds = stats?.dayStats?.find(s => s.dayNumber === day.dayNumber);
+                const ds = liveStats?.dayStats?.find(s => s.dayNumber === day.dayNumber);
                 return (
                   <div key={day.dayNumber} style={{
                     background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', overflow: 'hidden',
@@ -263,12 +321,23 @@ export default function ItineraryStep({ config, locationsByDay, onBack, onSave }
                               border: '2px dashed #e5e7eb', borderRadius: 12, padding: '32px 0',
                               textAlign: 'center', color: '#9ca3af', fontSize: 13, fontWeight: 500,
                             }}>No destinations — drag here</div>
-                          ) : day.items.map((item, idx) => (
-                            <div key={item.uid}>
-                              {idx > 0 && item.distFromPrev > 0 && <RouteConnector distance={item.distFromPrev} duration={item.durationFromPrev} />}
-                              <SortableItem item={item} dayColor={dc} stopNum={idx + 1} onRemove={removeItem} onNoteChange={updateNote} />
-                            </div>
-                          ))}
+                          ) : day.items.map((item, idx) => {
+                            let segDist = 0, segDur = 0;
+                            if (idx > 0) {
+                              const prev = day.items[idx - 1].location?.coordinates;
+                              const cur = item.location?.coordinates;
+                              if (prev?.lat && cur?.lat) {
+                                segDist = haversineM(prev, cur);
+                                segDur = (segDist / 1000 / 50) * 3600;
+                              }
+                            }
+                            return (
+                              <div key={item.uid}>
+                                {idx > 0 && segDist > 0 && <RouteConnector distance={segDist} duration={segDur} />}
+                                <SortableItem item={item} dayColor={dc} stopNum={idx + 1} onRemove={removeItem} onNoteChange={updateNote} />
+                              </div>
+                            );
+                          })}
                         </div>
                       </SortableContext>
                     </div>
@@ -279,10 +348,10 @@ export default function ItineraryStep({ config, locationsByDay, onBack, onSave }
           </div>
 
           {/* Map */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3" style={{ position: 'sticky', top: 80, alignSelf: 'start' }}>
             <div style={{
               background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', overflow: 'hidden',
-              height: '100%', minHeight: 520, display: 'flex', flexDirection: 'column',
+              height: 'calc(100vh - 120px)', minHeight: 520, display: 'flex', flexDirection: 'column',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             }}>
               <div style={{
