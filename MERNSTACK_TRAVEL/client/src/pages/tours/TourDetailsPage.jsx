@@ -13,7 +13,7 @@ const vehicleColorMap = {
   van: { bg: '#f5f3ff', color: '#6d28d9', border: '#c4b5fd' },
   bus: { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
 };
-
+/*tour details*/
 export default function TourDetailsPage() {
   const { id } = useParams();
   const [pkg, setPkg] = useState(null);
