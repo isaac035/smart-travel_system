@@ -497,7 +497,6 @@ export default function ProfilePage() {
                             <CardTitle name={b.packageId?.name || 'Tour Package'} status={b.status} />
                             <CardMeta>{new Date(b.startDate).toLocaleDateString()} · {b.travelers} traveler{b.travelers !== 1 ? 's' : ''} · <span style={{ textTransform: 'capitalize' }}>{b.vehicle}</span></CardMeta>
 
-                            <CardPrice>LKR {Math.round(b.totalPrice)?.toLocaleString()}</CardPrice>
 
                             <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
 
@@ -762,7 +761,7 @@ export default function ProfilePage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                           {supportRequests.map((req) => {
                             const statusStyle = {
-                              pending:  { bg: '#fffbeb', border: '#fde68a', text: '#92400e', dot: '#f59e0b' },
+                              pending: { bg: '#fffbeb', border: '#fde68a', text: '#92400e', dot: '#f59e0b' },
                               accepted: { bg: '#ecfdf5', border: '#a7f3d0', text: '#065f46', dot: '#10b981' },
                               rejected: { bg: '#fef2f2', border: '#fecaca', text: '#991b1b', dot: '#ef4444' },
                             }[req.status] || { bg: '#fffbeb', border: '#fde68a', text: '#92400e', dot: '#f59e0b' };
