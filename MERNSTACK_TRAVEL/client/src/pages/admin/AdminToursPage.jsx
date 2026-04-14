@@ -35,6 +35,7 @@ export default function AdminToursPage() {
   const [formErrors, setFormErrors] = useState({});
   const [locSearch, setLocSearch] = useState('');
   const [guideSearch, setGuideSearch] = useState('');
+  const [guideLocationFilter, setGuideLocationFilter] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
@@ -68,12 +69,12 @@ export default function AdminToursPage() {
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 
-  const openCreate = () => { setForm(EMPTY); setSelectedLocations([]); setSelectedGuides([]); setImages([]); setExistingImages([]); setEditId(null); setFormErrors({}); setLocSearch(''); setGuideSearch(''); setShowForm(true); };
+  const openCreate = () => { setForm(EMPTY); setSelectedLocations([]); setSelectedGuides([]); setImages([]); setExistingImages([]); setEditId(null); setFormErrors({}); setLocSearch(''); setGuideSearch(''); setGuideLocationFilter(''); setShowForm(true); };
   const openEdit = (pkg) => {
     setForm({ name: pkg.name, destination: pkg.destination || '', description: pkg.description, duration: pkg.duration, basePrice: pkg.basePrice, vehicleOptions: pkg.vehicleOptions || ['car', 'van', 'bus'], maxTravelersByVehicle: pkg.maxTravelersByVehicle || { car: 4, van: 8, bus: 50 }, includes: (pkg.includes || []).join('\n'), excludes: (pkg.excludes || []).join('\n'), isActive: pkg.isActive ?? true });
     setSelectedLocations((pkg.locations || []).map((l) => l._id || l));
     setSelectedGuides((pkg.guideIds || []).map((g) => g._id || g));
-    setExistingImages(pkg.images || []); setImages([]); setEditId(pkg._id); setFormErrors({}); setLocSearch(''); setGuideSearch(''); setShowForm(true);
+    setExistingImages(pkg.images || []); setImages([]); setEditId(pkg._id); setFormErrors({}); setLocSearch(''); setGuideSearch(''); setGuideLocationFilter(''); setShowForm(true);
   };
   const closeForm = () => { setShowForm(false); setEditId(null); setFormErrors({}); };
 
@@ -304,11 +305,52 @@ export default function AdminToursPage() {
                   })}
                 </div>
               )}
+              {/* ── Location filter dropdown ── */}
+              {(() => {
+                const uniqueLocations = [...new Set(guides.map(g => g.location).filter(Boolean))].sort();
+                return uniqueLocations.length > 0 ? (
+                  <div style={{ marginBottom: 6 }}>
+                    <select
+                      value={guideLocationFilter}
+                      onChange={e => setGuideLocationFilter(e.target.value)}
+                      className="adm-input"
+                      style={{ fontSize: 12, padding: '6px 10px' }}
+                    >
+                      <option value="">📍 Filter by location — All Locations</option>
+                      {uniqueLocations.map(loc => (
+                        <option key={loc} value={loc}>📍 {loc}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null;
+              })()}
               <input value={guideSearch} onChange={e => setGuideSearch(e.target.value)} placeholder="Search guides..." className="adm-input" style={{ marginBottom: 5, fontSize: 12 }} />
-              <div className="adm-checklist" style={{ maxHeight: 100 }}>
-                {guides.filter(g => g.name.toLowerCase().includes(guideSearch.toLowerCase())).map((g) => (
-                  <label key={g._id} className={selectedGuides.includes(g._id) ? 'selected' : ''}><input type="checkbox" checked={selectedGuides.includes(g._id)} onChange={() => toggleGuide(g._id)} />{g.name}</label>
-                ))}
+              <div className="adm-checklist" style={{ maxHeight: 140 }}>
+                {(() => {
+                  const filtered = guides.filter(g => {
+                    const matchSearch = g.name.toLowerCase().includes(guideSearch.toLowerCase());
+                    const matchLoc = !guideLocationFilter || g.location === guideLocationFilter;
+                    return matchSearch && matchLoc;
+                  });
+                  if (filtered.length === 0) {
+                    return (
+                      <div style={{ padding: '10px 12px', fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>
+                        {guideLocationFilter ? `No guides found in "${guideLocationFilter}"` : 'No guides found'}
+                      </div>
+                    );
+                  }
+                  return filtered.map((g) => (
+                    <label key={g._id} className={selectedGuides.includes(g._id) ? 'selected' : ''} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input type="checkbox" checked={selectedGuides.includes(g._id)} onChange={() => toggleGuide(g._id)} />
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{g.name}</span>
+                      </div>
+                      {g.location && (
+                        <span style={{ fontSize: 10, color: '#6b7280', paddingLeft: 20 }}>📍 {g.location}</span>
+                      )}
+                    </label>
+                  ));
+                })()}
               </div>
             </div>
           </div>
@@ -476,7 +518,7 @@ export default function AdminToursPage() {
                     <table>
                       <thead>
                         <tr>
-                          <th>Traveler</th><th>Package</th><th>Vehicle</th><th>Travelers</th><th>Start Date</th><th>Amount</th><th>Payment</th><th>Status</th><th className="text-right">Actions</th>
+                          <th>Traveler</th><th>Package</th><th>Guide</th><th>Vehicle</th><th>Travelers</th><th>Start Date</th><th>Amount</th><th>Payment</th><th>Status</th><th className="text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody>

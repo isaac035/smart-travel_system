@@ -4,6 +4,7 @@ const tourBookingSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     packageId: { type: mongoose.Schema.Types.ObjectId, ref: 'TourPackage', required: true },
+    guideId: { type: mongoose.Schema.Types.ObjectId, ref: 'Guide', default: null },
     vehicle: { type: String, enum: ['car', 'van', 'bus'], required: true },
     travelers: { type: Number, required: true, min: 1 },
     customDuration: { type: Number, min: 1 }, // user-adjusted trip duration in days

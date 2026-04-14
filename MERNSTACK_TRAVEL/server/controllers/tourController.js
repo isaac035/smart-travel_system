@@ -1,5 +1,6 @@
 const TourPackage = require('../models/TourPackage');
 const TourBooking = require('../models/TourBooking');
+const GuideBooking = require('../models/GuideBooking');
 const { upload } = require('../config/cloudinary');
 const {
   validateBookingInput,
@@ -7,6 +8,19 @@ const {
   calculateTotalPrice,
   filterPackages,
 } = require('../utils/tourValidator');
+
+// Statuses that mean the GuideBooking is still active (blocks the guide)
+const GUIDE_BOOKING_ACTIVE_STATUSES = [
+  'deposit_submitted',
+  'pending_guide_review',
+  'guide_accepted',
+  'under_admin_review',
+  'admin_confirmed',
+  'remaining_payment_pending',
+  'remaining_payment_submitted',
+  'fully_paid',
+  'completed',
+];
 
 // ── Price Preview ─────────────────────────────────────────────────
 
@@ -72,9 +86,57 @@ exports.getPackage = async (req, res) => {
   try {
     const pkg = await TourPackage.findById(req.params.id)
       .populate('locations', 'name district province category coordinates images')
-      .populate('guideIds', 'name avatar rating languages pricePerDay');
+      .populate('guideIds', 'name image rating languages pricePerDay phone location');
     if (!pkg) return res.status(404).json({ message: 'Package not found' });
     res.json(pkg);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET /api/tours/:id/available-guides?startDate=YYYY-MM-DD
+exports.getAvailableGuides = async (req, res) => {
+  try {
+    const { startDate } = req.query;
+    const pkg = await TourPackage.findById(req.params.id)
+      .populate('guideIds', 'name image rating languages pricePerDay phone experience location');
+    if (!pkg) return res.status(404).json({ message: 'Package not found' });
+
+    if (!pkg.guideIds || pkg.guideIds.length === 0) return res.json([]);
+
+    if (!startDate) return res.json(pkg.guideIds);
+
+    const guideObjectIds = pkg.guideIds.map((g) => g._id);
+
+    const dayStart = new Date(startDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(startDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    // ── Check 1: TourBooking conflicts (same package module) ────────
+    const tourBookedIds = await TourBooking.distinct('guideId', {
+      guideId: { $in: guideObjectIds, $ne: null },
+      startDate: { $gte: dayStart, $lte: dayEnd },
+      status: { $in: ['pending', 'confirmed'] },
+    });
+
+    // ── Check 2: GuideBooking conflicts (standalone guide module) ───
+    // A guide is blocked if their booking window overlaps the chosen date
+    const guideBookedIds = await GuideBooking.distinct('guideId', {
+      guideId: { $in: guideObjectIds },
+      status: { $in: GUIDE_BOOKING_ACTIVE_STATUSES },
+      startDate: { $lte: dayEnd },
+      endDate: { $gte: dayStart },
+    });
+
+    const bookedSet = new Set([
+      ...tourBookedIds.map((id) => id.toString()),
+      ...guideBookedIds.map((id) => id.toString()),
+    ]);
+
+    const available = pkg.guideIds.filter((g) => !bookedSet.has(g._id.toString()));
+
+    res.json(available);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -137,7 +199,7 @@ exports.createBooking = async (req, res) => {
   try {
     const {
       packageId, vehicle, travelers, customDuration, startDate, notes,
-      cardHolder, cardNumber, expiryMonth, expiryYear, cvv,
+      cardHolder, cardNumber, expiryMonth, expiryYear, cvv, guideId,
     } = req.body;
 
     // Fetch package first so validator can check vehicle options & capacity
@@ -177,6 +239,45 @@ exports.createBooking = async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────
 
+    // ── Guide availability validation ────────────────────────────────
+    let resolvedGuideId = null;
+    if (guideId) {
+      // Ensure guide belongs to the package
+      const guideInPackage = (pkg.guideIds || []).some((id) => id.toString() === guideId.toString());
+      if (!guideInPackage) {
+        return res.status(400).json({ message: 'Selected guide is not assigned to this package.' });
+      }
+
+      const dayStart = new Date(startDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(startDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      // Check 1: TourBooking conflict (same module)
+      const tourConflict = await TourBooking.findOne({
+        guideId,
+        startDate: { $gte: dayStart, $lte: dayEnd },
+        status: { $in: ['pending', 'confirmed'] },
+      });
+      if (tourConflict) {
+        return res.status(400).json({ message: 'This guide is already booked on the selected date. Please choose another guide or date.' });
+      }
+
+      // Check 2: GuideBooking conflict (standalone guide booking module)
+      const guideConflict = await GuideBooking.findOne({
+        guideId,
+        status: { $in: GUIDE_BOOKING_ACTIVE_STATUSES },
+        startDate: { $lte: dayEnd },
+        endDate: { $gte: dayStart },
+      });
+      if (guideConflict) {
+        return res.status(400).json({ message: 'This guide is unavailable on the selected date (booked via another service). Please choose another guide or date.' });
+      }
+
+      resolvedGuideId = guideId;
+    }
+    // ─────────────────────────────────────────────────────────────────
+
     const multiplier = pkg.vehicleMultipliers[vehicle] || 1;
     const baseDur = pkg.duration || 1;
     const dur = Math.max(1, Number(customDuration) || baseDur);
@@ -189,6 +290,7 @@ exports.createBooking = async (req, res) => {
     const booking = await TourBooking.create({
       userId: req.user._id,
       packageId,
+      guideId: resolvedGuideId,
       vehicle,
       travelers: Number(travelers),
       customDuration: dur,
@@ -215,6 +317,7 @@ exports.getMyBookings = async (req, res) => {
   try {
     const bookings = await TourBooking.find({ userId: req.user._id })
       .populate('packageId', 'name images basePrice duration')
+      .populate('guideId', 'name image phone rating')
       .sort({ createdAt: -1 });
     res.json(bookings);
   } catch (err) {
@@ -228,6 +331,7 @@ exports.getAllBookings = async (req, res) => {
     const bookings = await TourBooking.find()
       .populate('userId', 'name email')
       .populate('packageId', 'name')
+      .populate('guideId', 'name image phone')
       .sort({ createdAt: -1 });
     res.json(bookings);
   } catch (err) {

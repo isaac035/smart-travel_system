@@ -98,6 +98,7 @@ export default function TourBookingPage() {
     customDuration: null,
     startDate: '',
     notes: '',
+    selectedGuideId: '',
     // card payment
     cardNumber: '',
     cardHolder: '',
@@ -106,12 +107,17 @@ export default function TourBookingPage() {
     cvv: '',
   });
 
+  const [availableGuides, setAvailableGuides] = useState([]);
+  const [guidesLoading, setGuidesLoading] = useState(false);
+  const [pkgHasGuides, setPkgHasGuides] = useState(false);
+
   const [errors, setErrors] = useState({
     customDuration: '',
     startDate: '',
     vehicle: '',
     travelers: '',
     notes: '',
+    guide: '',
     cardNumber: '',
     cardHolder: '',
     expiry: '',
@@ -126,6 +132,7 @@ export default function TourBookingPage() {
       .then((r) => {
         const data = r.data;
         setPkg(data);
+        setPkgHasGuides(!!(data?.guideIds?.length));
         const defaultVehicle =
           data?.vehicleOptions?.length && data.vehicleOptions.includes('car')
             ? 'car'
@@ -272,6 +279,22 @@ export default function TourBookingPage() {
     return () => clearTimeout(debounceRef.current);
   }, [pkg, id, form.vehicle, form.travelers, form.customDuration]);
 
+  // Fetch available guides whenever startDate changes
+  useEffect(() => {
+    if (!pkg || !pkgHasGuides || !form.startDate) {
+      setAvailableGuides(pkg?.guideIds || []);
+      return;
+    }
+    let cancelled = false;
+    setGuidesLoading(true);
+    api
+      .get(`/tours/${id}/available-guides?startDate=${form.startDate}`)
+      .then((r) => { if (!cancelled) { setAvailableGuides(r.data); setForm((f) => ({ ...f, selectedGuideId: '' })); } })
+      .catch(() => { if (!cancelled) setAvailableGuides([]); })
+      .finally(() => { if (!cancelled) setGuidesLoading(false); });
+    return () => { cancelled = true; };
+  }, [form.startDate, pkg, id, pkgHasGuides]);
+
   if (loading) {
     return (
       <Layout>
@@ -323,6 +346,8 @@ export default function TourBookingPage() {
     const travelersErr = validateTravelers(form.travelers);
     const notesErr = validateNotes(form.notes);
     const cardErrs = validateCard();
+    const guideErr = pkgHasGuides && availableGuides.length > 0 && !form.selectedGuideId
+      ? 'Please select a guide for this tour.' : '';
 
     setErrors({
       customDuration: durationErr,
@@ -330,11 +355,12 @@ export default function TourBookingPage() {
       vehicle: vehicleErr,
       travelers: travelersErr,
       notes: notesErr,
+      guide: guideErr,
       ...cardErrs,
     });
 
     const hasCardErr = Object.values(cardErrs).some(Boolean);
-    if (durationErr || dateErr || vehicleErr || travelersErr || notesErr || hasCardErr) {
+    if (durationErr || dateErr || vehicleErr || travelersErr || notesErr || guideErr || hasCardErr) {
       toast.error('Please fix the highlighted errors before submitting.');
       return;
     }
@@ -353,6 +379,7 @@ export default function TourBookingPage() {
         startDate: form.startDate,
         notes: form.notes.trim(),
         customDuration: String(form.customDuration || pkg.duration),
+        guideId: form.selectedGuideId || undefined,
         cardHolder: form.cardHolder.trim(),
         cardNumber: form.cardNumber.replace(/\s/g, ''),
         expiryMonth: form.expiryMonth,
@@ -810,6 +837,93 @@ export default function TourBookingPage() {
                   <FieldError msg={errors.notes} />
                 </div>
               </div>
+
+              {/* ─── Select Guide Section ─────────────────────────────── */}
+              {pkgHasGuides && (
+                <div style={sectionStyle}>
+                  <h2 style={{ fontWeight: 700, color: '#111827', fontSize: '16px', marginBottom: '4px' }}>
+                    🧭 Select Your Guide
+                  </h2>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+                    {form.startDate
+                      ? availableGuides.length === 0 && !guidesLoading
+                        ? 'No guides are available on this date. Please choose a different start date.'
+                        : 'Only guides available on your selected date are shown.'
+                      : 'Select a start date first to see available guides.'}
+                  </p>
+
+                  {guidesLoading && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#9ca3af', fontSize: 13 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}>
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                      </svg>
+                      Checking availability...
+                    </div>
+                  )}
+
+                  {!guidesLoading && form.startDate && availableGuides.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {availableGuides.map((g) => {
+                        const selected = form.selectedGuideId === g._id;
+                        return (
+                          <button
+                            key={g._id}
+                            type="button"
+                            onClick={() => {
+                              setForm((f) => ({ ...f, selectedGuideId: selected ? '' : g._id }));
+                              setErrors((er) => ({ ...er, guide: '' }));
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 14,
+                              padding: '14px 16px', borderRadius: 14, textAlign: 'left',
+                              cursor: 'pointer', transition: 'all 0.2s',
+                              border: selected ? '2px solid #f59e0b' : errors.guide ? '2px solid #fca5a5' : '2px solid #e5e7eb',
+                              background: selected ? '#fffbeb' : errors.guide ? '#fff5f5' : '#f9fafb',
+                              boxShadow: selected ? '0 4px 14px rgba(245,158,11,0.18)' : 'none',
+                            }}
+                          >
+                            {g.image ? (
+                              <img src={g.image} alt={g.name}
+                                style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: selected ? '2px solid #f59e0b' : '2px solid #e5e7eb' }} />
+                            ) : (
+                              <div style={{ width: 48, height: 48, borderRadius: '50%', background: selected ? '#fef3c7' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🧭</div>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontWeight: 700, color: selected ? '#92400e' : '#111827', fontSize: 14, margin: '0 0 2px' }}>{g.name}</p>
+                              {g.location && (
+                                <p style={{ fontSize: 11, color: selected ? '#b45309' : '#6b7280', fontWeight: 600, margin: '0 0 3px', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                  <span>📍</span>
+                                  <span>{g.location}</span>
+                                </p>
+                              )}
+                              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 2px' }}>
+                                {g.languages?.join(', ') || 'Languages not specified'}
+                              </p>
+                              {g.rating > 0 && (
+                                <p style={{ fontSize: 12, color: '#d97706', fontWeight: 600, margin: 0 }}>
+                                  ⭐ {g.rating.toFixed(1)}
+                                </p>
+                              )}
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <p style={{ fontWeight: 800, color: selected ? '#d97706' : '#374151', fontSize: 13, margin: '0 0 2px' }}>
+                                LKR {(g.pricePerDay || 0).toLocaleString()}
+                              </p>
+                              <p style={{ fontSize: 11, color: '#9ca3af', margin: 0 }}>per day</p>
+                            </div>
+                            {selected && (
+                              <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <FieldError msg={errors.guide} />
+                </div>
+              )}
 
               {/* ─── Card Payment Section ───────────────────────── */}
               <div style={sectionStyle}>

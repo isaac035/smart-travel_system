@@ -12,6 +12,7 @@ const {
   getAllBookings,
   updateBookingStatus,
   cancelBooking,
+  getAvailableGuides,
 } = require('../controllers/tourController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const { upload } = require('../config/cloudinary');
@@ -28,6 +29,7 @@ router.put('/bookings/:id/cancel', protect, cancelBooking);
 
 // Packages
 router.get('/', getPackages);
+router.get('/:id/available-guides', getAvailableGuides);
 router.get('/:id', getPackage);
 router.post('/', protect, adminOnly, upload.array('images', 8), createPackage);
 router.put('/:id', protect, adminOnly, upload.array('images', 8), updatePackage);
