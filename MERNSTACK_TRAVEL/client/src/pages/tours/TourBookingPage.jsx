@@ -701,10 +701,10 @@ export default function TourBookingPage() {
                           border: errors.vehicle && !form.vehicle
                             ? '2px solid #ef4444'
                             : tooSmall
-                            ? '2px solid #fca5a5'
-                            : selected
-                              ? '2px solid #f59e0b'
-                              : '2px solid #e5e7eb',
+                              ? '2px solid #fca5a5'
+                              : selected
+                                ? '2px solid #f59e0b'
+                                : '2px solid #e5e7eb',
                           background: errors.vehicle && !form.vehicle ? '#fff5f5' : tooSmall ? '#fff1f2' : selected ? '#fffbeb' : '#f9fafb',
                           boxShadow: selected ? '0 4px 15px rgba(245,158,11,0.2)' : 'none',
                           position: 'relative',
@@ -906,10 +906,7 @@ export default function TourBookingPage() {
                               )}
                             </div>
                             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                              <p style={{ fontWeight: 800, color: selected ? '#d97706' : '#374151', fontSize: 13, margin: '0 0 2px' }}>
-                                LKR {(g.pricePerDay || 0).toLocaleString()}
-                              </p>
-                              <p style={{ fontSize: 11, color: '#9ca3af', margin: 0 }}>per day</p>
+
                             </div>
                             {selected && (
                               <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
