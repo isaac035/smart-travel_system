@@ -279,7 +279,7 @@ export default function TourBookingPage() {
     return () => clearTimeout(debounceRef.current);
   }, [pkg, id, form.vehicle, form.travelers, form.customDuration]);
 
-  // Fetch available guides whenever startDate changes
+  // Fetch available guides whenever startDate or customDuration changes
   useEffect(() => {
     if (!pkg || !pkgHasGuides || !form.startDate) {
       setAvailableGuides(pkg?.guideIds || []);
@@ -287,13 +287,14 @@ export default function TourBookingPage() {
     }
     let cancelled = false;
     setGuidesLoading(true);
+    const duration = form.customDuration || pkg.duration || 1;
     api
-      .get(`/tours/${id}/available-guides?startDate=${form.startDate}`)
+      .get(`/tours/${id}/available-guides?startDate=${form.startDate}&duration=${duration}`)
       .then((r) => { if (!cancelled) { setAvailableGuides(r.data); setForm((f) => ({ ...f, selectedGuideId: '' })); } })
       .catch(() => { if (!cancelled) setAvailableGuides([]); })
       .finally(() => { if (!cancelled) setGuidesLoading(false); });
     return () => { cancelled = true; };
-  }, [form.startDate, pkg, id, pkgHasGuides]);
+  }, [form.startDate, form.customDuration, pkg, id, pkgHasGuides]);
 
   if (loading) {
     return (
