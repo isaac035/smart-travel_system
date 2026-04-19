@@ -94,10 +94,11 @@ exports.getPackage = async (req, res) => {
   }
 };
 
-// GET /api/tours/:id/available-guides?startDate=YYYY-MM-DD
+// GET /api/tours/:id/available-guides?startDate=YYYY-MM-DD&duration=N
+// duration = number of days the new trip will last (defaults to package duration)
 exports.getAvailableGuides = async (req, res) => {
   try {
-    const { startDate } = req.query;
+    const { startDate, duration } = req.query;
     const pkg = await TourPackage.findById(req.params.id)
       .populate('guideIds', 'name image rating languages pricePerDay phone experience location');
     if (!pkg) return res.status(404).json({ message: 'Package not found' });
@@ -108,29 +109,47 @@ exports.getAvailableGuides = async (req, res) => {
 
     const guideObjectIds = pkg.guideIds.map((g) => g._id);
 
-    const dayStart = new Date(startDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(startDate);
-    dayEnd.setHours(23, 59, 59, 999);
+    // Build the NEW trip's date window
+    const dur = Math.max(1, parseInt(duration, 10) || pkg.duration || 1);
+    const tripStart = new Date(startDate);
+    tripStart.setHours(0, 0, 0, 0);
+    const tripEnd = new Date(tripStart);
+    tripEnd.setDate(tripEnd.getDate() + dur - 1);
+    tripEnd.setHours(23, 59, 59, 999);
 
     // ── Check 1: TourBooking conflicts (same package module) ────────
-    const tourBookedIds = await TourBooking.distinct('guideId', {
+    // An existing TourBooking blocks a guide if its window [bookingStart, bookingStart + customDuration - 1]
+    // overlaps the new trip window [tripStart, tripEnd].
+    // Since TourBooking has no endDate field, we use an aggregation to compute it in-memory:
+    const allTourBookings = await TourBooking.find({
       guideId: { $in: guideObjectIds, $ne: null },
-      startDate: { $gte: dayStart, $lte: dayEnd },
       status: { $in: ['pending', 'confirmed'] },
-    });
+    }).select('guideId startDate customDuration');
+
+    const tourBookedIds = allTourBookings
+      .filter((b) => {
+        const bStart = new Date(b.startDate);
+        bStart.setHours(0, 0, 0, 0);
+        const bDur = Math.max(1, b.customDuration || 1);
+        const bEnd = new Date(bStart);
+        bEnd.setDate(bEnd.getDate() + bDur - 1);
+        bEnd.setHours(23, 59, 59, 999);
+        // Overlap check: booking overlaps new trip if bStart <= tripEnd AND bEnd >= tripStart
+        return bStart <= tripEnd && bEnd >= tripStart;
+      })
+      .map((b) => b.guideId.toString());
 
     // ── Check 2: GuideBooking conflicts (standalone guide module) ───
-    // A guide is blocked if their booking window overlaps the chosen date
+    // A guide is blocked if their booking window overlaps the new trip window
     const guideBookedIds = await GuideBooking.distinct('guideId', {
       guideId: { $in: guideObjectIds },
       status: { $in: GUIDE_BOOKING_ACTIVE_STATUSES },
-      startDate: { $lte: dayEnd },
-      endDate: { $gte: dayStart },
+      startDate: { $lte: tripEnd },
+      endDate: { $gte: tripStart },
     });
 
     const bookedSet = new Set([
-      ...tourBookedIds.map((id) => id.toString()),
+      ...tourBookedIds,
       ...guideBookedIds.map((id) => id.toString()),
     ]);
 
@@ -248,30 +267,43 @@ exports.createBooking = async (req, res) => {
         return res.status(400).json({ message: 'Selected guide is not assigned to this package.' });
       }
 
-      const dayStart = new Date(startDate);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(startDate);
-      dayEnd.setHours(23, 59, 59, 999);
+      // Compute the new trip's full date window
+      const tripDur = Math.max(1, Number(customDuration) || pkg.duration || 1);
+      const tripStart = new Date(startDate);
+      tripStart.setHours(0, 0, 0, 0);
+      const tripEnd = new Date(tripStart);
+      tripEnd.setDate(tripEnd.getDate() + tripDur - 1);
+      tripEnd.setHours(23, 59, 59, 999);
 
-      // Check 1: TourBooking conflict (same module)
-      const tourConflict = await TourBooking.findOne({
+      // Check 1: TourBooking conflict — any existing booking whose window overlaps the new trip window
+      const allTourConflicts = await TourBooking.find({
         guideId,
-        startDate: { $gte: dayStart, $lte: dayEnd },
         status: { $in: ['pending', 'confirmed'] },
+      }).select('startDate customDuration');
+
+      const hasTourConflict = allTourConflicts.some((b) => {
+        const bStart = new Date(b.startDate);
+        bStart.setHours(0, 0, 0, 0);
+        const bDur = Math.max(1, b.customDuration || 1);
+        const bEnd = new Date(bStart);
+        bEnd.setDate(bEnd.getDate() + bDur - 1);
+        bEnd.setHours(23, 59, 59, 999);
+        return bStart <= tripEnd && bEnd >= tripStart;
       });
-      if (tourConflict) {
-        return res.status(400).json({ message: 'This guide is already booked on the selected date. Please choose another guide or date.' });
+
+      if (hasTourConflict) {
+        return res.status(400).json({ message: 'This guide is already booked during the selected trip dates. Please choose another guide or date.' });
       }
 
       // Check 2: GuideBooking conflict (standalone guide booking module)
       const guideConflict = await GuideBooking.findOne({
         guideId,
         status: { $in: GUIDE_BOOKING_ACTIVE_STATUSES },
-        startDate: { $lte: dayEnd },
-        endDate: { $gte: dayStart },
+        startDate: { $lte: tripEnd },
+        endDate: { $gte: tripStart },
       });
       if (guideConflict) {
-        return res.status(400).json({ message: 'This guide is unavailable on the selected date (booked via another service). Please choose another guide or date.' });
+        return res.status(400).json({ message: 'This guide is unavailable during the selected trip dates (booked via another service). Please choose another guide or date.' });
       }
 
       resolvedGuideId = guideId;
