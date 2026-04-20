@@ -16,6 +16,15 @@ const card = {
   boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
 };
 
+const formatCardNumber = (value) =>
+  value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+
+const formatExpiry = (value) => {
+  const digits = value.replace(/\D/g, '').slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)} / ${digits.slice(2)}`;
+};
+
 export default function CartPage() {
   const { cart, updateQty, removeItem, clearCart } = useCart();
   const { user } = useAuth();
@@ -23,6 +32,14 @@ export default function CartPage() {
   const [slipFile, setSlipFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [bankAccounts, setBankAccounts] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('bank');
+  const [cardDetails, setCardDetails] = useState({
+    number: '',
+    holder: '',
+    expiry: '',
+    cvv: '',
+  });
+  const [cardErrors, setCardErrors] = useState({});
 
   // User details form state
   const [phone, setPhone] = useState('');
@@ -48,6 +65,10 @@ export default function CartPage() {
   const subtotal = items.reduce((sum, item) => sum + getItemPrice(item) * item.qty, 0);
   const tax = subtotal * 0.05;
   const total = subtotal + tax;
+  const cardNumberDigits = cardDetails.number.replace(/\D/g, '');
+  const cardPreviewNumber = cardNumberDigits
+    ? `•••• •••• •••• ${cardNumberDigits.slice(-4)}`
+    : '•••• •••• •••• 3456';
 
   const checkoutValues = {
     customerName: user?.name || '',
@@ -88,11 +109,39 @@ export default function CartPage() {
   };
 
   const canPlaceOrder =
+    paymentMethod === 'bank' &&
     !!slipFile &&
     phone.trim() !== '' &&
     address.trim() !== '' &&
     !checkoutErrors.phone &&
     !checkoutErrors.address;
+
+  const updateCardField = (field, value) => {
+    let nextValue = value;
+    if (field === 'number') nextValue = formatCardNumber(value);
+    if (field === 'expiry') nextValue = formatExpiry(value);
+    if (field === 'cvv') nextValue = value.replace(/\D/g, '').slice(0, 4);
+    if (field === 'holder') nextValue = value.toUpperCase();
+
+    setCardDetails((prev) => ({ ...prev, [field]: nextValue }));
+    setCardErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const handleCardPaymentClick = () => {
+    const errors = {};
+    if (!cardDetails.number.trim()) errors.number = 'Card number is required';
+    if (!cardDetails.holder.trim()) errors.holder = 'Card holder name is required';
+    if (!cardDetails.expiry.trim()) errors.expiry = 'Expiry date is required';
+    if (!cardDetails.cvv.trim()) errors.cvv = 'CVV is required';
+
+    setCardErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fill the card payment details');
+      return;
+    }
+
+    toast.success('Card payment UI confirmed. Payment gateway is not connected yet.');
+  };
 
   const handleCheckout = async () => {
     if (!user) return toast.error('Please login to checkout');
@@ -166,7 +215,7 @@ export default function CartPage() {
   return (
     <Layout>
       <div style={{ background: '#f8f9fb', minHeight: '100vh' }}>
-        <div style={{ maxWidth: 1060, margin: '0 auto', padding: '32px 20px 60px' }}>
+        <div style={{ width: '100%', maxWidth: 'none', margin: '0 auto', padding: '32px clamp(20px, 3vw, 44px) 60px', boxSizing: 'border-box' }}>
 
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
@@ -189,7 +238,7 @@ export default function CartPage() {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 28, alignItems: 'start' }} className="cart-grid">
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(360px, 420px)', gap: 28, alignItems: 'start', width: '100%' }} className="cart-grid">
 
             {/* ── Cart Items ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -390,8 +439,53 @@ export default function CartPage() {
                 </div>
               </div>
 
+              <div style={{ ...card, padding: '22px 24px' }}>
+                <h2 style={{
+                  fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 14px',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <span style={{
+                    width: 30, height: 30, borderRadius: 8,
+                    background: '#fffbeb', border: '1px solid #fde68a',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+                  }}>💰</span>
+                  Payment Method
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    { value: 'bank', title: 'Bank Transfer', text: 'Upload payment slip', icon: '🏦' },
+                    { value: 'card', title: 'Card Payment', text: 'UI preview only', icon: '💳' },
+                  ].map((option) => {
+                    const active = paymentMethod === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setPaymentMethod(option.value)}
+                        style={{
+                          textAlign: 'left',
+                          border: `1.5px solid ${active ? '#f59e0b' : '#e5e7eb'}`,
+                          background: active ? '#fffbeb' : '#fff',
+                          borderRadius: 12,
+                          padding: '12px 12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          boxShadow: active ? '0 3px 10px rgba(245,158,11,0.12)' : 'none',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                          <span style={{ fontSize: 16 }}>{option.icon}</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: active ? '#92400e' : '#111827' }}>{option.title}</span>
+                        </div>
+                        <p style={{ fontSize: 11, color: '#9ca3af', margin: 0 }}>{option.text}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* ─ 2. Bank Transfer Details card ─ */}
-              {bankAccounts.length > 0 && (
+              {paymentMethod === 'bank' && bankAccounts.length > 0 && (
                 <div style={{ ...card, padding: '22px 24px' }}>
                   <h2 style={{
                     fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 16px',
@@ -434,6 +528,7 @@ export default function CartPage() {
               )}
 
               {/* ─ 3. Payment slip upload card ─ */}
+              {paymentMethod === 'bank' && (
               <div style={{ ...card, padding: '24px 24px' }}>
                 <h2 style={{
                   fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 6px',
@@ -486,9 +581,149 @@ export default function CartPage() {
                 </label>
                 {checkoutErrors.slipFile && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 8 }}>{checkoutErrors.slipFile}</p>}
               </div>
+              )}
+
+              {paymentMethod === 'card' && (
+                <div style={{ ...card, padding: '24px 24px', animation: 'cartFadeIn 0.35s ease both' }}>
+                  <h2 style={{
+                    fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 14px',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
+                    <span style={{
+                      width: 30, height: 30, borderRadius: 8,
+                      background: '#eff6ff', border: '1px solid #bfdbfe',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+                    }}>💳</span>
+                    Card Payment
+                  </h2>
+
+                  <div style={{
+                    borderRadius: 16,
+                    padding: 18,
+                    marginBottom: 18,
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, #111827 0%, #334155 55%, #d97706 140%)',
+                    boxShadow: '0 16px 32px rgba(15,23,42,0.22)',
+                    minHeight: 150,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.2, opacity: 0.8 }}>CEYLON COMPASS</span>
+                      <span style={{ fontSize: 22 }}>💳</span>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 18, letterSpacing: 2, margin: '0 0 16px', fontWeight: 700 }}>
+                        {cardPreviewNumber}
+                      </p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                        <div>
+                          <p style={{ fontSize: 9, opacity: 0.65, margin: '0 0 3px', textTransform: 'uppercase' }}>Card Holder</p>
+                          <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>{cardDetails.holder || 'YOUR NAME'}</p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: 9, opacity: 0.65, margin: '0 0 3px', textTransform: 'uppercase' }}>Expires</p>
+                          <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>{cardDetails.expiry || 'MM / YY'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', marginBottom: 16 }}>
+                    <span style={{ fontSize: 14 }}>🔒</span>
+                    <p style={{ fontSize: 12, color: '#166534', margin: 0, fontWeight: 600 }}>Your card details are encrypted and secure</p>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>Card Number</label>
+                      <input
+                        value={cardDetails.number}
+                        onChange={(e) => updateCardField('number', e.target.value)}
+                        placeholder="1234 5678 9012 3456"
+                        inputMode="numeric"
+                        style={{
+                          width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, color: '#111827',
+                          border: `1.5px solid ${cardErrors.number ? '#ef4444' : '#e5e7eb'}`,
+                          background: '#fff', outline: 'none', boxSizing: 'border-box',
+                        }}
+                      />
+                      {cardErrors.number && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{cardErrors.number}</p>}
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>Card Holder Name</label>
+                      <input
+                        value={cardDetails.holder}
+                        onChange={(e) => updateCardField('holder', e.target.value)}
+                        placeholder="AS IT APPEARS ON THE CARD"
+                        style={{
+                          width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, color: '#111827',
+                          border: `1.5px solid ${cardErrors.holder ? '#ef4444' : '#e5e7eb'}`,
+                          background: '#fff', outline: 'none', boxSizing: 'border-box',
+                        }}
+                      />
+                      {cardErrors.holder && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{cardErrors.holder}</p>}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: 10 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>Expiry Date</label>
+                        <input
+                          value={cardDetails.expiry}
+                          onChange={(e) => updateCardField('expiry', e.target.value)}
+                          placeholder="MM / YY"
+                          inputMode="numeric"
+                          style={{
+                            width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, color: '#111827',
+                            border: `1.5px solid ${cardErrors.expiry ? '#ef4444' : '#e5e7eb'}`,
+                            background: '#fff', outline: 'none', boxSizing: 'border-box',
+                          }}
+                        />
+                        {cardErrors.expiry && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{cardErrors.expiry}</p>}
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>CVV</label>
+                        <input
+                          type="password"
+                          value={cardDetails.cvv}
+                          onChange={(e) => updateCardField('cvv', e.target.value)}
+                          placeholder="***"
+                          inputMode="numeric"
+                          style={{
+                            width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, color: '#111827',
+                            border: `1.5px solid ${cardErrors.cvv ? '#ef4444' : '#e5e7eb'}`,
+                            background: '#fff', outline: 'none', boxSizing: 'border-box',
+                          }}
+                        />
+                        {cardErrors.cvv && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{cardErrors.cvv}</p>}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleCardPaymentClick}
+                      style={{
+                        width: '100%', padding: '15px 0', marginTop: 4,
+                        fontSize: 15, fontWeight: 700, color: '#fff',
+                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                        border: 'none', borderRadius: 14,
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 14px rgba(245,158,11,0.3)',
+                      }}
+                    >
+                      Pay Now - {formatLKR(Math.round(total))}
+                    </button>
+                    <p style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', margin: '-4px 0 0' }}>
+                      Card payment is a frontend preview only. No payment gateway is connected.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* ─ 4. User Details card (only shown after slip is uploaded) ─ */}
-              {slipFile && (
+              {paymentMethod === 'bank' && slipFile && (
                 <div style={{ ...card, padding: '24px 24px', animation: 'cartFadeIn 0.35s ease both' }}>
                   <h2 style={{
                     fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 6px',
