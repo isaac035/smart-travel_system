@@ -9,6 +9,31 @@ import { formatLKR } from '../../utils/currency';
 
 
 const MAX_PRICE = 200000;
+const TRAVELER_TYPES = ['solo', 'couple', 'family', 'group'];
+const TRIP_CATEGORIES = ['adventure', 'relaxation', 'luxury', 'nature', 'beach', 'cultural'];
+const WEATHER_OPTIONS = ['hot', 'cold', 'rainy', 'any'];
+const DURATION_OPTIONS = ['short', 'medium', 'long'];
+const ACTIVITY_LEVELS = ['low', 'moderate', 'high'];
+const AGE_OPTIONS = ['kids', 'adults', 'all'];
+const EMPTY_PREFERENCES = {
+  travelerType: 'solo',
+  destination: '',
+  budget: '',
+  weatherPreference: 'any',
+  tripDuration: 'short',
+  tripCategory: 'adventure',
+  activityLevel: 'moderate',
+  ageGroup: 'all',
+};
+
+const labelize = (value) => String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+
+const getMatchBadgeStyle = (score = 0) => {
+  if (score >= 85) return { background: '#dcfce7', color: '#166534', border: '#86efac' };
+  if (score >= 70) return { background: '#fef3c7', color: '#92400e', border: '#fcd34d' };
+  if (score >= 50) return { background: '#e0f2fe', color: '#075985', border: '#7dd3fc' };
+  return { background: '#fee2e2', color: '#991b1b', border: '#fecaca' };
+};
 
 const getAvailabilityConfig = (availability, stock) => {
   if (availability === 'out_of_stock' || stock === 0) {
@@ -24,13 +49,14 @@ const getAvailabilityConfig = (availability, stock) => {
 };
 
 /* ── Product / Bundle Card ── */
-const ProductCard = ({ item, type, onAddToCart, index, onCardClick }) => {
+const ProductCard = ({ item, type, onAddToCart, index, onCardClick, hasPreferences }) => {
   const navigate = useNavigate();
   const price = type === 'bundle'
     ? item.totalPrice * (1 - (item.discount || 0) / 100)
     : item.price;
   const availConfig = type === 'product' ? getAvailabilityConfig(item.availability, item.stock) : null;
   const isUnavailable = type === 'product' ? availConfig.isUnavailable : false;
+  const matchStyle = getMatchBadgeStyle(item.suitabilityScore);
 
   return (
     <div
@@ -97,6 +123,19 @@ const ProductCard = ({ item, type, onAddToCart, index, onCardClick }) => {
             -{item.discount}%
           </div>
         )}
+        {type === 'bundle' && hasPreferences && typeof item.suitabilityScore === 'number' && (
+          <div style={{
+            position: 'absolute', top: 10, left: 10,
+            padding: '5px 11px', borderRadius: 8,
+            fontSize: 11, fontWeight: 800,
+            background: matchStyle.background,
+            color: matchStyle.color,
+            border: `1px solid ${matchStyle.border}`,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
+          }}>
+            {item.suitabilityScore}% Match
+          </div>
+        )}
         {/* Weather badge */}
         {type === 'product' && item.weatherType !== 'BOTH' && (
           <div style={{
@@ -129,6 +168,20 @@ const ProductCard = ({ item, type, onAddToCart, index, onCardClick }) => {
         )}
         {type === 'bundle' && item.products?.length > 0 && (
           <p style={{ fontSize: 11, color: '#b0b0b0', marginTop: 4 }}>{item.products.length} items included</p>
+        )}
+        {type === 'bundle' && hasPreferences && (
+          <div style={{ marginTop: 10 }}>
+            <span style={{ display: 'inline-flex', padding: '4px 9px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: matchStyle.background, color: matchStyle.color, border: `1px solid ${matchStyle.border}` }}>
+              {item.matchLabel || 'Bundle Match'}
+            </span>
+            {item.suitabilityReasons?.length > 0 ? (
+              <ul style={{ margin: '8px 0 0', paddingLeft: 16, color: '#6b7280', fontSize: 11, lineHeight: 1.5 }}>
+                {item.suitabilityReasons.slice(0, 3).map((reason) => <li key={reason}>{reason}</li>)}
+              </ul>
+            ) : (
+              <p style={{ margin: '8px 0 0', color: '#9ca3af', fontSize: 11 }}>Low compatibility with your current preferences</p>
+            )}
+          </div>
         )}
 
         {/* Price + CTA */}
@@ -186,6 +239,9 @@ export default function ProductsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const { addToCart, itemCount } = useCart();
   const [selectedBundle, setSelectedBundle] = useState(null);
+  const [preferences, setPreferences] = useState(EMPTY_PREFERENCES);
+  const [hasBundlePreferences, setHasBundlePreferences] = useState(false);
+  const [matchingBundles, setMatchingBundles] = useState(false);
   const navigate = useNavigate();
 
   const [nameSearch, setNameSearch] = useState('');
@@ -231,6 +287,34 @@ export default function ProductsPage() {
     try { const { data } = await api.get('/bundles'); setBundles(data); } catch {}
   };
 
+  const handlePreferenceChange = (field) => (e) => {
+    setPreferences((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleBundleMatch = async (e) => {
+    e.preventDefault();
+    if (!preferences.destination) return;
+    setMatchingBundles(true);
+    try {
+      const { data } = await api.post('/bundles/check-suitability', {
+        ...preferences,
+        budget: Number(preferences.budget || 0),
+      });
+      setBundles(data);
+      setHasBundlePreferences(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMatchingBundles(false);
+    }
+  };
+
+  const clearBundleMatch = async () => {
+    setPreferences(EMPTY_PREFERENCES);
+    setHasBundlePreferences(false);
+    await fetchBundles();
+  };
+
   const resetPrice = () => { setPriceMin(0); setPriceMax(MAX_PRICE); };
   const toggleAvailability = (key) => setAvailability((prev) => ({ ...prev, [key]: !prev[key] }));
   const setQuickFilter = (min, max) => { setPriceMin(min); setPriceMax(max); };
@@ -255,6 +339,20 @@ export default function ProductsPage() {
     backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
     backgroundPosition: 'right 10px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px',
     paddingRight: 30, cursor: 'pointer',
+  };
+
+  const bundleMatchInput = {
+    ...inputBase,
+    borderRadius: 8,
+    padding: '9px 12px',
+    fontSize: 12,
+  };
+
+  const bundleMatchSelect = {
+    ...selectBase,
+    borderRadius: 8,
+    padding: '9px 30px 9px 12px',
+    fontSize: 12,
   };
 
   /* ── Filter Sidebar Content (shared between desktop sidebar + mobile drawer) ── */
@@ -515,6 +613,35 @@ export default function ProductsPage() {
           {/* ── Bundles Tab ── */}
           {tab === 'bundles' && (
             <div style={{ marginTop: 28 }}>
+              <form onSubmit={handleBundleMatch} style={{ background: '#fff', border: '1px solid #e8eaed', borderRadius: 16, padding: 18, marginBottom: 22, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <div>
+                    <h2 style={{ fontSize: 18, fontWeight: 800, color: '#111827', margin: 0 }}>Find Suitable Bundle</h2>
+                    <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>Enter your travel preferences to see bundle compatibility.</p>
+                  </div>
+                  {hasBundlePreferences && (
+                    <button type="button" onClick={clearBundleMatch} style={{ border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                      Clear Match
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+                  <div><SideLabel>Traveler Type</SideLabel><select value={preferences.travelerType} onChange={handlePreferenceChange('travelerType')} style={bundleMatchSelect}>{TRAVELER_TYPES.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}</select></div>
+                  <div><SideLabel>Destination</SideLabel><select required value={preferences.destination} onChange={handlePreferenceChange('destination')} style={bundleMatchSelect}><option value="">Select destination</option>{locationNames.map((name) => <option key={name} value={name}>{name}</option>)}</select></div>
+                  <div><SideLabel>Budget</SideLabel><input required type="number" min={0} value={preferences.budget} onChange={handlePreferenceChange('budget')} placeholder="25000" style={bundleMatchInput} /></div>
+                  <div><SideLabel>Weather</SideLabel><select value={preferences.weatherPreference} onChange={handlePreferenceChange('weatherPreference')} style={bundleMatchSelect}>{WEATHER_OPTIONS.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}</select></div>
+                  <div><SideLabel>Duration</SideLabel><select value={preferences.tripDuration} onChange={handlePreferenceChange('tripDuration')} style={bundleMatchSelect}>{DURATION_OPTIONS.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}</select></div>
+                  <div><SideLabel>Trip Category</SideLabel><select value={preferences.tripCategory} onChange={handlePreferenceChange('tripCategory')} style={bundleMatchSelect}>{TRIP_CATEGORIES.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}</select></div>
+                  <div><SideLabel>Activity Level</SideLabel><select value={preferences.activityLevel} onChange={handlePreferenceChange('activityLevel')} style={bundleMatchSelect}>{ACTIVITY_LEVELS.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}</select></div>
+                  <div><SideLabel>Age Group</SideLabel><select value={preferences.ageGroup} onChange={handlePreferenceChange('ageGroup')} style={bundleMatchSelect}>{AGE_OPTIONS.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}</select></div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
+                  <button type="submit" disabled={matchingBundles} style={{ padding: '10px 18px', fontSize: 13, fontWeight: 800, background: matchingBundles ? '#e5e7eb' : 'linear-gradient(135deg,#f59e0b,#d97706)', color: matchingBundles ? '#9ca3af' : '#fff', border: 'none', borderRadius: 8, cursor: matchingBundles ? 'not-allowed' : 'pointer' }}>
+                    {matchingBundles ? 'Checking...' : 'Check Bundle Match'}
+                  </button>
+                  {!hasBundlePreferences && <span style={{ fontSize: 12, color: '#9ca3af' }}>Enter your travel preferences to see bundle compatibility.</span>}
+                </div>
+              </form>
               {bundles.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '80px 20px' }}>
                   <div style={{ fontSize: 56, opacity: 0.25, marginBottom: 12 }}>🎒</div>
@@ -523,9 +650,9 @@ export default function ProductsPage() {
                 </div>
               ) : (
                 <>
-                  <p style={{ fontSize: 14, color: '#9ca3af', marginBottom: 16, fontWeight: 500 }}>{bundles.length} bundles found</p>
+                  <p style={{ fontSize: 14, color: '#9ca3af', marginBottom: 16, fontWeight: 500 }}>{bundles.length} bundles found{hasBundlePreferences ? ' sorted by suitability score' : ''}</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
-                    {bundles.map((b, i) => <ProductCard key={b._id} item={b} type="bundle" onAddToCart={addToCart} index={i} onCardClick={setSelectedBundle} />)}
+                    {bundles.map((b, i) => <ProductCard key={b._id} item={b} type="bundle" onAddToCart={addToCart} index={i} onCardClick={setSelectedBundle} hasPreferences={hasBundlePreferences} />)}
                   </div>
                 </>
               )}
@@ -578,6 +705,28 @@ export default function ProductsPage() {
                   <button onClick={() => { addToCart(selectedBundle._id, 'bundle'); setSelectedBundle(null); }} style={{ width: '100%', padding: '12px 0', fontSize: 14, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg,#f59e0b,#d97706)', border: 'none', borderRadius: 12, cursor: 'pointer', boxShadow: '0 4px 12px rgba(245,158,11,0.3)' }}>Add to Cart</button>
                 </div>
               </div>
+
+              {hasBundlePreferences && typeof selectedBundle.suitabilityScore === 'number' && (
+                <div style={{ marginBottom: 24, padding: 18, borderRadius: 12, border: `1px solid ${getMatchBadgeStyle(selectedBundle.suitabilityScore).border}`, background: '#f8fafc' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 800, color: '#111827', margin: 0 }}>Suitability Score: {selectedBundle.suitabilityScore}%</h3>
+                    <span style={{ padding: '5px 10px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: getMatchBadgeStyle(selectedBundle.suitabilityScore).background, color: getMatchBadgeStyle(selectedBundle.suitabilityScore).color, border: `1px solid ${getMatchBadgeStyle(selectedBundle.suitabilityScore).border}` }}>
+                      {selectedBundle.matchLabel}
+                    </span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 8, background: '#e5e7eb', overflow: 'hidden', marginBottom: 12 }}>
+                    <div style={{ height: '100%', width: `${selectedBundle.suitabilityScore}%`, background: selectedBundle.suitabilityScore >= 70 ? '#16a34a' : selectedBundle.suitabilityScore >= 50 ? '#0284c7' : '#dc2626', borderRadius: 8 }} />
+                  </div>
+                  <h4 style={{ fontSize: 13, fontWeight: 700, color: '#374151', margin: '0 0 8px' }}>Why this bundle matches you:</h4>
+                  {selectedBundle.suitabilityReasons?.length > 0 ? (
+                    <ul style={{ margin: 0, paddingLeft: 18, color: '#4b5563', fontSize: 13, lineHeight: 1.7 }}>
+                      {selectedBundle.suitabilityReasons.map((reason) => <li key={reason}>{reason}</li>)}
+                    </ul>
+                  ) : (
+                    <p style={{ margin: 0, color: '#6b7280', fontSize: 13 }}>This bundle has low compatibility with your current travel preferences.</p>
+                  )}
+                </div>
+              )}
 
               {selectedBundle.products && selectedBundle.products.length > 0 && (
                 <>

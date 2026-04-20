@@ -1,6 +1,7 @@
 const Product = require('../models/Product');
 const Bundle = require('../models/Bundle');
 const Cart = require('../models/Cart');
+const { calculateBundleSuitability } = require('../utils/bundleSuitability');
 
 
 // ─── PRODUCTS ─────────────────────────────────────────────────
@@ -130,6 +131,12 @@ const createBundle = async (req, res) => {
     if (body.location !== undefined && !Array.isArray(body.location)) {
       body.location = [body.location].filter(Boolean);
     }
+    if (body.recommendedDestination !== undefined && !Array.isArray(body.recommendedDestination)) {
+      body.recommendedDestination = [body.recommendedDestination].filter(Boolean);
+    }
+    if (typeof body.suitabilityTags === 'string') {
+      body.suitabilityTags = body.suitabilityTags.split(',').map((tag) => tag.trim()).filter(Boolean);
+    }
     const bundle = await Bundle.create({ ...body, images, products: products || [] });
     res.status(201).json(bundle);
   } catch (error) {
@@ -145,6 +152,15 @@ const updateBundle = async (req, res) => {
     const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
     const updates = { ...body };
     if (typeof updates.products === 'string') updates.products = JSON.parse(updates.products);
+    if (updates.location !== undefined && !Array.isArray(updates.location)) {
+      updates.location = [updates.location].filter(Boolean);
+    }
+    if (updates.recommendedDestination !== undefined && !Array.isArray(updates.recommendedDestination)) {
+      updates.recommendedDestination = [updates.recommendedDestination].filter(Boolean);
+    }
+    if (typeof updates.suitabilityTags === 'string') {
+      updates.suitabilityTags = updates.suitabilityTags.split(',').map((tag) => tag.trim()).filter(Boolean);
+    }
     const existingImages = updates.existingImages || null;
     delete updates.existingImages;
     if (existingImages !== null || (req.files && req.files.length > 0)) {
@@ -155,6 +171,26 @@ const updateBundle = async (req, res) => {
 
     const updated = await Bundle.findByIdAndUpdate(req.params.id, updates, { new: true });
     res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const checkBundleSuitability = async (req, res) => {
+  try {
+    const preferences = req.body || {};
+    const bundles = await Bundle.find({ isActive: true }).populate('products').sort({ createdAt: -1 });
+    const matchedBundles = bundles
+      .map((bundle) => {
+        const match = calculateBundleSuitability(bundle, preferences);
+        return {
+          ...bundle.toObject(),
+          ...match,
+        };
+      })
+      .sort((a, b) => b.suitabilityScore - a.suitabilityScore);
+
+    res.json(matchedBundles);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -260,6 +296,6 @@ const clearCart = async (req, res) => {
 
 module.exports = {
   getProducts, getProduct, createProduct, updateProduct, deleteProduct,
-  getBundles, getBundle, createBundle, updateBundle, deleteBundle,
+  getBundles, getBundle, createBundle, updateBundle, deleteBundle, checkBundleSuitability,
   getCart, addToCart, updateCartItem, removeFromCart, clearCart,
 };

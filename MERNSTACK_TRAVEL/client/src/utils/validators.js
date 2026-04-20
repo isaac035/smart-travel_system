@@ -132,6 +132,16 @@ export const validateTravelBundleField = (field, form) => {
     case 'products':
       if (!Array.isArray(form.products) || form.products.length === 0) return 'Select at least one product';
       return '';
+    case 'minBudget':
+    case 'maxBudget': {
+      const value = form[field];
+      if (value === '' || value === null || value === undefined) return '';
+      const num = toNumber(value);
+      if (Number.isNaN(num)) return 'Budget must be a number';
+      if (num < 0) return 'Budget cannot be negative';
+      if (field === 'maxBudget' && form.minBudget !== '' && Number(form.minBudget) > num) return 'Max budget must be greater than min budget';
+      return '';
+    }
     default:
       return '';
   }
@@ -144,6 +154,8 @@ export const validateTravelBundleForm = (form) => {
   setError(errors, 'totalPrice', validateTravelBundleField('totalPrice', form));
   setError(errors, 'discount', validateTravelBundleField('discount', form));
   setError(errors, 'products', validateTravelBundleField('products', form));
+  setError(errors, 'minBudget', validateTravelBundleField('minBudget', form));
+  setError(errors, 'maxBudget', validateTravelBundleField('maxBudget', form));
 
   return {
     isValid: Object.keys(errors).length === 0,
@@ -154,6 +166,8 @@ export const validateTravelBundleForm = (form) => {
       description: normalizeText(form.description),
       totalPrice: toNumber(form.totalPrice),
       discount: form.discount === '' || form.discount === null || form.discount === undefined ? 0 : toNumber(form.discount),
+      minBudget: form.minBudget === '' || form.minBudget === null || form.minBudget === undefined ? 0 : toNumber(form.minBudget),
+      maxBudget: form.maxBudget === '' || form.maxBudget === null || form.maxBudget === undefined ? 0 : toNumber(form.maxBudget),
     },
   };
 };
