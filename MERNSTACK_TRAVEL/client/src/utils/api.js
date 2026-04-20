@@ -23,9 +23,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
       localStorage.removeItem('token');
-      // Redirect hotel owners to their login page, others to the regular login
+      localStorage.removeItem('user');
+      // Keep each role on the correct login page after an expired/invalid token.
+      const isAdmin = storedUser?.role === 'admin';
       const isHotelOwner = storedUser?.role === 'hotelOwner';
-      window.location.href = isHotelOwner ? '/hotel-owner/login' : '/login';
+      window.location.href = isAdmin ? '/admin/login' : (isHotelOwner ? '/hotel-owner/login' : '/login');
     }
     return Promise.reject(error);
   }

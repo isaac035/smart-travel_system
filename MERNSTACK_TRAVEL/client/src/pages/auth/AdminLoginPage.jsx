@@ -14,7 +14,7 @@ export default function AdminLoginPage() {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [submitted, setSubmitted] = useState(false);
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
 
   const validateField = (name, value) => {
@@ -57,12 +57,15 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       const user = await login(form.email, form.password);
+      console.log('Admin login response role:', user.role);
       if (user.role !== 'admin') {
+        logout();
         toast.error('Access denied. Admin accounts only.');
         return;
       }
       toast.success(`Welcome, ${user.name}`);
-      navigate('/admin');
+      console.log('Navigating to /admin/dashboard');
+      navigate('/admin/dashboard', { replace: true });
     } catch (err) {
       if (err.response?.status === 403 && err.response?.data?.accountStatus) {
         const status = err.response.data.accountStatus;

@@ -81,7 +81,20 @@ export default function LoginPage() {
       try {
         const user = await login(form.email, form.password);
         toast.success(`Welcome back, ${user.name}!`);
-        navigate('/');
+        console.log('Login response role:', user.role);
+        if (user.role === 'admin') {
+          console.log('Navigating to /admin/dashboard');
+          navigate('/admin/dashboard', { replace: true });
+        } else if (user.role === 'guide') {
+          console.log('Navigating to /guide/dashboard');
+          navigate('/guide/dashboard', { replace: true });
+        } else if (user.role === 'hotelOwner') {
+          console.log('Navigating to /hotel-owner/dashboard');
+          navigate('/hotel-owner/dashboard', { replace: true });
+        } else {
+          console.log('Navigating to /');
+          navigate('/', { replace: true });
+        }
       } catch (err) {
         if (err.response?.status === 403 && err.response?.data?.accountStatus) {
           setAccountStatus(err.response.data.accountStatus);

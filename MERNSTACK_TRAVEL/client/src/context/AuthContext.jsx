@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
       api.get('/auth/me')
         .then(async (res) => {
           setUser(res.data);
+          localStorage.setItem('user', JSON.stringify(res.data));
           // If guide, fetch their guide profile ID
           if (res.data.role === 'guide') {
             try {
@@ -24,7 +25,10 @@ export const AuthProvider = ({ children }) => {
             } catch {}
           }
         })
-        .catch(() => localStorage.removeItem('token'))
+        .catch(() => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
@@ -37,6 +41,7 @@ export const AuthProvider = ({ children }) => {
       const token = emailOrToken;
       const userData = passwordOrUser;
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
       return userData;
     }
@@ -46,6 +51,7 @@ export const AuthProvider = ({ children }) => {
     const pass = passwordOrUser;
     const { data } = await api.post('/auth/login', { email, password: pass });
     localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);
     return data.user;
   };
@@ -53,6 +59,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password) => {
     const { data } = await api.post('/auth/register', { name, email, password });
     localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);
     return data.user;
   };
@@ -60,6 +67,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     const wasGuide = user?.role === 'guide';
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
     setGuideId(null);
     return wasGuide;
@@ -67,6 +75,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = (updatedUser) => {
     setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
   return (

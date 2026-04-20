@@ -127,7 +127,8 @@ export default function App() {
 
               {/* Admin */}
               <Route path="/admin/login" element={<AdminLoginPage />} />
-              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
 
               <Route path="/admin/locations" element={<AdminRoute><AdminLocationsPage /></AdminRoute>} />
               <Route path="/admin/hotels" element={<AdminRoute><AdminHotelsPage /></AdminRoute>} />
