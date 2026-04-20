@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getProducts, getProduct, createProduct, updateProduct, deleteProduct,
-  getBundles, getBundle, createBundle, updateBundle, deleteBundle,
+  getBundles, getBundle, createBundle, updateBundle, deleteBundle, checkBundleSuitability,
   getCart, addToCart, updateCartItem, removeFromCart, clearCart,
 } = require('../controllers/productController');
 const {
@@ -21,6 +21,7 @@ router.delete('/products/:id', protect, adminOnly, deleteProduct);
 
 // ─── Bundles ──────────────────────────────────────────────────
 router.get('/bundles', getBundles);
+router.post('/bundles/check-suitability', checkBundleSuitability);
 router.get('/bundles/:id', getBundle);
 router.post('/bundles', protect, adminOnly, upload.array('images', 10), createBundle);
 router.put('/bundles/:id', protect, adminOnly, upload.array('images', 10), updateBundle);

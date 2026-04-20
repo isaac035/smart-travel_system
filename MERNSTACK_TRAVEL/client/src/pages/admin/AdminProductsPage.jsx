@@ -20,11 +20,40 @@ const AVAILABILITY_OPTIONS = [
   { value: 'coming_soon', label: 'Coming Soon' },
   { value: 'pre_order', label: 'Pre Order' },
 ];
+const TRAVELER_TYPES = ['solo', 'couple', 'family', 'group', 'any'];
+const TRIP_CATEGORIES = ['adventure', 'relaxation', 'luxury', 'nature', 'beach', 'cultural', 'mixed'];
+const WEATHER_OPTIONS = ['hot', 'cold', 'rainy', 'mixed', 'any'];
+const DURATION_OPTIONS = ['short', 'medium', 'long', 'any'];
+const ACTIVITY_LEVELS = ['low', 'moderate', 'high'];
+const AGE_OPTIONS = ['kids', 'adults', 'all'];
 const EMPTY = { name:'', description:'', price:'', stock:'', category:'Clothing', weatherType:'BOTH', availability:'in_stock', location: ['All Locations'] };
-const EMPTY_BUNDLE = { name: '', description: '', totalPrice: '', discount: 0, products: [], location: ['All Locations'] };
+const EMPTY_BUNDLE = {
+  name: '', description: '', totalPrice: '', discount: 0, products: [], location: ['All Locations'],
+  targetTravelerType: 'any',
+  tripCategory: 'mixed',
+  recommendedDestination: ['All Locations'],
+  minBudget: '',
+  maxBudget: '',
+  recommendedWeather: 'any',
+  recommendedDuration: 'any',
+  suitabilityTags: '',
+  activityLevel: 'moderate',
+  ageSuitability: 'all',
+  isRecommended: false,
+};
 
 const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const formatCurrency = (n) => formatLKR(n);
+const labelize = (value) => String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+const hasSuitabilitySettings = (bundle) => Boolean(
+  bundle.targetTravelerType ||
+  bundle.tripCategory ||
+  bundle.recommendedWeather ||
+  bundle.recommendedDuration ||
+  bundle.activityLevel ||
+  bundle.ageSuitability ||
+  bundle.isRecommended
+);
 
 export default function AdminProductsPage() {
   /* ───── shared ───── */
@@ -233,7 +262,18 @@ export default function AdminProductsPage() {
       name: b.name, description: b.description || '', totalPrice: b.totalPrice,
       discount: b.discount || 0,
       products: b.products ? b.products.map(p => p._id || p) : [],
-      location: locArray
+      location: locArray,
+      targetTravelerType: b.targetTravelerType || 'any',
+      tripCategory: b.tripCategory || 'mixed',
+      recommendedDestination: Array.isArray(b.recommendedDestination) && b.recommendedDestination.length > 0 ? b.recommendedDestination : locArray,
+      minBudget: b.minBudget || '',
+      maxBudget: b.maxBudget || '',
+      recommendedWeather: b.recommendedWeather || 'any',
+      recommendedDuration: b.recommendedDuration || 'any',
+      suitabilityTags: Array.isArray(b.suitabilityTags) ? b.suitabilityTags.join(', ') : '',
+      activityLevel: b.activityLevel || 'moderate',
+      ageSuitability: b.ageSuitability || 'all',
+      isRecommended: Boolean(b.isRecommended),
     });
     setBundleErrors({});
     setBundleTouched({});
@@ -276,10 +316,10 @@ export default function AdminProductsPage() {
 
   const handleBundleSave = async (e) => {
     e.preventDefault();
-    const result = validateTravelBundleForm(bundleForm);
+      const result = validateTravelBundleForm(bundleForm);
     if (!result.isValid) {
       setBundleErrors(result.errors);
-      setBundleTouched({ name: true, description: true, totalPrice: true, discount: true, products: true });
+      setBundleTouched({ name: true, description: true, totalPrice: true, discount: true, products: true, minBudget: true, maxBudget: true });
       toast.error('Please fix the highlighted bundle fields');
       return;
     }
@@ -292,8 +332,12 @@ export default function AdminProductsPage() {
         description: result.sanitized.description,
         totalPrice: result.sanitized.totalPrice,
         discount: result.sanitized.discount,
+        minBudget: bundleForm.minBudget === '' ? 0 : Number(bundleForm.minBudget),
+        maxBudget: bundleForm.maxBudget === '' ? 0 : Number(bundleForm.maxBudget),
+        suitabilityTags: String(bundleForm.suitabilityTags || '').split(',').map((tag) => tag.trim()).filter(Boolean),
       };
       payload.location = payload.location && payload.location.length > 0 ? payload.location : ['All Locations'];
+      payload.recommendedDestination = payload.recommendedDestination && payload.recommendedDestination.length > 0 ? payload.recommendedDestination : payload.location;
       if (bundleEditId) payload.existingImages = bundleExistingImages;
       fd.append('data', JSON.stringify(payload));
       bundleImages.forEach((f) => fd.append('images', f));
@@ -617,6 +661,99 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
               </div>
+              <div style={{ margin: '18px 0 12px', paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 12px' }}>Bundle Suitability Settings</h3>
+                <div className="field-row cols-2">
+                  <div className="field">
+                    <label>Target Traveler Type</label>
+                    <select value={bundleForm.targetTravelerType} onChange={bf('targetTravelerType')} className="adm-select">
+                      {TRAVELER_TYPES.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Trip Category</label>
+                    <select value={bundleForm.tripCategory} onChange={bf('tripCategory')} className="adm-select">
+                      {TRIP_CATEGORIES.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Min Budget (LKR)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={bundleForm.minBudget}
+                      onChange={bf('minBudget')}
+                      onBlur={onBundleFieldBlur('minBudget')}
+                      placeholder="10000"
+                      className="adm-input"
+                      style={bundleErrors.minBudget ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                    />
+                    {bundleErrors.minBudget && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.minBudget}</p>}
+                  </div>
+                  <div className="field">
+                    <label>Max Budget (LKR)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={bundleForm.maxBudget}
+                      onChange={bf('maxBudget')}
+                      onBlur={onBundleFieldBlur('maxBudget')}
+                      placeholder="25000"
+                      className="adm-input"
+                      style={bundleErrors.maxBudget ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
+                    />
+                    {bundleErrors.maxBudget && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 5 }}>{bundleErrors.maxBudget}</p>}
+                  </div>
+                  <div className="field">
+                    <label>Recommended Weather</label>
+                    <select value={bundleForm.recommendedWeather} onChange={bf('recommendedWeather')} className="adm-select">
+                      {WEATHER_OPTIONS.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Recommended Duration</label>
+                    <select value={bundleForm.recommendedDuration} onChange={bf('recommendedDuration')} className="adm-select">
+                      {DURATION_OPTIONS.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Activity Level</label>
+                    <select value={bundleForm.activityLevel} onChange={bf('activityLevel')} className="adm-select">
+                      {ACTIVITY_LEVELS.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Age Suitability</label>
+                    <select value={bundleForm.ageSuitability} onChange={bf('ageSuitability')} className="adm-select">
+                      {AGE_OPTIONS.map((option) => <option key={option} value={option}>{labelize(option)}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Suitability Tags</label>
+                    <input value={bundleForm.suitabilityTags} onChange={bf('suitabilityTags')} placeholder="family-safe, outdoor, premium" className="adm-input" />
+                  </div>
+                  <div className="field">
+                    <label>Manual Recommendation</label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 42, fontSize: 13, color: '#374151' }}>
+                      <input type="checkbox" checked={bundleForm.isRecommended} onChange={(e) => setBundleForm((prev) => ({ ...prev, isRecommended: e.target.checked }))} style={{ accentColor: '#f59e0b' }} />
+                      Mark as recommended
+                    </label>
+                  </div>
+                </div>
+                <div className="field" style={{ marginTop: 8 }}>
+                  <label>Recommended Destinations</label>
+                  <div style={{ maxHeight: 140, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, background: '#f9fafb' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6 }}>
+                      <input type="checkbox" checked={bundleForm.recommendedDestination?.includes('All Locations')} onChange={(e) => { const arr = bundleForm.recommendedDestination || []; setBundleForm(p => ({...p, recommendedDestination: e.target.checked ? [...arr, 'All Locations'] : arr.filter(x => x !== 'All Locations')})); }} style={{ accentColor: '#f59e0b' }} /> All Locations
+                    </label>
+                    {locations.map((l) => (
+                      <label key={l._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 13, color: '#374151', borderRadius: 6 }}>
+                        <input type="checkbox" checked={bundleForm.recommendedDestination?.includes(l.name)} onChange={(e) => { const arr = bundleForm.recommendedDestination || []; setBundleForm(p => ({...p, recommendedDestination: e.target.checked ? [...arr, l.name] : arr.filter(x => x !== l.name)})); }} style={{ accentColor: '#f59e0b' }} /> {l.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
               <div className="field-row cols-2">
                 <div className="field">
                   <label>Description</label>
@@ -670,7 +807,7 @@ export default function AdminProductsPage() {
               <div className="adm-table-wrap">
                 <div className="overflow-x-auto">
                   <table>
-                    <thead><tr><th>Name</th><th>Price</th><th>Included Products</th><th>Locations</th><th className="text-right">Actions</th></tr></thead>
+                    <thead><tr><th>Name</th><th>Price</th><th>Included Products</th><th>Locations</th><th>Suitability</th><th className="text-right">Actions</th></tr></thead>
                     <tbody>
                       {paginatedBundles.map((b) => (
                         <tr key={b._id}>
@@ -678,6 +815,17 @@ export default function AdminProductsPage() {
                           <td className="text-sm font-bold text-gray-900">{formatLKR(b.totalPrice)} {b.discount > 0 && <span className="text-xs font-normal text-red-500 ml-1">(-{b.discount}%)</span>}</td>
                           <td><span className="text-sm font-medium text-gray-600">{b.products?.length || 0} items</span></td>
                           <td><span className="text-sm text-gray-600">{Array.isArray(b.location) ? (b.location.length > 2 ? b.location.slice(0,2).join(', ') + '...' : b.location.join(', ')) : b.location}</span></td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 180 }}>
+                              <span className="adm-badge adm-badge-neutral" style={hasSuitabilitySettings(b) ? { background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' } : undefined}>
+                                {hasSuitabilitySettings(b) ? 'Configured' : 'Basic'}
+                              </span>
+                              <span className="text-xs text-gray-500">Traveler: {labelize(b.targetTravelerType || 'any')}</span>
+                              <span className="text-xs text-gray-500">Category: {labelize(b.tripCategory || 'mixed')}</span>
+                              <span className="text-xs text-gray-500">Budget: {formatLKR(b.minBudget || 0)} - {formatLKR(b.maxBudget || 0)}</span>
+                              <span className="text-xs text-gray-500">Weather: {labelize(b.recommendedWeather || 'any')}</span>
+                            </div>
+                          </td>
                           <td><div className="flex items-center justify-end gap-2"><button onClick={() => openBundleEdit(b)} className="adm-btn-edit"><Pencil size={14} /> Edit</button><button onClick={() => handleBundleDelete(b._id)} className="adm-btn-delete"><Trash2 size={14} /> Delete</button></div></td>
                         </tr>
                       ))}
