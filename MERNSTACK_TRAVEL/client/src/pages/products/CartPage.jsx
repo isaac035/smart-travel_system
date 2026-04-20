@@ -40,6 +40,7 @@ export default function CartPage() {
     cvv: '',
   });
   const [cardErrors, setCardErrors] = useState({});
+  const [cardPaymentStatus, setCardPaymentStatus] = useState('idle');
 
   // User details form state
   const [phone, setPhone] = useState('');
@@ -124,7 +125,8 @@ export default function CartPage() {
     if (field === 'holder') nextValue = value.toUpperCase();
 
     setCardDetails((prev) => ({ ...prev, [field]: nextValue }));
-    setCardErrors((prev) => ({ ...prev, [field]: '' }));
+    setCardErrors((prev) => ({ ...prev, [field]: '', form: '' }));
+    setCardPaymentStatus('idle');
   };
 
   const handleCardPaymentClick = () => {
@@ -136,11 +138,14 @@ export default function CartPage() {
 
     setCardErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast.error('Please fill the card payment details');
+      setCardErrors((prev) => ({ ...prev, form: 'Please fill all card details' }));
       return;
     }
 
-    toast.success('Card payment UI confirmed. Payment gateway is not connected yet.');
+    setCardPaymentStatus('processing');
+    setTimeout(() => {
+      setCardPaymentStatus('completed');
+    }, 900);
   };
 
   const handleCheckout = async () => {
@@ -704,17 +709,36 @@ export default function CartPage() {
                     <button
                       type="button"
                       onClick={handleCardPaymentClick}
+                      disabled={cardPaymentStatus === 'processing' || cardPaymentStatus === 'completed'}
                       style={{
                         width: '100%', padding: '15px 0', marginTop: 4,
                         fontSize: 15, fontWeight: 700, color: '#fff',
-                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                        background: cardPaymentStatus === 'completed'
+                          ? 'linear-gradient(135deg, #16a34a, #059669)'
+                          : cardPaymentStatus === 'processing'
+                            ? '#d1d5db'
+                            : 'linear-gradient(135deg, #f59e0b, #d97706)',
                         border: 'none', borderRadius: 14,
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 14px rgba(245,158,11,0.3)',
+                        cursor: cardPaymentStatus === 'idle' ? 'pointer' : 'not-allowed',
+                        boxShadow: cardPaymentStatus === 'idle' ? '0 4px 14px rgba(245,158,11,0.3)' : 'none',
                       }}
                     >
-                      Pay Now - {formatLKR(Math.round(total))}
+                      {cardPaymentStatus === 'processing'
+                        ? 'Processing...'
+                        : cardPaymentStatus === 'completed'
+                          ? 'Completed'
+                          : `Pay Now - ${formatLKR(Math.round(total))}`}
                     </button>
+                    {cardErrors.form && (
+                      <p style={{ fontSize: 12, color: '#dc2626', textAlign: 'center', margin: '-4px 0 0', fontWeight: 600 }}>
+                        {cardErrors.form}
+                      </p>
+                    )}
+                    {cardPaymentStatus === 'completed' && (
+                      <p style={{ fontSize: 12, color: '#047857', textAlign: 'center', margin: '-4px 0 0', fontWeight: 700 }}>
+                        Payment submitted successfully
+                      </p>
+                    )}
                     <p style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', margin: '-4px 0 0' }}>
                       Card payment is a frontend preview only. No payment gateway is connected.
                     </p>
