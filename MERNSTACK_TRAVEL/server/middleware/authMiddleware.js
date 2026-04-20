@@ -15,6 +15,9 @@ const protect = async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ message: 'User not found' });
     }
+    if (decoded.role && decoded.role !== req.user.role) {
+      return res.status(401).json({ message: 'User role changed, please log in again' });
+    }
 
     // Check account status
     if (req.user.status === 'hold') {
