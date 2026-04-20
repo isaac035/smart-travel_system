@@ -215,7 +215,7 @@ export default function CartPage() {
   return (
     <Layout>
       <div style={{ background: '#f8f9fb', minHeight: '100vh' }}>
-        <div style={{ maxWidth: 1060, margin: '0 auto', padding: '32px 20px 60px' }}>
+        <div style={{ width: '100%', maxWidth: 'none', margin: '0 auto', padding: '32px clamp(20px, 3vw, 44px) 60px', boxSizing: 'border-box' }}>
 
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
@@ -238,7 +238,7 @@ export default function CartPage() {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 28, alignItems: 'start' }} className="cart-grid">
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(360px, 420px)', gap: 28, alignItems: 'start', width: '100%' }} className="cart-grid">
 
             {/* ── Cart Items ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

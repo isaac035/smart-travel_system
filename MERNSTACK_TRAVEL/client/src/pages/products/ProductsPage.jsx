@@ -505,7 +505,7 @@ export default function ProductsPage() {
 
       {/* ── Main ── */}
       <div style={{ background: '#f8f9fb', minHeight: '60vh', paddingBottom: 60 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
+        <div style={{ width: '100%', maxWidth: 'none', margin: '0 auto', padding: '0 clamp(20px, 3vw, 44px)', boxSizing: 'border-box' }}>
 
           {/* ── Tab Bar + Cart ── */}
           <div style={{
@@ -549,10 +549,10 @@ export default function ProductsPage() {
 
           {/* ── Products Tab ── */}
           {tab === 'products' && (
-            <div style={{ display: 'flex', gap: 28, marginTop: 28 }}>
+            <div style={{ display: 'flex', gap: 28, marginTop: 28, alignItems: 'flex-start', width: '100%' }}>
 
               {/* ── Desktop Sidebar ── */}
-              <aside className="hidden md:block" style={{ width: 240, flexShrink: 0 }}>
+              <aside className="hidden md:block" style={{ width: 250, flexShrink: 0 }}>
                 <div style={{
                   background: '#fff', border: '1px solid #e8eaed', borderRadius: 18,
                   padding: '22px 20px', position: 'sticky', top: 90,
@@ -578,7 +578,7 @@ export default function ProductsPage() {
               {/* ── Product Grid ── */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 {loading ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 20 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
                     {[...Array(6)].map((_, i) => (
                       <div key={i} style={{ background: '#fff', borderRadius: 18, overflow: 'hidden', border: '1px solid #e8eaed' }}>
                         <div style={{ height: 200, background: '#f3f4f6' }} className="animate-pulse" />
@@ -601,7 +601,7 @@ export default function ProductsPage() {
                     <p style={{ fontSize: 14, color: '#9ca3af', marginBottom: 16, fontWeight: 500 }}>
                       {products.length} product{products.length !== 1 ? 's' : ''} found
                     </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 20 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
                       {products.map((p, i) => <ProductCard key={p._id} item={p} type="product" onAddToCart={addToCart} index={i} />)}
                     </div>
                   </>
@@ -651,7 +651,7 @@ export default function ProductsPage() {
               ) : (
                 <>
                   <p style={{ fontSize: 14, color: '#9ca3af', marginBottom: 16, fontWeight: 500 }}>{bundles.length} bundles found{hasBundlePreferences ? ' sorted by suitability score' : ''}</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 20 }}>
                     {bundles.map((b, i) => <ProductCard key={b._id} item={b} type="bundle" onAddToCart={addToCart} index={i} onCardClick={setSelectedBundle} hasPreferences={hasBundlePreferences} />)}
                   </div>
                 </>
