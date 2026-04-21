@@ -113,16 +113,19 @@ export default function MyToursPage() {
                     </div>
                     <div style={{ fontSize: '14px', color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <p>Vehicle: <span style={{ color: '#374151', fontWeight: 500, textTransform: 'capitalize' }}>{b.vehicle}</span> · Travelers: <span style={{ color: '#374151', fontWeight: 500 }}>{b.travelers}</span></p>
-                      {b.packageId?.duration && (
-                        <p>Duration: <span style={{ color: '#374151', fontWeight: 500 }}>{b.packageId.duration} {b.packageId.duration === 1 ? 'day' : 'days'}</span></p>
-                      )}
+                      {(b.customDuration || b.packageId?.duration) && (() => {
+                        const dur = b.customDuration || b.packageId.duration;
+                        return (
+                          <p>Duration: <span style={{ color: '#374151', fontWeight: 500 }}>{dur} {dur === 1 ? 'day' : 'days'}</span></p>
+                        );
+                      })()}
                       <p>Start: <span style={{ color: '#374151', fontWeight: 500 }}>{new Date(b.startDate).toLocaleDateString()}</span></p>
                       {b.guideId && (
                         <p>Guide: <span style={{ color: '#374151', fontWeight: 500 }}>🧭 {b.guideId.name}{b.guideId.phone ? ` · ${b.guideId.phone}` : ''}</span></p>
                       )}
 
 
-                      <p>Total: <span style={{ color: '#d97706', fontWeight: 700, fontSize: '16px' }}>{formatLKR(b.totalPrice.toFixed(2))}</span></p>
+                      <p>Total: <span style={{ color: '#c86d04ff', fontWeight: 700, fontSize: '16px' }}>{formatLKR(b.totalPrice.toFixed(2))}</span></p>
 
                     </div>
                     {b.slipUrl && (
