@@ -15,13 +15,13 @@ import {
 
 
 const LANGUAGES = ['English', 'Sinhala', 'Tamil', 'Hindi', 'French', 'German', 'Japanese', 'Chinese'];
-const LOCATIONS = ['Colombo', 'Kandy', 'Galle', 'Ella', 'Sigiriya', 'Nuwara Eliya', 'Jaffna', 'Trincomalee', 'Anuradhapura'];
+const CERTIFICATIONS = ['Licensed Tour Guide', 'First Aid Certified', 'Wilderness First Aid', 'Driver License', 'PADI Certified', 'Language Specialist'];
 
 export default function GuideRegisterPage() {
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirm: '',
     phone: '', location: '', experience: 1, bio: '',
-    languages: [], services: '', certifications: ''
+    languages: [], services: '', certifications: []
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -56,13 +56,26 @@ export default function GuideRegisterPage() {
     }
   };
 
+  const toggleCertification = (cert) => {
+    const nextForm = {
+      ...form,
+      certifications: form.certifications.includes(cert)
+        ? form.certifications.filter(c => c !== cert)
+        : [...form.certifications, cert]
+    };
+    setForm(nextForm);
+    if (touched.certifications) {
+      setErrors((prevErrors) => ({ ...prevErrors, certifications: validateField('certifications', nextForm.certifications, nextForm) }));
+    }
+  };
+
   const validateField = (name, value, currentForm = form) => {
     if (name === 'name') return validateName(value);
     if (name === 'email') return validateEmail(value);
     if (name === 'password') return validatePassword(value);
     if (name === 'confirm') return validateConfirmPassword(currentForm.password, value);
     if (name === 'phone') return validatePhone(value);
-    if (name === 'location') return normalizeValue(value) ? '' : 'Please select a location';
+    if (name === 'location') return normalizeValue(value) ? '' : 'Location is required';
     if (name === 'experience') {
       return validateNumber(value, {
         min: 0,
@@ -75,7 +88,7 @@ export default function GuideRegisterPage() {
     if (name === 'languages') return Array.isArray(value) && value.length > 0 ? '' : 'Please select at least one language';
     if (name === 'bio') return normalizeValue(value).length >= 10 ? '' : 'Bio must be at least 10 characters';
     if (name === 'services') return normalizeValue(value) ? '' : 'Please enter at least one service';
-    if (name === 'certifications') return !normalizeValue(value) || normalizeValue(value).length >= 3 ? '' : 'Certifications must be at least 3 characters';
+    if (name === 'certifications') return '';
     return '';
   };
 
@@ -138,7 +151,7 @@ export default function GuideRegisterPage() {
         bio: form.bio,
         languages: form.languages,
         services: form.services ? form.services.split(',').map(s => s.trim()).filter(Boolean) : [],
-        certifications: form.certifications ? form.certifications.split(',').map(s => s.trim()).filter(Boolean) : []
+        certifications: form.certifications
       };
 
       await api.post('/auth/guide/register', payload);
@@ -248,10 +261,7 @@ export default function GuideRegisterPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Location *</label>
-                  <select name="location" value={form.location} onChange={handleChange} onBlur={handleBlur} style={{ ...getFieldStyle('location'), cursor: 'pointer' }}>
-                    <option value="">Select location</option>
-                    {LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                  </select>
+                  <input name="location" value={form.location} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('location')} placeholder="Your hometown or base" />
                   {errors.location && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.location}</p>}
                 </div>
                 <div>
@@ -294,10 +304,20 @@ export default function GuideRegisterPage() {
               </div>
 
               <div>
-                <label style={labelStyle}>Certifications (comma separated)</label>
-                <input name="certifications" value={form.certifications} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('certifications')}
-                  placeholder="Licensed Tour Guide, First Aid Certified" />
-                {errors.certifications && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.certifications}</p>}
+                <label style={labelStyle}>Certifications</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {CERTIFICATIONS.map(cert => (
+                    <button type="button" key={cert} onClick={() => toggleCertification(cert)} style={{
+                      padding: '5px 12px', borderRadius: 16, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                      border: form.certifications.includes(cert) ? '1px solid #f59e0b' : '1px solid rgba(255,255,255,0.2)',
+                      background: form.certifications.includes(cert) ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.05)',
+                      color: form.certifications.includes(cert) ? '#f59e0b' : '#9ca3af',
+                      transition: 'all 0.2s'
+                    }}>
+                      {cert}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <button type="submit" disabled={!canSubmit} style={{
