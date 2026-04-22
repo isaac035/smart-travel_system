@@ -533,6 +533,11 @@ export default function AdminToursPage() {
                                 <span className="text-sm font-semibold text-gray-900">{b.packageId?.name || 'Unknown'}</span>
                               </div>
                             </td>
+                            <td className="text-sm text-gray-500">
+                              {b.guideId?.name
+                                ? b.guideId.name
+                                : <span style={{ color: '#9ca3af' }}>—</span>}
+                            </td>
                             <td className="text-sm text-gray-500 capitalize">{b.vehicle}</td>
                             <td className="text-sm text-gray-500">{b.travelers}</td>
                             <td className="text-sm text-gray-500">{fmtDate(b.startDate)}</td>
