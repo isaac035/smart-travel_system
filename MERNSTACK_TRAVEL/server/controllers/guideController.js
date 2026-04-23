@@ -114,15 +114,17 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ message: 'Please upload your deposit payment slip' });
     }
 
-    const totalPrice = guide.pricePerDay * Number(days);
+    const dailyRate = Number(guide.pricePerDay) || 0;
+    const numDays = Math.max(1, Number(days) || 1);
+    const totalPrice = (dailyRate * numDays) || 0;
     const depositPercentage = 30;
-    const depositAmount = Math.round(totalPrice * depositPercentage / 100);
-    const remainingAmount = totalPrice - depositAmount;
+    const depositAmount = Math.round(totalPrice * depositPercentage / 100) || 0;
+    const remainingAmount = (totalPrice - depositAmount) || 0;
 
     // Calculate endDate from startDate + days
     const start = new Date(startDate);
     const end = new Date(start);
-    end.setDate(end.getDate() + Number(days) - 1);
+    end.setDate(end.getDate() + numDays - 1);
 
     const booking = await GuideBooking.create({
       guideId: guide._id,
@@ -133,7 +135,7 @@ const createBooking = async (req, res) => {
       startDate: start,
       endDate: end,
       travelDate: start,
-      days: Number(days),
+      days: numDays,
       travelers: Number(travelers) || 1,
       location,
       specialRequests,
@@ -397,10 +399,14 @@ const reassignGuide = async (req, res) => {
     }
 
     // Recalculate price with new guide's rate
+    const dailyRate = Number(newGuide.pricePerDay) || 0;
+    const numDays = Number(booking.days) || 0;
+    const depPercent = Number(booking.depositPercentage) || 30;
+
     booking.guideId = newGuide._id;
-    booking.totalPrice = newGuide.pricePerDay * booking.days;
-    booking.depositAmount = Math.round(booking.totalPrice * booking.depositPercentage / 100);
-    booking.remainingAmount = booking.totalPrice - booking.depositAmount;
+    booking.totalPrice = dailyRate * numDays || 0;
+    booking.depositAmount = Math.round(booking.totalPrice * depPercent / 100) || 0;
+    booking.remainingAmount = (booking.totalPrice - booking.depositAmount) || 0;
 
     // Reset to pending_guide_review so new guide can accept
     booking.status = 'pending_guide_review';

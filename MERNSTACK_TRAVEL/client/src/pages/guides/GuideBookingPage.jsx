@@ -439,7 +439,6 @@ export default function GuideBookingPage() {
                     }}
                   >
 
-                    {submitting ? 'Submitting...' : `Submit Request & Pay Deposit - LKR ${depositAmount.toLocaleString()}`}
                     {submitting ? 'Submitting...' : `Submit Request & Pay Deposit — ${formatLKR(depositAmount)}`}
 
                   </button >
