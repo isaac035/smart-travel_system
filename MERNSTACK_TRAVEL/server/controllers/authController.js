@@ -4,8 +4,8 @@ const Guide = require('../models/Guide');
 const HotelOwner = require('../models/HotelOwner');
 
 
-const generateToken = (user) =>
-  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+const generateToken = (id) =>
+  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
 const formatUser = (user) => ({
   id: user._id,
@@ -36,7 +36,7 @@ const register = async (req, res) => {
     const user = await User.create({ name, email, password });
 
     res.status(201).json({
-      token: generateToken(user),
+      token: generateToken(user._id),
       user: formatUser(user),
     });
   } catch (error) {
@@ -67,7 +67,7 @@ const login = async (req, res) => {
     }
 
     res.json({
-      token: generateToken(user),
+      token: generateToken(user._id),
       user: formatUser(user),
     });
   } catch (error) {
@@ -190,7 +190,7 @@ const guideLogin = async (req, res) => {
     }
 
     res.json({
-      token: generateToken(user),
+      token: generateToken(user._id),
       user: formatUser(user),
       guideId: guide._id
     });
@@ -248,7 +248,7 @@ const hotelOwnerRegister = async (req, res) => {
     // Automatically log in the hotel owner after successful registration
     res.status(201).json({
       message: 'Hotel owner registered successfully!',
-      token: generateToken(user),
+      token: generateToken(user._id),
       user: formatUser(user),
     });
   } catch (error) {
@@ -283,7 +283,7 @@ const hotelOwnerLogin = async (req, res) => {
     await HotelOwner.findOne({ userId: user._id });
 
     res.json({
-      token: generateToken(user),
+      token: generateToken(user._id),
       user: formatUser(user),
     });
   } catch (error) {
