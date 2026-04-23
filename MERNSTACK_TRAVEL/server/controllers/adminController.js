@@ -10,6 +10,7 @@ const TourBooking = require('../models/TourBooking');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const ProductOrder = require('../models/ProductOrder');
+const SupportRequest = require('../models/SupportRequest');
 
 
 // GET /api/admin/users
@@ -489,24 +490,59 @@ exports.updateOwnerHotelDetails = async (req, res) => {
   }
 };
 
-// POST /api/admin/users/create-admin — Create admin user (for initial setup)
-exports.createAdmin = async (req, res) => {
+// GET /api/admin/support
+exports.getSupportRequests = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    
-    // Check if admin already exists
-    const existingAdmin = await User.findOne({ role: 'admin' });
-    if (existingAdmin) {
-      return res.status(400).json({ message: 'Admin user already exists. Use that account or delete it first.' });
+    const requests = await SupportRequest.find()
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 });
+    res.json(requests);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PUT /api/admin/support/:id
+exports.updateSupportRequest = async (req, res) => {
+  try {
+    const { status, adminReply } = req.body;
+    const request = await SupportRequest.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: 'Request not found' });
+
+    if (status) request.status = status;
+    if (adminReply !== undefined) {
+      request.adminReply = adminReply;
+      request.repliedAt = new Date();
+      request.repliedBy = req.user._id;
     }
-    
-    const admin = await User.create({ name, email, password, role: 'admin' });
-    res.status(201).json({ message: 'Admin created successfully', adminId: admin._id });
+
+    await request.save();
+    const updated = await SupportRequest.findById(request._id).populate('userId', 'name email');
+    res.json(updated);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 };
 
+// DELETE /api/admin/support/rejected
+exports.clearRejectedRequests = async (req, res) => {
+  try {
+    await SupportRequest.deleteMany({ status: 'rejected' });
+    res.json({ message: 'Rejected support requests cleared' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// DELETE /api/admin/tour-bookings/rejected
+exports.clearRejectedTourBookings = async (req, res) => {
+  try {
+    await TourBooking.deleteMany({ status: 'rejected' });
+    res.json({ message: 'Rejected tour bookings cleared' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 // PUT /api/admin/users/:id/status
 exports.updateUserStatus = async (req, res) => {

@@ -163,178 +163,161 @@ export default function GuideRegisterPage() {
       setLoading(false);
     }
   };
-  const getFieldStyle = (field) => ({ ...inputStyle, border: errors[field] ? '1.5px solid #ef4444' : inputStyle.border });
-  const canSubmit = !hasErrors(validateForm()) && !loading;
 
-  const inputStyle = {
-    width: '100%', padding: '10px 14px', borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)',
-    color: '#fff', fontSize: 14, outline: 'none', transition: 'border 0.2s'
+  const containerStyle = {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#0f172a',
+    padding: '40px 20px',
+    color: '#fff',
+    fontFamily: "'Inter', sans-serif"
   };
 
-  const labelStyle = { display: 'block', color: '#d1d5db', fontSize: 13, marginBottom: 4, fontWeight: 500 };
+  const cardStyle = {
+    width: '100%',
+    maxWidth: '550px',
+    background: '#1e293b',
+    borderRadius: '24px',
+    padding: '40px',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    border: '1px solid rgba(255, 255, 255, 0.05)'
+  };
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#9ca3af',
+    marginBottom: '8px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  };
+
+  const getFieldStyle = (name) => ({
+    width: '100%',
+    padding: '14px 18px',
+    background: '#0f172a',
+    border: `2px solid ${touched[name] && errors[name] ? '#fca5a5' : 'transparent'}`,
+    borderRadius: '12px',
+    color: '#fff',
+    fontSize: '14px',
+    outline: 'none',
+    transition: 'all 0.2s ease',
+    boxSizing: 'border-box'
+  });
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-      padding: '40px 16px'
-    }}>
-      <div style={{
-        width: '100%', maxWidth: 520, background: 'rgba(255,255,255,0.08)',
-        backdropFilter: 'blur(16px)', borderRadius: 20, padding: '36px 32px',
-        border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
-      }}>
+    <div style={containerStyle}>
+      <div style={cardStyle}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px', background: 'linear-gradient(to right, #fbbf24, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            Travel Guide Registration
+          </h1>
+          <p style={{ color: '#9ca3af', fontSize: '15px' }}>Become a certified local expert</p>
+        </div>
+
         {submitted ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: '50%', margin: '0 auto 20px',
-              background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            <h2 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: '0 0 12px' }}>
-              Registration Submitted!
-            </h2>
-            <p style={{ color: '#9ca3af', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-              Your guide account is pending admin approval.<br />
-              You will be able to log in once an admin approves your registration.
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ fontSize: '64px', marginBottom: '20px' }}>⏳</div>
+            <h2 style={{ fontSize: '24px', marginBottom: '12px' }}>Registration Received!</h2>
+            <p style={{ color: '#9ca3af', marginBottom: '32px', lineHeight: '1.6' }}>
+              Your application has been submitted successfully. Our team will review your details and you'll be notified via email once approved.
             </p>
-            <Link to="/guide/login" style={{
-              display: 'inline-block', padding: '12px 32px', borderRadius: 10,
-              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-              color: '#fff', fontSize: 14, fontWeight: 600, textDecoration: 'none'
-            }}>
-              Go to Login
+            <Link to="/" style={{ display: 'inline-block', padding: '14px 32px', background: '#fbbf24', color: '#000', borderRadius: '12px', textDecoration: 'none', fontWeight: '700' }}>
+              Back to Home
             </Link>
           </div>
         ) : (
           <>
-            <div style={{ textAlign: 'center', marginBottom: 28 }}>
-              <h1 style={{ color: '#f59e0b', fontSize: 26, fontWeight: 700, margin: 0 }}>
-                Become a Travel Guide
-              </h1>
-              <p style={{ color: '#9ca3af', fontSize: 14, marginTop: 6 }}>
-                Register to receive booking requests from travelers
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Full Name *</label>
-                  <input name="name" value={form.name} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('name')} placeholder="Your full name" />
+                  <input name="name" value={form.name} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('name')} placeholder="e.g. John Doe" />
                   {errors.name && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.name}</p>}
                 </div>
                 <div>
-                  <label style={labelStyle}>Phone *</label>
-                  <input name="phone" value={form.phone} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('phone')} placeholder="07XXXXXXXX" />
-                  {errors.phone && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.phone}</p>}
+                  <label style={labelStyle}>Email Address *</label>
+                  <input name="email" type="email" value={form.email} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('email')} placeholder="john@example.com" />
+                  {errors.email && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.email}</p>}
                 </div>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Email *</label>
-                <input name="email" type="email" value={form.email} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('email')} placeholder="guide@email.com" />
-                {errors.email && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.email}</p>}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Password *</label>
-                  <input name="password" type="password" value={form.password} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('password')} placeholder="Min 6 characters" />
+                  <input name="password" type="password" value={form.password} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('password')} placeholder="••••••••" />
                   {errors.password && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.password}</p>}
                 </div>
                 <div>
                   <label style={labelStyle}>Confirm Password *</label>
-                  <input name="confirm" type="password" value={form.confirm} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('confirm')} placeholder="Confirm password" />
+                  <input name="confirm" type="password" value={form.confirm} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('confirm')} placeholder="••••••••" />
                   {errors.confirm && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.confirm}</p>}
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 16, marginTop: 4 }}>
-                <p style={{ color: '#f59e0b', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Professional Details</p>
-              </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Phone Number *</label>
+                  <input name="phone" value={form.phone} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('phone')} placeholder="07XXXXXXXX" />
+                  {errors.phone && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.phone}</p>}
+                </div>
                 <div>
                   <label style={labelStyle}>Location *</label>
                   <input name="location" value={form.location} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('location')} placeholder="Your hometown or base" />
                   {errors.location && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.location}</p>}
                 </div>
-                <div>
-                  <label style={labelStyle}>Experience (years) *</label>
-                  <input name="experience" type="number" min="0" max="50" value={form.experience} onChange={handleChange} onBlur={handleBlur} onKeyDown={(e) => { if (!isAllowedNumericKey(e)) e.preventDefault(); }} style={getFieldStyle('experience')} />
-                  {errors.experience && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.experience}</p>}
-                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Experience (years) *</label>
+                <input name="experience" type="number" min="0" max="50" value={form.experience} onChange={handleChange} onBlur={handleBlur} onKeyDown={(e) => { if (!isAllowedNumericKey(e)) e.preventDefault(); }} style={getFieldStyle('experience')} />
+                {errors.experience && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.experience}</p>}
               </div>
 
               <div>
                 <label style={labelStyle}>Languages *</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {LANGUAGES.map(lang => (
-                    <button type="button" key={lang} onClick={() => toggleLanguage(lang)} style={{
-                      padding: '5px 12px', borderRadius: 16, fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                      border: form.languages.includes(lang) ? '1px solid #f59e0b' : '1px solid rgba(255,255,255,0.2)',
-                      background: form.languages.includes(lang) ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.05)',
-                      color: form.languages.includes(lang) ? '#f59e0b' : '#9ca3af',
-                      transition: 'all 0.2s'
-                    }}>
+                    <button type="button" key={lang} onClick={() => toggleLanguage(lang)} style={{ padding: '8px 14px', borderRadius: '10px', fontSize: '13px', border: 'none', cursor: 'pointer', background: form.languages.includes(lang) ? '#fbbf24' : '#0f172a', color: form.languages.includes(lang) ? '#000' : '#9ca3af', fontWeight: '600', transition: 'all 0.2s' }}>
                       {lang}
                     </button>
                   ))}
                 </div>
-                {errors.languages && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 6 }}>{errors.languages}</p>}
+                {errors.languages && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 8 }}>{errors.languages}</p>}
               </div>
 
               <div>
-                <label style={labelStyle}>Bio *</label>
-                <textarea name="bio" value={form.bio} onChange={handleChange} onBlur={handleBlur} rows={3} style={{ ...getFieldStyle('bio'), resize: 'vertical' }}
-                  placeholder="Tell travelers about yourself and your expertise..." />
+                <label style={labelStyle}>Bio / Description *</label>
+                <textarea name="bio" value={form.bio} onChange={handleChange} onBlur={handleBlur} style={{ ...getFieldStyle('bio'), height: '100px', resize: 'none' }} placeholder="Describe yourself and your expertise..." />
                 {errors.bio && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.bio}</p>}
               </div>
 
               <div>
-                <label style={labelStyle}>Services (comma separated) *</label>
-                <input name="services" value={form.services} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('services')}
-                  placeholder="City Tours, Wildlife Safaris, Trekking" />
+                <label style={labelStyle}>Services Offered *</label>
+                <input name="services" value={form.services} onChange={handleChange} onBlur={handleBlur} style={getFieldStyle('services')} placeholder="e.g. City Tours, Hiking, Wildlife (comma-separated)" />
                 {errors.services && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>{errors.services}</p>}
               </div>
 
               <div>
                 <label style={labelStyle}>Certifications</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {CERTIFICATIONS.map(cert => (
-                    <button type="button" key={cert} onClick={() => toggleCertification(cert)} style={{
-                      padding: '5px 12px', borderRadius: 16, fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                      border: form.certifications.includes(cert) ? '1px solid #f59e0b' : '1px solid rgba(255,255,255,0.2)',
-                      background: form.certifications.includes(cert) ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.05)',
-                      color: form.certifications.includes(cert) ? '#f59e0b' : '#9ca3af',
-                      transition: 'all 0.2s'
-                    }}>
+                    <button type="button" key={cert} onClick={() => toggleCertification(cert)} style={{ padding: '8px 14px', borderRadius: '10px', fontSize: '13px', border: 'none', cursor: 'pointer', background: form.certifications.includes(cert) ? '#334155' : '#0f172a', color: form.certifications.includes(cert) ? '#fff' : '#9ca3af', fontWeight: '600', transition: 'all 0.2s' }}>
                       {cert}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <button type="submit" disabled={!canSubmit} style={{
-                width: '100%', padding: '12px', borderRadius: 10, border: 'none',
-                background: !canSubmit ? '#92400e' : 'linear-gradient(135deg, #f59e0b, #d97706)',
-                color: '#fff', fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-                marginTop: 8, transition: 'opacity 0.2s'
-              }}>
-                {loading ? 'Creating Account...' : 'Register as Guide'}
+              <button type="submit" disabled={loading} style={{ width: '100%', padding: '16px', background: '#fbbf24', border: 'none', borderRadius: '14px', color: '#000', fontSize: '16px', fontWeight: '800', cursor: 'pointer', marginTop: '12px', transition: 'all 0.2s', opacity: loading ? 0.7 : 1 }}>
+                {loading ? 'Submitting Application...' : 'Register as Guide'}
               </button>
             </form>
 
-            <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, marginTop: 20 }}>
-              Already have a guide account?{' '}
-              <Link to="/guide/login" style={{ color: '#f59e0b', textDecoration: 'none', fontWeight: 500 }}>Sign In</Link>
-            </p>
-            <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 12, marginTop: 8 }}>
+            <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '14px', marginTop: 8 }}>
               Looking to book a guide?{' '}
               <Link to="/login" style={{ color: '#9ca3af', textDecoration: 'none' }}>User Login</Link>
             </p>
