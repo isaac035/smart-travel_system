@@ -3,12 +3,14 @@ const router = express.Router();
 const {
   getHotels, getHotel, createHotel, updateHotel, deleteHotel, addReview,
   createBooking, getMyBookings, getAllBookings, updateBookingStatus,
+  getDestinationCounts,
 } = require('../controllers/hotelController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const { upload } = require('../config/cloudinary');
 
 // ─── Hotel routes ───────────────────────────
 router.get('/', getHotels);
+router.get('/destination-counts', getDestinationCounts);
 router.get('/:id', getHotel);
 router.post(
   '/',

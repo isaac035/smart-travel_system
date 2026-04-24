@@ -281,6 +281,19 @@ export default function HotelDetails() {
 
   useEffect(()=>{ if(hotelData?.rooms?.length && !selectedRoomId) setSelectedRoomId(hotelData.rooms[0]._id); },[hotelData,selectedRoomId]);
 
+  // Track recently viewed hotels in localStorage
+  useEffect(() => {
+    if (!hotelData?._id) return;
+    try {
+      const key = 'rv_hotels';
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
+      const filtered = stored.filter(id => id !== hotelData._id);
+      const updated = [hotelData._id, ...filtered].slice(0, 10);
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch {}
+  }, [hotelData?._id]);
+
+
   const images = hotelData?.images?.length ? hotelData.images : [];
   const heroImgs = useMemo(()=>{ const out=[]; for(let i=0;i<7;i++) out.push(images[i%images.length]||''); return out; },[images]);
 
