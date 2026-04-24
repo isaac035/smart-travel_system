@@ -14,7 +14,10 @@ const getHotels = async (req, res) => {
     if (req.query.maxPrice) {
       filter.pricePerNight = { ...filter.pricePerNight, $lte: Number(req.query.maxPrice) };
     }
-    if (req.query.filter === 'hot-deals') filter.discount = { $gt: 0 };
+    if (req.query.filter === 'hot-deals') filter.$or = [
+      { discount: { $gt: 0 } },
+      { 'rooms.hasHotDeal': true },
+    ];
     if (req.query.filter === 'popular') filter.isPopular = true;
 
     let sort = { createdAt: -1 };
@@ -246,7 +249,41 @@ const updateBookingStatus = async (req, res) => {
   }
 };
 
+// @route GET /api/hotels/destination-counts?destinations=mirissa,sigiriya,...
+const getDestinationCounts = async (req, res) => {
+  try {
+    const raw = req.query.destinations || '';
+    const keywords = raw.split(',').map(k => k.trim()).filter(Boolean);
+    if (!keywords.length) return res.json({});
+
+    const baseFilter = {
+      isActive: true,
+      $or: [
+        { approvalStatus: 'approved' },
+        { approvalStatus: { $exists: false } },
+        { hotelOwnerId: { $exists: false } },
+      ],
+    };
+
+    const results = await Promise.all(
+      keywords.map(async (kw) => {
+        const count = await Hotel.countDocuments({
+          ...baseFilter,
+          location: { $regex: kw, $options: 'i' },
+        });
+        return [kw, count];
+      })
+    );
+
+    const counts = Object.fromEntries(results);
+    res.json(counts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getHotels, getHotel, createHotel, updateHotel, deleteHotel, addReview,
   createBooking, getMyBookings, getAllBookings, updateBookingStatus,
+  getDestinationCounts,
 };

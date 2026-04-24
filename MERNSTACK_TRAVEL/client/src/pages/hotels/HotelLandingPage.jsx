@@ -98,24 +98,16 @@ const T = {
   shadowCard:'0 4px 20px rgba(0,0,0,0.09)',
 };
 
-/* ─────────────────────────────────────────────────────
-   STATIC DATA
-───────────────────────────────────────────────────── */
-const RECENTLY_VIEWED = [
-  { _id:'rv1', name:'Cinnamon Grand Colombo', location:'Colombo 3',  starRating:5, pricePerNight:28000, images:['https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600'] },
-  { _id:'rv2', name:'Heritance Kandalama',    location:'Dambulla',   starRating:5, pricePerNight:22000, images:['https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=600'] },
-  { _id:'rv3', name:'Cape Weligama',          location:'Weligama',   starRating:5, pricePerNight:45000, images:['https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=600'] },
-  { _id:'rv4', name:'Jetwing Yala',           location:'Yala',       starRating:4, pricePerNight:18500, images:['https://images.unsplash.com/photo-1540541338287-41700207dee6?w=600'] },
-  { _id:'rv5', name:'Amanwella Resort',       location:'Tangalle',   starRating:5, pricePerNight:52000, images:['https://images.unsplash.com/photo-1551882547-ff40c4a49ce7?w=600'] },
-];
+
+
 
 const POPULAR_SEARCHES = [
-  { id:'ps1', name:'Mirissa Beach',     query:'mirissa',      img:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600', tag:'Beach Bliss', hotels:148 },
-  { id:'ps2', name:'Sigiriya Rock',     query:'sigiriya',     img:'https://images.unsplash.com/photo-1586016413664-864c0dd76f53?w=600', tag:'Heritage',    hotels:92  },
-  { id:'ps3', name:'Ella Hill Country',query:'ella',          img:'https://images.unsplash.com/photo-1546961342-ea5f62d549f2?w=600', tag:'Mountains',   hotels:110 },
-  { id:'ps4', name:'Nuwara Eliya',      query:'nuwara eliya', img:'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600', tag:'Tea Country',  hotels:74  },
-  { id:'ps5', name:'Galle Fort',        query:'galle',        img:'https://images.unsplash.com/photo-1519922639192-e73293ca430e?w=600', tag:'Colonial',    hotels:63  },
-  { id:'ps6', name:'Arugam Bay',        query:'arugam bay',   img:'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600', tag:'Surf',        hotels:55  },
+  { id:'ps1', name:'Mirissa Beach',    query:'mirissa',      img:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600', tag:'Beach Bliss' },
+  { id:'ps2', name:'Sigiriya Rock',    query:'sigiriya',     img:'https://images.unsplash.com/photo-1586016413664-864c0dd76f53?w=600', tag:'Heritage'    },
+  { id:'ps3', name:'Ella Hill Country',query:'ella',         img:'https://images.unsplash.com/photo-1546961342-ea5f62d549f2?w=600', tag:'Mountains'   },
+  { id:'ps4', name:'Nuwara Eliya',     query:'nuwara eliya', img:'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600', tag:'Tea Country'  },
+  { id:'ps5', name:'Galle Fort',       query:'galle',        img:'https://images.unsplash.com/photo-1519922639192-e73293ca430e?w=600', tag:'Colonial'    },
+  { id:'ps6', name:'Arugam Bay',       query:'arugam bay',   img:'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600', tag:'Surf'        },
 ];
 
 const TYPE_LABELS = { resort:'Resort', boutique:'Boutique', business:'Business', budget:'Budget', villa:'Villa', heritage:'Heritage' };
@@ -450,13 +442,30 @@ function RecentCard({ hotel, onQuickView, style: extStyle }) {
 }
 
 /* ─────────────────────────────────────────────────────
-   DEAL CARD
+   DEAL CARD — enhanced with room-level deal breakdown
 ───────────────────────────────────────────────────── */
 function DealCard({ hotel, onQuickView, onWishlist, style: extStyle }) {
   const [hov, setHov] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
-  const disc = hotel.pricePerNight * (1 - (hotel.discount || 0) / 100);
   const typeLabel = TYPE_LABELS[hotel.hotelType] || hotel.hotelType || 'Hotel';
+
+  // Find the best deal room (hasHotDeal=true with lowest net price)
+  const dealRoom = (hotel.rooms || [])
+    .filter(r => r.hasHotDeal && r.originalPricePerNight > 0)
+    .sort((a, b) => {
+      const aNet = a.originalPricePerNight * (1 - (a.discountPercentage || 0) / 100);
+      const bNet = b.originalPricePerNight * (1 - (b.discountPercentage || 0) / 100);
+      return aNet - bNet;
+    })[0];
+
+  // Pricing: prefer room-level deal, fallback to hotel-level discount
+  const hasRoomDeal = !!dealRoom;
+  const originalPrice = hasRoomDeal ? dealRoom.originalPricePerNight : hotel.pricePerNight;
+  const discountPct   = hasRoomDeal
+    ? (dealRoom.discountPercentage || 0)
+    : (hotel.discount || 0);
+  const netPrice = Math.round(originalPrice * (1 - discountPct / 100));
+  const savedAmount = Math.round(originalPrice - netPrice);
 
   const handleWishlist = e => {
     e.preventDefault();
@@ -496,12 +505,11 @@ function DealCard({ hotel, onQuickView, onWishlist, style: extStyle }) {
           padding:'4px 10px', borderRadius:99,
           background: T.gold, color:'#fff',
           boxShadow:'0 2px 10px rgba(245,158,11,0.45)',
-          animation: hov ? 'none' : 'none',
         }}>{typeLabel}</span>
         {/* Discount badge */}
-        {hotel.discount > 0 && (
+        {discountPct > 0 && (
           <span style={{ position:'absolute', top:12, right:12, fontSize:10, fontWeight:800, padding:'4px 10px', borderRadius:99, background: T.red, color:'#fff', boxShadow:'0 2px 10px rgba(239,68,68,0.4)' }}>
-            -{hotel.discount}% OFF
+            -{discountPct}% OFF
           </span>
         )}
         {/* Bottom star row */}
@@ -529,7 +537,7 @@ function DealCard({ hotel, onQuickView, onWishlist, style: extStyle }) {
       {/* Body */}
       <div style={{ padding:'16px', flex:1, display:'flex', flexDirection:'column' }}>
         {/* Rating row */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
           <span style={{ fontSize:11, color: T.textLight }}>
             {hotel.reviewCount > 0
               ? <><strong style={{ color: T.goldDk }}>★ {hotel.averageRating}</strong> ({hotel.reviewCount})</>
@@ -550,45 +558,51 @@ function DealCard({ hotel, onQuickView, onWishlist, style: extStyle }) {
           </Tooltip>
         </div>
 
-        {/* Name: exactly 2 lines with ellipsis */}
+        {/* Hotel Name */}
         <h3 style={{
           fontWeight:800, fontSize:15, color: hov ? T.goldDk : T.text,
-          margin:'0 0 6px', lineHeight:1.4,
+          margin:'0 0 5px', lineHeight:1.4,
           display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
           overflow:'hidden', minHeight:'2.8em',
           transition:'color 0.2s',
         }}>{hotel.name}</h3>
 
         {/* Location */}
-        <p style={{ fontSize:12, color: T.textLight, margin:'0 0 10px', display:'flex', alignItems:'center', gap:5, overflow:'hidden' }}>
+        <p style={{ fontSize:12, color: T.textLight, margin:'0 0 8px', display:'flex', alignItems:'center', gap:5, overflow:'hidden' }}>
           <svg width="11" height="11" fill="currentColor" style={{ color:T.gold, flexShrink:0 }} viewBox="0 0 24 24">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
           </svg>
           <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{hotel.location}</span>
         </p>
 
-        {/* Amenities */}
-        {hotel.amenities?.length > 0 && (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:10, minHeight:22 }}>
-            {hotel.amenities.slice(0, 2).map(a => (
-              <span key={a} style={{ fontSize:10, padding:'3px 8px', borderRadius:7, background:'#f3f4f6', color: T.textMid, whiteSpace:'nowrap' }}>{a}</span>
+        {/* Room deal detail */}
+        {hasRoomDeal && dealRoom && (
+          <div style={{ padding:'8px 10px', background:'#f9fafb', borderRadius:10, border:`1px solid ${T.border}`, marginBottom:10, fontSize:11 }}>
+            <span style={{ fontWeight:700, color: T.textMid }}>{dealRoom.type}</span>
+            <span style={{ color: T.textLight, marginLeft:6 }}>· {dealRoom.capacity || 2} guests</span>
+            {dealRoom.amenities?.slice(0,2).map(a => (
+              <span key={a} style={{ marginLeft:6, color: T.textLight }}>· {a}</span>
             ))}
-            {hotel.amenities.length > 2 && <span style={{ fontSize:10, color: T.textLight, alignSelf:'center' }}>+{hotel.amenities.length - 2}</span>}
           </div>
         )}
 
         {/* Pricing */}
-        <div style={{ marginTop:'auto', paddingTop:12, borderTop:`1px solid ${T.border}`, display:'flex', alignItems:'flex-end', justifyContent:'space-between' }}>
+        <div style={{ marginTop:'auto', paddingTop:10, borderTop:`1px solid ${T.border}`, display:'flex', alignItems:'flex-end', justifyContent:'space-between' }}>
           <div>
-            {hotel.discount > 0 && (
-              <span style={{ fontSize:11, textDecoration:'line-through', color: T.textLight, display:'block' }}>LKR {hotel.pricePerNight?.toLocaleString()}</span>
+            {discountPct > 0 && (
+              <span style={{ fontSize:11, textDecoration:'line-through', color: T.textLight, display:'block' }}>LKR {originalPrice?.toLocaleString()}</span>
             )}
-            <span style={{ fontSize:20, fontWeight:900, color: T.goldDk }}>LKR {Math.round(disc).toLocaleString()}</span>
+            <span style={{ fontSize:20, fontWeight:900, color: T.goldDk }}>LKR {netPrice.toLocaleString()}</span>
             <span style={{ fontSize:11, color: T.textLight, marginLeft:3 }}>/night</span>
+            {discountPct > 0 && (
+              <div style={{ fontSize:11, color: T.emerald, fontWeight:700, marginTop:2 }}>
+                Save LKR {savedAmount.toLocaleString()}
+              </div>
+            )}
           </div>
-          {hotel.discount > 0 && (
-            <span style={{ fontSize:11, fontWeight:700, padding:'4px 9px', borderRadius:10, background: T.emeraldBg, color: T.emerald, border:'1px solid #a7f3d0' }}>
-              Save {hotel.discount}%
+          {discountPct > 0 && (
+            <span style={{ fontSize:11, fontWeight:700, padding:'4px 9px', borderRadius:10, background: T.emeraldBg, color: T.emerald, border:'1px solid #a7f3d0', flexShrink:0 }}>
+              -{discountPct}%
             </span>
           )}
         </div>
@@ -890,7 +904,12 @@ export default function HotelLandingPage() {
   const [deals, setDeals] = useState([]);
   const [popular, setPopular] = useState([]);
   const [topRated, setTopRated] = useState([]);
+  const [allHotels, setAllHotels] = useState([]);
   const [mapHotels, setMapHotels] = useState([]);
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const [popularSearches, setPopularSearches] = useState(
+    POPULAR_SEARCHES.map(p => ({ ...p, hotels: 0 }))
+  );
   const [loading, setLoading] = useState(true);
   const [heroFocus, setHeroFocus] = useState(false);
   const [heroVisible, setHeroVisible] = useState(false);
@@ -900,6 +919,7 @@ export default function HotelLandingPage() {
   // Hero entrance
   useEffect(() => { const t = setTimeout(() => setHeroVisible(true), 100); return () => clearTimeout(t); }, []);
 
+  // Fetch all hotel data
   useEffect(() => {
     (async () => {
       try {
@@ -912,9 +932,37 @@ export default function HotelLandingPage() {
         setDeals(d.data);
         setPopular(p.data);
         setTopRated(t.data);
+        setAllHotels(all.data);
         setMapHotels(all.data.filter(h => h.coordinates?.lat));
+
+        // Compute real hotel counts per popular destination
+        const allData = all.data;
+        setPopularSearches(
+          POPULAR_SEARCHES.map(ps => ({
+            ...ps,
+            hotels: allData.filter(h =>
+              h.location?.toLowerCase().includes(ps.query.toLowerCase())
+            ).length,
+          }))
+        );
       } catch {}
       finally { setLoading(false); }
+    })();
+  }, []);
+
+  // Load recently viewed hotels from localStorage
+  useEffect(() => {
+    (async () => {
+      try {
+        const ids = JSON.parse(localStorage.getItem('rv_hotels') || '[]');
+        if (!ids.length) return;
+        const fetched = await Promise.all(
+          ids.slice(0, 8).map(id =>
+            api.get(`/hotels/${id}`).then(r => r.data).catch(() => null)
+          )
+        );
+        setRecentlyViewed(fetched.filter(Boolean));
+      } catch {}
     })();
   }, []);
 
@@ -1176,16 +1224,29 @@ export default function HotelLandingPage() {
           {/* ── Recently Viewed ── */}
           <AnimSection>
             <section style={{ marginBottom:72 }}>
-              <SectionHeader eyebrow="Your History" title="Recently Viewed" subtitle="Hotels you explored recently" />
-              <HorizontalCarousel>
-                {RECENTLY_VIEWED.map((h, i) => (
-                  <RecentCard
-                    key={h._id} hotel={h}
-                    onQuickView={setQuickViewHotel}
-                    style={{ animationDelay:`${i * 60}ms` }}
-                  />
-                ))}
-              </HorizontalCarousel>
+              <SectionHeader
+                eyebrow="Your History" title="Recently Viewed"
+                subtitle="Hotels you explored recently"
+                onViewAll={recentlyViewed.length > 0 ? () => navigate('/hotels/search') : undefined}
+              />
+              {recentlyViewed.length > 0 ? (
+                <HorizontalCarousel>
+                  {recentlyViewed.map((h, i) => (
+                    <RecentCard
+                      key={h._id} hotel={h}
+                      onQuickView={setQuickViewHotel}
+                      style={{ animationDelay:`${i * 60}ms` }}
+                    />
+                  ))}
+                </HorizontalCarousel>
+              ) : (
+                <div style={{ padding:40, textAlign:'center', borderRadius:18, background:'#fff', border:`2px dashed ${T.border}` }}>
+                  <span style={{ fontSize:36, display:'block', marginBottom:10 }}>👀</span>
+                  <p style={{ color: T.textLight, fontSize:14, margin:0 }}>
+                    No recently viewed hotels yet — <a href="/hotels/search" style={{ color: T.goldDk, fontWeight:700, textDecoration:'none' }}>start exploring!</a>
+                  </p>
+                </div>
+              )}
             </section>
           </AnimSection>
 
@@ -1223,10 +1284,10 @@ export default function HotelLandingPage() {
               <SectionHeader
                 eyebrow="Trending Now" title="Popular Destinations"
                 subtitle="Most searched by travellers this season"
-                onViewAll={() => navigate('/hotels/search?filter=popular')}
+                onViewAll={() => navigate('/hotels/search')}
               />
               <HorizontalCarousel>
-                {POPULAR_SEARCHES.map(item => (
+                {popularSearches.map(item => (
                   <PopularCard
                     key={item.id} item={item}
                     onClick={() => navigate(`/hotels/search?location=${encodeURIComponent(item.query)}&search_type=location`)}
@@ -1257,6 +1318,36 @@ export default function HotelLandingPage() {
                       <TopCard h={h} onQuickView={setQuickViewHotel} onWishlist={handleWishlist} />
                     </div>
                   ))}
+                </div>
+              )}
+            </section>
+          </AnimSection>
+
+          <GoldDivider />
+
+          {/* ── All Hotels ── */}
+          <AnimSection delay={115}>
+            <section style={{ marginBottom:72 }}>
+              <SectionHeader
+                eyebrow="Browse Everything" title="All Hotels"
+                subtitle="Discover every hotel across Sri Lanka"
+                onViewAll={() => navigate('/hotels/search')}
+              />
+              {loading ? (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:20 }}>
+                  {[...Array(4)].map((_, i) => <SkeletonCard key={i} flexShrink0={false} />)}
+                </div>
+              ) : allHotels.length > 0 ? (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:20 }}>
+                  {allHotels.slice(0, 4).map((h, i) => (
+                    <div key={h._id} style={{ animation:`fadeUp 0.55s cubic-bezier(.22,1,.36,1) ${i * 80}ms both` }}>
+                      <TopCard h={h} onQuickView={setQuickViewHotel} onWishlist={handleWishlist} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ padding:40, textAlign:'center', borderRadius:18, background:'#fff', border:`2px dashed ${T.border}` }}>
+                  <p style={{ color: T.textLight, fontSize:14 }}>No hotels available yet.</p>
                 </div>
               )}
             </section>
