@@ -289,7 +289,7 @@ export default function GuideDashboardPage() {
               placeholder="Reason for rejection (optional)..."
               rows={3} style={{
                 width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #d1d5db',
-                fontSize: 14, resize: 'vertical', outline: 'none'
+                fontSize: 14, resize: 'vertical', outline: 'none', color: '#000', caretColor: '#000'
               }} />
             <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
               <button onClick={() => { setRejectModal(null); setRejectReason(''); }}
