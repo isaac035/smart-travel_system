@@ -74,6 +74,7 @@ export const validateAddressText = (value, minLength = 10) => {
   return '';
 };
 
+//product validations
 export const validateTravelProductField = (field, form) => {
   switch (field) {
     case 'name':
@@ -112,7 +113,7 @@ export const validateTravelProductForm = (form) => {
     },
   };
 };
-
+//bundle validations
 export const validateTravelBundleField = (field, form) => {
   switch (field) {
     case 'name':
@@ -171,7 +172,7 @@ export const validateTravelBundleForm = (form) => {
     },
   };
 };
-
+//checkout validations
 export const validateTravelProductCheckoutField = (field, values) => {
   switch (field) {
     case 'customerName':
