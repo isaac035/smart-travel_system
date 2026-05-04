@@ -12,6 +12,7 @@ const {
   getAllBookings,
   updateBookingStatus,
   cancelBooking,
+  deleteBooking,
   getAvailableGuides,
 } = require('../controllers/tourController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
@@ -26,6 +27,7 @@ router.get('/bookings/my', protect, getMyBookings);
 router.get('/bookings/all', protect, adminOnly, getAllBookings);
 router.put('/bookings/:id/status', protect, adminOnly, updateBookingStatus);
 router.put('/bookings/:id/cancel', protect, cancelBooking);
+router.delete('/bookings/:id', protect, deleteBooking);
 
 // Packages
 router.get('/', getPackages);
