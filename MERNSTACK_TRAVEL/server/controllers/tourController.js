@@ -405,3 +405,17 @@ exports.cancelBooking = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+// DELETE /api/tours/bookings/:id  (user — only cancelled bookings)
+exports.deleteBooking = async (req, res) => {
+  try {
+    const booking = await TourBooking.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.status !== 'cancelled')
+      return res.status(400).json({ message: 'Only cancelled bookings can be deleted.' });
+    await booking.deleteOne();
+    res.json({ message: 'Booking deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

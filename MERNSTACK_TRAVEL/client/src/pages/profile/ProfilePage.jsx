@@ -194,6 +194,17 @@ export default function ProfilePage() {
     }
   };
 
+  const handleDeleteTour = async (bookingId) => {
+    if (!window.confirm('Permanently delete this cancelled booking? This cannot be undone.')) return;
+    try {
+      await api.delete(`/tours/bookings/${bookingId}`);
+      setTourBookings((prev) => prev.filter((b) => b._id !== bookingId));
+      toast.success('Booking deleted');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete');
+    }
+  };
+
   const totalBookings = hotelBookings.length + guideBookings.length + tourBookings.length;
   const confirmedCount = [...hotelBookings, ...guideBookings, ...tourBookings].filter((b) => b.status === 'confirmed').length;
 
@@ -501,7 +512,27 @@ export default function ProfilePage() {
                             <CardPrice>{formatLKR(b.totalPrice?.toFixed(2))}</CardPrice>
 
                           </CardBody>
-                          <CardLink to="/my-tours" />
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                            {b.status === 'cancelled' && (
+                              <button
+                                onClick={() => handleDeleteTour(b._id)}
+                                style={{
+                                  padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                                  background: '#f9fafb', color: '#6b7280', border: '1px solid #e5e7eb',
+                                  cursor: 'pointer', transition: 'all 0.15s',
+                                  display: 'flex', alignItems: 'center', gap: 5,
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#fca5a5'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e5e7eb'; }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
+                                </svg>
+                                Delete
+                              </button>
+                            )}
+                            <CardLink to="/my-tours" />
+                          </div>
                         </BookingCard>
                       ))}
                     </div>

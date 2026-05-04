@@ -16,6 +16,7 @@ export default function MyToursPage() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {
     api.get('/tours/bookings/my').then((r) => { setBookings(r.data); setLoading(false); }).catch(() => setLoading(false));
@@ -32,6 +33,20 @@ export default function MyToursPage() {
       toast.error(err.response?.data?.message || 'Failed to cancel');
     } finally {
       setCancelling(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Permanently delete this cancelled booking? This cannot be undone.')) return;
+    setDeleting(id);
+    try {
+      await api.delete(`/tours/bookings/${id}`);
+      setBookings((prev) => prev.filter((b) => b._id !== id));
+      toast.success('Booking deleted');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete');
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -150,6 +165,29 @@ export default function MyToursPage() {
                         onMouseLeave={(e) => { e.currentTarget.style.background = '#fef2f2'; }}
                       >
                         {cancelling === b._id ? '...' : 'Cancel'}
+                      </button>
+                    </div>
+                  )}
+                  {b.status === 'cancelled' && (
+                    <div style={{ flexShrink: 0, alignSelf: 'center' }}>
+                      <button
+                        onClick={() => handleDelete(b._id)}
+                        disabled={deleting === b._id}
+                        style={{
+                          fontSize: '13px', color: '#6b7280', fontWeight: 600,
+                          background: '#f9fafb', border: '1px solid #e5e7eb',
+                          padding: '8px 16px', borderRadius: '10px', cursor: 'pointer',
+                          opacity: deleting === b._id ? 0.5 : 1,
+                          transition: 'all 0.2s',
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#fca5a5'; e.currentTarget.style.background = '#fef2f2'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#f9fafb'; }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
+                        </svg>
+                        {deleting === b._id ? '...' : 'Delete'}
                       </button>
                     </div>
                   )}
