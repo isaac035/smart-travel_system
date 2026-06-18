@@ -48,3 +48,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+//AI chat route
+const chatRoutes = require("./routes/chatRoutes");
+app.use("/api/chat", chatRoutes);
