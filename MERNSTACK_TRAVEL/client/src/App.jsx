@@ -57,6 +57,7 @@ import AdminSupportPage from './pages/admin/AdminSupportPage';
 import AboutPage from './pages/about/AboutPage';
 import NotFoundPage from './pages/NotFoundPage';
 import EmergencyPage from './pages/emergency/EmergencyPage';
+import ChatPage from './pages/chat/ChatPage';
 
 export default function App() {
   return (
@@ -137,6 +138,9 @@ export default function App() {
               <Route path="/admin/products" element={<AdminRoute><AdminProductsPage /></AdminRoute>} />
               <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
               <Route path="/admin/support" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
+
+              {/* AI Chat Assistant */}
+              <Route path="/chat" element={<ChatPage />} />
 
               {/* 404 */}
               <Route path="*" element={<NotFoundPage />} />
