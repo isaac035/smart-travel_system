@@ -49,6 +49,98 @@ router.post("/", async (req, res) => {
         const { message } = req.body;
         const lowerMessage = message.toLowerCase();
 
+
+
+        // =========================
+// TRIP PLANNER
+// =========================
+if (
+    lowerMessage.includes("plan") ||
+    (
+        lowerMessage.includes("hotel") &&
+        lowerMessage.includes("guide") &&
+        (
+            lowerMessage.includes("package") ||
+            lowerMessage.includes("tour")
+        )
+    )
+) {
+
+    const city = await extractCity(message);
+
+    const hotel = await Hotel.findOne({
+        location: {
+            $regex: city,
+            $options: "i"
+        }
+    });
+
+    const guide = await Guide.findOne({
+        location: {
+            $regex: city,
+            $options: "i"
+        }
+    });
+
+    const tourPackage = await TourPackage.findOne({
+        destination: {
+            $regex: city,
+            $options: "i"
+        }
+    });
+
+    const budgetMatch = message.match(/budget\s*(of)?\s*(\d+)/i);
+
+const budget = budgetMatch
+    ? budgetMatch[2]
+    : "Not Specified";
+
+    const tripPrompt = `
+You are a Sri Lankan tourism assistant.
+
+IMPORTANT:
+Use ONLY the information provided.
+Do NOT invent places, activities, hotels, guides or prices.
+
+City: ${city}
+
+Hotel:
+${hotel ? hotel.name : "Not Available"}
+
+Guide:
+${guide ? guide.name : "Not Available"}
+
+Tour Package:
+${tourPackage ? tourPackage.name : "Not Available"}
+
+Budget:
+${budget}
+
+Provide:
+
+Recommended Hotel
+Recommended Guide
+Recommended Package
+Short Travel Advice
+
+Maximum 120 words.
+`;
+
+    const aiResponse = await axios.post(
+        "http://localhost:11434/api/generate",
+        {
+            model: "phi3:mini",
+            prompt: tripPrompt,
+            stream: false
+        }
+    );
+
+    return res.json({
+        success: true,
+        reply: aiResponse.data.response
+    });
+}
+
         // =========================
         // HOTEL SEARCH
         // =========================

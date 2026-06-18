@@ -1,6 +1,6 @@
 
-import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
+import ChatWidget from '../../components/ChatWidget';
 import api from '../../utils/api';
 
 
@@ -31,6 +31,7 @@ export default function Home() {
   }, [slides.length]);
 
   return (
+    <>
     <Layout>
       {/* HERO SLIDER ) */}
       <div className="slider-container">
@@ -243,5 +244,9 @@ export default function Home() {
         </div>
       </div>
     </Layout>
+
+      {/* Floating Chat Widget */}
+      <ChatWidget />
+    </>
   );
 }
