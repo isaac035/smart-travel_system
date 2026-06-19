@@ -1,398 +1,584 @@
-const { convert } = require("html-to-text");
+const express = require("express");
 const axios = require("axios");
+const { convert } = require("html-to-text");
+
 const Location = require("../models/Location");
 const Hotel = require("../models/Hotel");
 const Guide = require("../models/Guide");
-
 const TourPackage = require("../models/TourPackage");
-const express = require("express");
 
 const router = express.Router();
 
+const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434/api/generate";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "phi3:mini";
+const MAX_RESULTS = 5;
+const INTENTS = ["HOTEL", "GUIDE", "PACKAGE", "LOCATION", "TRIP_PLANNER", "GENERAL_TRAVEL"];
+const PLACE_CACHE_TTL_MS = 1000 * 60 * 5;
 
-async function extractCity(message) {
+let placeNameCache = {
+  names: [],
+  expiresAt: 0,
+};
 
-    const response = await axios.post(
-        "http://localhost:11434/api/generate",
-        {
-            model: "phi3:mini",
-            prompt: `
-Extract only the city or destination name from this message.
+// Lightweight in-memory context. For production at scale, move this to Redis/session storage.
+const conversationMemory = new Map();
+const MEMORY_TTL_MS = 1000 * 60 * 30;
 
-Message:
-${message}
-
-Rules:
-- Return only the city name.
-- No explanation.
-- No extra words.
-- Example:
-  recommend hotel in colombo -> Colombo
-  find guide in anuradhapura -> Anuradhapura
-`,
-            stream: false
-        }
-    );
-
-    return response.data.response
-        .trim()
-        .replace("The city is", "")
-        .replace("City:", "")
-        .trim();
+function getMemoryKey(req) {
+  return req.user?._id?.toString() || req.ip || "anonymous";
 }
 
+function getConversationContext(req) {
+  const key = getMemoryKey(req);
+  const context = conversationMemory.get(key);
 
+  if (!context || Date.now() - context.updatedAt > MEMORY_TTL_MS) {
+    const freshContext = { lastDetectedCity: null, lastDetectedIntent: null, updatedAt: Date.now() };
+    conversationMemory.set(key, freshContext);
+    return freshContext;
+  }
 
+  return context;
+}
 
-router.post("/", async (req, res) => {
-    try {
-        const { message } = req.body;
-        const lowerMessage = message.toLowerCase();
+function updateConversationContext(req, { city, intent }) {
+  const key = getMemoryKey(req);
+  const previous = getConversationContext(req);
 
+  conversationMemory.set(key, {
+    lastDetectedCity: city || previous.lastDetectedCity,
+    lastDetectedIntent: intent || previous.lastDetectedIntent,
+    updatedAt: Date.now(),
+  });
+}
 
+function escapeRegex(value = "") {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
-        // =========================
-// TRIP PLANNER
-// =========================
-if (
-    lowerMessage.includes("plan") ||
-    (
-        lowerMessage.includes("hotel") &&
-        lowerMessage.includes("guide") &&
-        (
-            lowerMessage.includes("package") ||
-            lowerMessage.includes("tour")
-        )
-    )
-) {
+function createFlexibleRegex(value = "") {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  return new RegExp(escapeRegex(cleaned).replace(/\\ /g, "\\s+"), "i");
+}
 
-    const city = await extractCity(message);
+function cleanText(value = "") {
+  return convert(String(value || ""), { wordwrap: false }).replace(/\s+/g, " ").trim();
+}
 
-    const hotel = await Hotel.findOne({
-        location: {
-            $regex: city,
-            $options: "i"
-        }
-    });
+function normalizeCity(value = "") {
+  return String(value)
+    .replace(/^(city|destination|place)\s*:\s*/i, "")
+    .replace(/^the\s+(city|destination|place)\s+is\s+/i, "")
+    .replace(/[."']/g, "")
+    .trim();
+}
 
-    const guide = await Guide.findOne({
-        location: {
-            $regex: city,
-            $options: "i"
-        }
-    });
+async function callOllama(prompt, options = {}) {
+  try {
+    const response = await axios.post(
+      OLLAMA_URL,
+      {
+        model: OLLAMA_MODEL,
+        prompt,
+        stream: false,
+        options: {
+          temperature: options.temperature ?? 0.2,
+          num_predict: options.numPredict ?? 350,
+        },
+      },
+      { timeout: options.timeout ?? 45000 }
+    );
 
-    const tourPackage = await TourPackage.findOne({
-        destination: {
-            $regex: city,
-            $options: "i"
-        }
-    });
+    return String(response.data?.response || "").trim();
+  } catch (error) {
+    console.error("Ollama request failed:", error.message);
+    throw new Error("OLLAMA_FAILURE");
+  }
+}
 
-    const budgetMatch = message.match(/budget\s*(of)?\s*(\d+)/i);
+function detectIntentByRules(message) {
+  const lower = message.toLowerCase();
 
-const budget = budgetMatch
-    ? budgetMatch[2]
-    : "Not Specified";
+  if (/\b(plan|itinerary|trip|travel plan|day trip|days)\b/i.test(lower)) return "TRIP_PLANNER";
+  if (/\b(hotel|stay|accommodation|room|resort|villa|guest house|where should i stay)\b/i.test(lower)) return "HOTEL";
+  if (/\b(guide|tour guide|local guide|driver guide)\b/i.test(lower)) return "GUIDE";
+  if (/\b(package|tour package|tour|bundle)\b/i.test(lower)) return "PACKAGE";
+  if (/\b(tell me about|what is|explain|describe|information about|attraction|place|location)\b/i.test(lower)) return "LOCATION";
 
-    const tripPrompt = `
-You are a Sri Lankan tourism assistant.
+  return null;
+}
 
-IMPORTANT:
-Use ONLY the information provided.
-Do NOT invent places, activities, hotels, guides or prices.
+async function detectIntent(message) {
+  const ruleIntent = detectIntentByRules(message);
+  if (ruleIntent) return ruleIntent;
 
-City: ${city}
+  const prompt = `
+Classify the travel question into exactly one intent.
 
-Hotel:
-${hotel ? hotel.name : "Not Available"}
+Supported intents:
+HOTEL, GUIDE, PACKAGE, LOCATION, TRIP_PLANNER, GENERAL_TRAVEL
 
-Guide:
-${guide ? guide.name : "Not Available"}
+Rules:
+- Return only one intent label.
+- HOTEL means hotels, stays, accommodation, rooms.
+- GUIDE means tour guides or local guides.
+- PACKAGE means tour packages or package recommendations.
+- LOCATION means information about a place or attraction.
+- TRIP_PLANNER means planning a multi-day trip, itinerary, or budget plan.
+- GENERAL_TRAVEL means general Sri Lanka travel advice.
 
-Tour Package:
-${tourPackage ? tourPackage.name : "Not Available"}
+Message: "${message}"
+`;
 
-Budget:
-${budget}
+  const response = await callOllama(prompt, { numPredict: 20, temperature: 0 });
+  const intent = response.toUpperCase().replace(/[^A-Z_]/g, "");
 
-Provide:
+  return INTENTS.includes(intent) ? intent : "GENERAL_TRAVEL";
+}
 
+async function getKnownPlaceNames() {
+  if (placeNameCache.expiresAt > Date.now() && placeNameCache.names.length) {
+    return placeNameCache.names;
+  }
+
+  const [locations, hotels, guides, packages] = await Promise.all([
+    Location.find({}, "name district province").lean(),
+    Hotel.find({}, "location").lean(),
+    Guide.find({}, "location").lean(),
+    TourPackage.find({}, "destination").lean(),
+  ]);
+
+  const names = new Set();
+  const addName = (value) => {
+    const normalized = normalizeCity(value);
+    if (normalized && normalized.length > 1) names.add(normalized);
+  };
+
+  locations.forEach((item) => {
+    addName(item.name);
+    addName(item.district);
+    addName(item.province);
+  });
+  hotels.forEach((item) => addName(item.location));
+  guides.forEach((item) => addName(item.location));
+  packages.forEach((item) => addName(item.destination));
+
+  const sortedNames = [...names].sort((a, b) => b.length - a.length);
+  placeNameCache = {
+    names: sortedNames,
+    expiresAt: Date.now() + PLACE_CACHE_TTL_MS,
+  };
+
+  return sortedNames;
+}
+
+async function extractCityWithAI(message) {
+  const prompt = `
+Extract the Sri Lankan city, destination, town, district, or attraction name from this message.
+
+Rules:
+- Return only the place name.
+- If no place is mentioned, return NONE.
+- Do not explain.
+
+Message: "${message}"
+`;
+
+  const response = await callOllama(prompt, { numPredict: 30, temperature: 0 });
+  const city = normalizeCity(response);
+
+  if (!city || /^none$/i.test(city)) return null;
+  return city;
+}
+
+async function detectCity(message, context = {}) {
+  const knownNames = await getKnownPlaceNames();
+  const lowerMessage = message.toLowerCase();
+
+  const directMatch = knownNames.find((name) => {
+    const pattern = new RegExp(`(^|[^a-z])${escapeRegex(name.toLowerCase())}([^a-z]|$)`, "i");
+    return pattern.test(lowerMessage);
+  });
+
+  if (directMatch) return directMatch;
+
+  if (/\b(there|that city|that place|same place|same city)\b/i.test(message) && context.lastDetectedCity) {
+    return context.lastDetectedCity;
+  }
+
+  return extractCityWithAI(message);
+}
+
+function extractBudget(message) {
+  const budgetMatch = message.match(/(?:budget(?:\s+of)?|under|below|around|max(?:imum)?|up to)\s*(?:lkr|rs\.?)?\s*([0-9][0-9,.]*)\s*(?:lkr|rs\.?|rupees)?/i);
+  const currencyMatch = message.match(/(?:lkr|rs\.?)\s*([0-9][0-9,.]*)|([0-9][0-9,.]*)\s*(?:lkr|rs\.?|rupees)/i);
+  const largeNumberMatch = message.match(/\b([1-9][0-9]{3,}(?:,[0-9]{3})*)\b/);
+  const match = budgetMatch || currencyMatch || largeNumberMatch;
+  if (!match) return null;
+
+  const amount = match[1] || match[2];
+  const value = Number(amount.replace(/,/g, ""));
+  return Number.isFinite(value) ? value : null;
+}
+
+function extractDays(message) {
+  const match = message.match(/\b(\d{1,2})\s*(?:day|days|night|nights)\b/i);
+  if (!match) return null;
+
+  const days = Number(match[1]);
+  return Number.isFinite(days) && days > 0 ? days : null;
+}
+
+function hotelProjection(hotel) {
+  return {
+    name: hotel.name,
+    location: hotel.location,
+    starRating: hotel.starRating,
+    averageRating: hotel.averageRating,
+    pricePerNight: hotel.pricePerNight,
+    amenities: hotel.amenities || [],
+    description: cleanText(hotel.description),
+  };
+}
+
+function guideProjection(guide) {
+  return {
+    name: guide.name,
+    location: guide.location,
+    languages: guide.languages || [],
+    experience: guide.experience,
+    pricePerDay: guide.pricePerDay,
+    bio: cleanText(guide.bio),
+  };
+}
+
+function packageProjection(tourPackage) {
+  return {
+    name: tourPackage.name,
+    destination: tourPackage.destination,
+    duration: tourPackage.duration,
+    basePrice: tourPackage.basePrice,
+    description: cleanText(tourPackage.description),
+    includes: tourPackage.includes || [],
+  };
+}
+
+function locationProjection(location) {
+  return {
+    name: location.name,
+    category: location.category,
+    district: location.district,
+    province: location.province,
+    description: cleanText(location.description),
+  };
+}
+
+async function searchHotels(city) {
+  if (!city) return [];
+  const regex = createFlexibleRegex(city);
+
+  const hotels = await Hotel.find({
+    isActive: { $ne: false },
+    $and: [
+      {
+        $or: [
+          { approvalStatus: "approved" },
+          { approvalStatus: { $exists: false } },
+          { hotelOwnerId: { $exists: false } },
+        ],
+      },
+      {
+        $or: [{ location: regex }, { name: regex }, { address: regex }],
+      },
+    ],
+  })
+    .sort({ averageRating: -1, starRating: -1, pricePerNight: 1 })
+    .limit(MAX_RESULTS)
+    .lean();
+
+  return hotels.map(hotelProjection);
+}
+
+async function searchGuides(city) {
+  if (!city) return [];
+  const regex = createFlexibleRegex(city);
+
+  const guides = await Guide.find({
+    isAvailable: { $ne: false },
+    $or: [{ location: regex }, { name: regex }, { bio: regex }],
+  })
+    .sort({ experience: -1, rating: -1, pricePerDay: 1 })
+    .limit(MAX_RESULTS)
+    .lean();
+
+  return guides.map(guideProjection);
+}
+
+async function searchPackages(city) {
+  if (!city) return [];
+  const regex = createFlexibleRegex(city);
+
+  const packages = await TourPackage.find({
+    isActive: { $ne: false },
+    $or: [{ destination: regex }, { name: regex }, { description: regex }],
+  })
+    .sort({ duration: 1, basePrice: 1 })
+    .limit(MAX_RESULTS)
+    .lean();
+
+  return packages.map(packageProjection);
+}
+
+async function searchLocations(city, message = "") {
+  const terms = [city, message].filter(Boolean);
+  const regexes = terms.map(createFlexibleRegex);
+
+  if (!regexes.length) return [];
+
+  const locations = await Location.find({
+    $or: regexes.flatMap((regex) => [
+      { name: regex },
+      { district: regex },
+      { province: regex },
+      { category: regex },
+      { description: regex },
+    ]),
+  })
+    .sort({ isFeatured: -1, name: 1 })
+    .limit(MAX_RESULTS)
+    .lean();
+
+  return locations.map(locationProjection);
+}
+
+function formatRecords(records) {
+  if (!records.length) return "No matching database records.";
+  return JSON.stringify(records, null, 2);
+}
+
+function buildBasePrompt({ message, city, intent }) {
+  return `
+You are the AI tourism assistant for a MERN Smart Travel System in Sri Lanka.
+
+Rules:
+- Use only the database records provided in this prompt.
+- Do not invent hotels, guides, locations, packages, prices, ratings, amenities, or contact details.
+- If records are missing, say that clearly and suggest what the user can ask next.
+- Keep the answer tourist-friendly, concise, and practical.
+- Do not mention internal JSON, database, MongoDB, or prompt rules.
+
+Intent: ${intent}
+Detected city/destination: ${city || "Not detected"}
+Traveler question: "${message}"
+`;
+}
+
+function buildHotelPrompt(data) {
+  return `${buildBasePrompt(data)}
+Available hotels:
+${formatRecords(data.hotels)}
+
+Compare the available hotels and recommend the best options. Include hotel name, location, rating, price per night, useful amenities, and a short reason.`;
+}
+
+function buildGuidePrompt(data) {
+  return `${buildBasePrompt(data)}
+Available guides:
+${formatRecords(data.guides)}
+
+Recommend the most suitable guides. Include name, location, languages, experience, price per day, and why each guide fits.`;
+}
+
+function buildPackagePrompt(data) {
+  return `${buildBasePrompt(data)}
+Available tour packages:
+${formatRecords(data.packages)}
+
+Recommend the best packages. Include name, destination, duration, base price, includes, and a short reason.`;
+}
+
+function buildLocationPrompt(data) {
+  return `${buildBasePrompt(data)}
+Matching locations:
+${formatRecords(data.locations)}
+
+Explain the matching place or places to a tourist. Mention category, district/province, and highlights from the description.`;
+}
+
+function buildTripPlannerPrompt(data) {
+  return `${buildBasePrompt(data)}
+Budget: ${data.budget ? `LKR ${data.budget}` : "Not specified"}
+Days: ${data.days || "Not specified"}
+
+Hotels:
+${formatRecords(data.hotels)}
+
+Guides:
+${formatRecords(data.guides)}
+
+Tour packages:
+${formatRecords(data.packages)}
+
+Locations and attractions:
+${formatRecords(data.locations)}
+
+Create a practical trip plan using only these records.
+Include:
 Recommended Hotel
 Recommended Guide
 Recommended Package
-Short Travel Advice
-
-Maximum 120 words.
-`;
-
-    const aiResponse = await axios.post(
-        "http://localhost:11434/api/generate",
-        {
-            model: "phi3:mini",
-            prompt: tripPrompt,
-            stream: false
-        }
-    );
-
-    return res.json({
-        success: true,
-        reply: aiResponse.data.response
-    });
+Suggested Attractions
+Budget Advice
+Travel Tips`;
 }
 
-        // =========================
-        // HOTEL SEARCH
-        // =========================
-        if (lowerMessage.includes("hotel")) {
+function buildGeneralPrompt(data) {
+  return `${buildBasePrompt(data)}
+Relevant locations:
+${formatRecords(data.locations)}
 
-           const city = await extractCity(message);
-
-console.log("Detected City:", city);
-
-            const hotel = await Hotel.findOne({
-                location: {
-                    $regex: city,
-                    $options: "i"
-                }
-            });
-
-            if (!hotel) {
-                return res.json({
-                    success: false,
-                    reply: "No hotel found"
-                });
-            }
-
-            const hotelPrompt = `
-You are a tourism assistant for a Sri Lankan travel website.
-
-Rules:
-- Be friendly.
-- Keep answers under 150 words.
-- Do not write letters.
-- Do not say "Dear Guest".
-- Do not add greetings or signatures.
-- Give direct travel recommendations.
-
-Hotel Name:
-${hotel.name}
-
-Location:
-${hotel.location}
-
-Description:
-${hotel.description}
-
-Price Per Night:
-LKR ${hotel.pricePerNight}
-
-Recommend this hotel.
-`;
-
-
-            
-
-            const aiResponse = await axios.post(
-                "http://localhost:11434/api/generate",
-                {
-                    model: "phi3:mini",
-                    prompt: hotelPrompt,
-                    stream: false
-                }
-            );
-
-            return res.json({
-                success: true,
-                reply: aiResponse.data.response
-            });
-        }
-
-        //Guide Search
-        if (lowerMessage.includes("guide")) {
-
-    const city = await extractCity(message);
-
-console.log("Guide City:", city);
-
-    const guide = await Guide.findOne({
-        location: {
-            $regex: city,
-            $options: "i"
-        }
-    });
-
-    if (!guide) {
-        return res.json({
-            success: false,
-            reply: "No guide found"
-        });
-    }
-
-    const guidePrompt = `
-You are a tourism assistant.
-
-Recommend this guide.
-
-Guide Name:
-${guide.name}
-
-Location:
-${guide.location}
-
-Experience:
-${guide.experience} years
-
-Languages:
-${guide.languages.join(", ")}
-
-Bio:
-${guide.bio}
-
-Price Per Day:
-${guide.pricePerDay} Sri Lankan Rupees
-
-Give a short recommendation.
-`;
-
-    const aiResponse = await axios.post(
-        "http://localhost:11434/api/generate",
-        {
-            model: "phi3:mini",
-            prompt: guidePrompt,
-            stream: false
-        }
-    );
-
-    return res.json({
-        success: true,
-        reply: aiResponse.data.response
-    });
+Answer as a Sri Lanka travel assistant. If there are relevant location records, use them. If not, give general travel guidance without inventing specific database items.`;
 }
 
+async function generateAIResponse(prompt) {
+  return callOllama(prompt, { temperature: 0.25, numPredict: 450 });
+}
 
-        //tour package search
-    if (
-    lowerMessage.includes("package") ||
-    lowerMessage.includes("tour")
-) {
+function missingCityReply(intent) {
+  const topic = {
+    HOTEL: "hotels",
+    GUIDE: "guides",
+    PACKAGE: "tour packages",
+    LOCATION: "locations",
+    TRIP_PLANNER: "a trip plan",
+  }[intent] || "travel help";
 
-    const destination = await extractCity(message);
+  return `Which city or destination should I use for ${topic}? For example: Colombo, Kandy, Ella, Sigiriya, Anuradhapura, or Galle.`;
+}
 
-console.log("Package City:", destination);
+function noResultsReply(intent, city) {
+  const topic = {
+    HOTEL: "hotels",
+    GUIDE: "guides",
+    PACKAGE: "tour packages",
+    LOCATION: "locations",
+    TRIP_PLANNER: "enough travel records",
+  }[intent] || "matching records";
 
-    const tourPackage = await TourPackage.findOne({
-        destination: {
-            $regex: destination,
-            $options: "i"
-        }
-    });
+  return `I could not find ${topic} for ${city} in the system yet. Try another nearby destination or add more records for ${city}.`;
+}
 
-    if (!tourPackage) {
-        return res.json({
-            success: false,
-            reply: "No tour package found"
-        });
+async function collectData({ intent, city, message }) {
+  const data = { hotels: [], guides: [], packages: [], locations: [] };
+
+  if (intent === "HOTEL") data.hotels = await searchHotels(city);
+  if (intent === "GUIDE") data.guides = await searchGuides(city);
+  if (intent === "PACKAGE") data.packages = await searchPackages(city);
+  if (intent === "LOCATION") data.locations = await searchLocations(city, message);
+
+  if (intent === "TRIP_PLANNER") {
+    const [hotels, guides, packages, locations] = await Promise.all([
+      searchHotels(city),
+      searchGuides(city),
+      searchPackages(city),
+      searchLocations(city, message),
+    ]);
+
+    data.hotels = hotels;
+    data.guides = guides;
+    data.packages = packages;
+    data.locations = locations;
+  }
+
+  if (intent === "GENERAL_TRAVEL") {
+    data.locations = city ? await searchLocations(city, message) : [];
+  }
+
+  return data;
+}
+
+function hasRequiredResults(intent, data) {
+  if (intent === "HOTEL") return data.hotels.length > 0;
+  if (intent === "GUIDE") return data.guides.length > 0;
+  if (intent === "PACKAGE") return data.packages.length > 0;
+  if (intent === "LOCATION") return data.locations.length > 0;
+  if (intent === "TRIP_PLANNER") {
+    return data.hotels.length || data.guides.length || data.packages.length || data.locations.length;
+  }
+  return true;
+}
+
+function buildPromptByIntent(intent, payload) {
+  if (intent === "HOTEL") return buildHotelPrompt(payload);
+  if (intent === "GUIDE") return buildGuidePrompt(payload);
+  if (intent === "PACKAGE") return buildPackagePrompt(payload);
+  if (intent === "LOCATION") return buildLocationPrompt(payload);
+  if (intent === "TRIP_PLANNER") return buildTripPlannerPrompt(payload);
+  return buildGeneralPrompt(payload);
+}
+
+router.post("/", async (req, res) => {
+  try {
+    const message = String(req.body?.message || "").trim();
+
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        reply: "Please send a valid travel question in the message field.",
+      });
     }
 
-    const packagePrompt = `
-You are a tourism assistant.
+    const context = getConversationContext(req);
+    const intent = await detectIntent(message);
+    const city = await detectCity(message, context);
+    const budget = extractBudget(message);
+    const days = extractDays(message);
 
-Rules:
-- Give only ONE recommendation.
-- Maximum 100 words.
-- Do not repeat information.
-- Use one paragraph only.
+    const requiresCity = ["HOTEL", "GUIDE", "PACKAGE", "LOCATION", "TRIP_PLANNER"].includes(intent);
+    if (requiresCity && !city) {
+      updateConversationContext(req, { intent });
+      return res.json({ success: true, reply: missingCityReply(intent) });
+    }
 
-Package Name:
-${tourPackage.name}
+    const data = await collectData({ intent, city, message });
 
-Destination:
-${tourPackage.destination}
+    if (!hasRequiredResults(intent, data)) {
+      updateConversationContext(req, { city, intent });
+      return res.json({ success: true, reply: noResultsReply(intent, city) });
+    }
 
-Duration:
-${tourPackage.duration} days
+    const prompt = buildPromptByIntent(intent, {
+      message,
+      city,
+      intent,
+      budget,
+      days,
+      ...data,
+    });
 
-Description:
-${tourPackage.description}
+    const reply = await generateAIResponse(prompt);
 
-Base Price:
-LKR ${tourPackage.basePrice}
-
-Recommend this package.
-`;
-
-    const aiResponse = await axios.post(
-        "http://localhost:11434/api/generate",
-        {
-            model: "phi3:mini",
-            prompt: packagePrompt,
-            stream: false
-        }
-    );
+    updateConversationContext(req, { city, intent });
 
     return res.json({
-        success: true,
-        reply: aiResponse.data.response
+      success: true,
+      reply,
     });
-}
-        // =========================
-        // LOCATION SEARCH
-        // =========================
-        const location = await Location.findOne({
-            name: { $regex: message, $options: "i" }
-        });
+  } catch (error) {
+    console.error("Chat route error:", error);
 
-        if (!location) {
-            return res.json({
-                success: false,
-                reply: "Location not found"
-            });
-        }
-
-        const cleanDescription = convert(
-            location.description,
-            {
-                wordwrap: false
-            }
-        );
-
-        const locationPrompt = `
-You are a Sri Lankan tourism assistant.
-
-Use ONLY the information below.
-
-Location Name:
-${location.name}
-
-Description:
-${cleanDescription}
-
-Explain this place to a tourist in a friendly way.
-`;
-
-        const aiResponse = await axios.post(
-            "http://localhost:11434/api/generate",
-            {
-                model: "phi3:mini",
-                prompt: locationPrompt,
-                stream: false
-            }
-        );
-
-        return res.json({
-            success: true,
-            reply: aiResponse.data.response
-        });
-
-    } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            success: false,
-            reply: "Server Error"
-        });
+    if (error.message === "OLLAMA_FAILURE") {
+      return res.status(503).json({
+        success: false,
+        reply: "The AI assistant is temporarily unavailable. Please make sure Ollama is running and try again.",
+      });
     }
+
+    return res.status(500).json({
+      success: false,
+      reply: "I could not process your travel request right now. Please try again shortly.",
+    });
+  }
 });
 
 module.exports = router;
